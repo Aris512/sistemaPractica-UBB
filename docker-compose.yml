@@ -1,0 +1,17 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: proyecto-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: proyecto_db
+      MYSQL_USER: proyecto_user
+      MYSQL_PASSWORD: proyecto_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
