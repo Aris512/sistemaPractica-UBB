@@ -510,16 +510,16 @@ docker compose up -d
 
 En otra terminal:
 
-```bash
+```
 cd backend
-mvn spring-boot:run
+.\mvnw.cmd spring-boot:run
 ```
 
 ### Paso 4 — Iniciar Frontend
 
 En otra terminal:
 
-```bash
+```
 cd frontend
 npm run dev
 ```
