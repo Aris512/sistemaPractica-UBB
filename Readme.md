@@ -2,7 +2,7 @@
 
 Sistema web desarrollado como proyecto Full Stack utilizando **Spring Boot**, **React**, **MySQL** y **Docker**.
 
-> **Estado actual:** configuración inicial del proyecto y conexión Backend → MySQL funcionando. El módulo `Usuario` corresponde únicamente a una prueba técnica de conexión y persistencia, por lo que no representa todavía una funcionalidad definitiva del sistema.
+
 
 ---
 
@@ -157,44 +157,8 @@ proyectoU/
 
 ---
 
-# 4. Arquitectura del proyecto
 
-La aplicación está dividida en tres partes principales:
-
-```text
-                    ┌─────────────────────┐
-                    │      FRONTEND       │
-                    │                     │
-                    │ React + TypeScript  │
-                    │ Vite + Tailwind     │
-                    │ shadcn/ui           │
-                    └──────────┬──────────┘
-                               │
-                               │ HTTP / REST API
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │       BACKEND       │
-                    │                     │
-                    │    Spring Boot      │
-                    │    Spring Web       │
-                    │    Spring Data JPA  │
-                    └──────────┬──────────┘
-                               │
-                               │ JDBC / JPA
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │      DATABASE       │
-                    │                     │
-                    │      MySQL 8.4      │
-                    │      Docker         │
-                    └─────────────────────┘
-```
-
----
-
-# 5. Configuración de MySQL
+# 4. Configuración de MySQL
 
 MySQL se ejecuta mediante Docker Compose.
 
@@ -235,7 +199,98 @@ Base datos: proyecto_db
 Usuario:    proyecto_user
 Password:   proyecto_pass
 ```
+# 5. Iniciar el proyecto
 
+Cada vez que se quiera trabajar en el proyecto:
+
+### Paso 1 — Iniciar Docker
+
+Abrir Docker Desktop.
+
+### Paso 2 — Iniciar MySQL
+
+Desde la raíz:
+del proyecto \proyectoU> 
+
+```bash
+docker compose up -d
+```
+
+### Paso 3 — Iniciar Backend
+
+En otra terminal:
+
+```
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+### Paso 4 — Iniciar Frontend
+
+En otra terminal:
+
+```
+cd frontend
+npm run dev
+```
+
+### Paso 5 — Abrir el sistema
+
+Frontend:
+
+```text
+http://localhost:5173
+```
+
+Backend:
+
+```text
+http://localhost:8080
+```
+### Paso 6 — En caso que powershell de error con el comando que usan
+
+Verificar todo 
+```text
+git --version
+java -version
+node -v
+npm -v
+docker --version
+docker compose version
+```
+si git no esta instalado, 
+abrir las variables de entorno
+```text
+window + R
+```
+```text
+sysdm.cpl 
+```
+Entrar a variables de entorno, ve a 
+```text
+Opciones avanzadas
+        ↓
+Variables de entorno...
+```
+busca path
+Luego en editar 
+presiona Nuevo 
+y agrega
+```text
+C:\Program Files\Git\cmd
+```
+
+Para node, los mismos pasos
+```text
+C:\Program Files\nodejs\
+```
+
+para npm, los mismos pasos pero con 
+```text
+%AppData%\npm
+```
+
+---
 ---
 
 # 6. Ejecutar MySQL
@@ -490,57 +545,9 @@ DELETE http://localhost:8080/api/usuarios/{id}
 
 ---
 
-# 13. Orden recomendado para iniciar el proyecto
 
-Cada vez que se quiera trabajar en el proyecto:
 
-### Paso 1 — Iniciar Docker
-
-Abrir Docker Desktop.
-
-### Paso 2 — Iniciar MySQL
-
-Desde la raíz:
-
-```bash
-docker compose up -d
-```
-
-### Paso 3 — Iniciar Backend
-
-En otra terminal:
-
-```
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-### Paso 4 — Iniciar Frontend
-
-En otra terminal:
-
-```
-cd frontend
-npm run dev
-```
-
-### Paso 5 — Abrir el sistema
-
-Frontend:
-
-```text
-http://localhost:5173
-```
-
-Backend:
-
-```text
-http://localhost:8080
-```
-
----
-
-# 14. Puertos utilizados
+# 15. Puertos utilizados
 
 | Servicio | Puerto |
 |---|---:|
@@ -550,7 +557,7 @@ http://localhost:8080
 
 ---
 
-# 15. Comandos útiles
+# 16. Comandos útiles
 
 ## Docker
 
