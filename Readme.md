@@ -2,130 +2,63 @@
 
 Sistema web desarrollado como proyecto Full Stack utilizando **Spring Boot**, **React**, **MySQL** y **Docker**.
 
+---
 
+## 1. Pasos de ejecución del proyecto
+
+Para levantar el entorno de desarrollo completo:
+
+### Paso 1 — Iniciar Docker
+Asegurarse de tener **Docker Desktop** abierto y en ejecución.
+
+### Paso 2 — Iniciar la Base de Datos (MySQL)
+Desde la raíz del proyecto:
+```bash
+docker compose up -d
+```
+
+### Paso 3 — Iniciar el Backend
+En una terminal:
+```bash
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+*(O `mvn spring-boot:run` si cuentas con Maven instalado globalmente).*
+
+### Paso 4 — Iniciar el Frontend
+En otra terminal:
+```bash
+cd frontend
+npm run dev
+```
+
+### Paso 5 — Abrir la aplicación
+- **Frontend:** [http://localhost:5173](http://localhost:5173)
+- **Backend (API):** [http://localhost:8080](http://localhost:8080)
 
 ---
 
-## 1. Tecnologías utilizadas
+## 2. Requisitos previos
 
-### Backend
+Antes de ejecutar el proyecto, verificar las instalaciones necesarias:
 
-- Java 21
-- Spring Boot
-- Spring Web
-- Spring Data JPA
-- Hibernate
-- Maven
-- MySQL Connector/J
-
-### Frontend
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- shadcn/ui
-- Base UI
-- Lucide Icons
-
-### Base de datos
-
-- MySQL 8.4
-- Docker
-- Docker Compose
-- MySQL Workbench *(opcional, recomendado para visualizar la base de datos)*
+- **Java 21** y **Maven** (`java -version`, `mvn -version`)
+- **Node.js (versión LTS)** y **npm** (`node -v`, `npm -v`)
+- **Docker Desktop** y **Docker Compose** (`docker --version`, `docker compose version`)
+- **Git** (`git --version`)
+- **MySQL Workbench** *(opcional, para visualizar la base de datos)*
 
 ---
 
-# 2. Requisitos previos
+## 3. Tecnologías utilizadas
 
-Antes de ejecutar el proyecto se debe tener instalado:
-
-## Java
-
-Se recomienda:
-
-```text
-Java 21
-```
-
-Verificar instalación:
-
-```bash
-java -version
-```
-
-También se puede verificar Maven:
-
-```bash
-mvn -version
-```
+- **Backend:** Java 21, Spring Boot, Spring Web, Spring Data JPA, Hibernate, Maven, MySQL Connector/J.
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui, Base UI, Lucide Icons.
+- **Base de Datos & Contenedores:** MySQL 8.4, Docker, Docker Compose.
 
 ---
 
-## Node.js
-
-Se necesita Node.js para ejecutar el frontend.
-
-Verificar:
-
-```bash
-node -v
-```
-
-y:
-
-```bash
-npm -v
-```
-
-Se recomienda utilizar una versión LTS de Node.js.
-
----
-
-## Docker Desktop
-
-Docker es necesario para ejecutar MySQL mediante Docker Compose.
-
-Verificar:
-
-```bash
-docker --version
-```
-
-y:
-
-```bash
-docker compose version
-```
-
-Docker Desktop debe estar iniciado antes de levantar la base de datos.
-
----
-
-## MySQL Workbench
-
-Es opcional.
-
-Se recomienda utilizarlo para revisar visualmente las tablas, registros y estructura de la base de datos.
-
----
-
-## Git
-
-Es opcional para trabajar con el repositorio.
-
-Verificar:
-
-```bash
-git --version
-```
-
----
-
-# 3. Estructura del proyecto
-
-Actualmente el proyecto tiene la siguiente estructura:
+## 4. Estructura del proyecto
 
 ```text
 proyectoU/
@@ -157,543 +90,72 @@ proyectoU/
 
 ---
 
+## 5. Configuración de MySQL
 
-# 4. Configuración de MySQL
+MySQL se ejecuta mediante Docker Compose con los siguientes parámetros de conexión:
 
-MySQL se ejecuta mediante Docker Compose.
-
-El archivo:
-
-```text
-docker-compose.yml
-```
-
-contiene actualmente:
-
-```yaml
-services:
-  mysql:
-    image: mysql:8.4
-    container_name: proyecto-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: proyecto_db
-      MYSQL_USER: proyecto_user
-      MYSQL_PASSWORD: proyecto_pass
-      MYSQL_ROOT_PASSWORD: root_pass
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-volumes:
-  mysql_data:
-```
-
-## Datos de conexión
-
-```text
-Host:       127.0.0.1
-Puerto:     3306
-Base datos: proyecto_db
-Usuario:    proyecto_user
-Password:   proyecto_pass
-```
-# 5. Iniciar el proyecto
-
-Cada vez que se quiera trabajar en el proyecto:
-
-### Paso 1 — Iniciar Docker
-
-Abrir Docker Desktop.
-
-### Paso 2 — Iniciar MySQL
-
-Desde la raíz:
-del proyecto \proyectoU> 
-
-```bash
-docker compose up -d
-```
-
-### Paso 3 — Iniciar Backend
-
-En otra terminal:
-
-```
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-### Paso 4 — Iniciar Frontend
-
-En otra terminal:
-
-```
-cd frontend
-npm run dev
-```
-
-### Paso 5 — Abrir el sistema
-
-Frontend:
-
-```text
-http://localhost:5173
-```
-
-Backend:
-
-```text
-http://localhost:8080
-```
-### Paso 6 — En caso que powershell de error con el comando que usan
-
-Verificar todo 
-```text
-git --version
-java -version
-node -v
-npm -v
-docker --version
-docker compose version
-```
-si git no esta instalado, 
-abrir las variables de entorno
-```text
-window + R
-```
-```text
-sysdm.cpl 
-```
-Entrar a variables de entorno, ve a 
-```text
-Opciones avanzadas
-        ↓
-Variables de entorno...
-```
-busca path
-Luego en editar 
-presiona Nuevo 
-y agrega
-```text
-C:\Program Files\Git\cmd
-```
-
-Para node, los mismos pasos
-```text
-C:\Program Files\nodejs\
-```
-
-para npm, los mismos pasos pero con 
-```text
-%AppData%\npm
-```
-
----
----
-
-# 6. Ejecutar MySQL
-
-Desde la carpeta raíz del proyecto:
-
-```bash
-docker compose up -d
-```
-
-Comprobar que el contenedor está funcionando:
-
-```bash
-docker ps
-```
-
-Debería aparecer:
-
-```text
-proyecto-mysql
-```
-
-Para detener MySQL:
-
-```bash
-docker compose down
-```
-
-Para detenerlo sin eliminar los datos:
-
-```bash
-docker compose down
-```
-
-Los datos se almacenan en el volumen:
-
-```text
-mysql_data
-```
+- **Host:** `127.0.0.1`
+- **Puerto:** `3306`
+- **Base de datos:** `proyecto_db`
+- **Usuario:** `proyecto_user`
+- **Contraseña:** `proyecto_pass`
+- **Root Password:** `root_pass`
+- **Volumen de datos:** `mysql_data`
 
 ---
 
-# 7. Ejecutar el Backend
+## 6. Componentes del Frontend (shadcn/ui)
 
-Entrar a la carpeta:
+Los componentes de interfaz residen en `frontend/src/components/ui/`.
 
+Para añadir nuevos componentes mediante el CLI de shadcn/ui, ejecutar desde la carpeta `frontend`:
 ```bash
-cd backend
+npx shadcn@latest add [componente]
 ```
-
-En Windows también se puede utilizar:
-
-```powershell
-cd .\backend
-```
-
-Ejecutar Spring Boot:
-
-```bash
-mvn spring-boot:run
-```
-
-El backend estará disponible en:
-
-```text
-http://localhost:8080
-```
-
----
-
-## Configuración del Backend
-
-Actualmente la conexión está configurada en:
-
-```text
-backend/src/main/resources/application.properties
-```
-
-Configuración actual:
-
-```properties
-spring.application.name=backend
-
-spring.datasource.url=jdbc:mysql://localhost:3306/proyecto_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-spring.datasource.username=proyecto_user
-spring.datasource.password=proyecto_pass
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.format_sql=true
-```
-
-> Para un entorno de producción se deberán utilizar variables de entorno o un sistema seguro de configuración de credenciales.
-
----
-
-# 8. Ejecutar el Frontend
-
-Entrar a:
-
-```bash
-cd frontend
-```
-
-Instalar las dependencias:
-
-```bash
-npm install
-```
-
-Ejecutar el servidor de desarrollo:
-
-```bash
-npm run dev
-```
-
-Vite mostrará una dirección similar a:
-
-```text
-http://localhost:5173
-```
-
-Abrir dicha dirección en el navegador.
-
----
-
-# 9. Dependencias principales del Frontend
-
-El frontend utiliza:
-
-### React
-
-Framework/librería principal para construir la interfaz.
-
-### Vite
-
-Herramienta utilizada para ejecutar y construir el proyecto frontend.
-
-### TypeScript
-
-Permite utilizar tipado estático en JavaScript.
-
-### Tailwind CSS
-
-Framework utilizado para los estilos.
-
-### shadcn/ui
-
-Sistema de componentes de interfaz cuyos componentes se incorporan directamente al proyecto.
-
-### Base UI
-
-Librería utilizada actualmente como base para los componentes de shadcn/ui.
-
-### Lucide
-
-Librería utilizada para iconos.
-
----
-
-# 10. Componentes shadcn/ui
-
-Los componentes de shadcn/ui se encuentran en:
-
-```text
-frontend/src/components/ui/
-```
-
-Por ejemplo:
-
-```text
-frontend/src/components/ui/button.tsx
-```
-
-Los componentes no se consideran una dependencia completamente cerrada.
-
-El código del componente queda dentro del proyecto y puede ser modificado cuando sea necesario.
-
-Para agregar componentes se utilizará el CLI de shadcn/ui.
-
-Ejemplo:
-
+*Ejemplo:*
 ```bash
 npx shadcn@latest add button
 ```
 
 ---
 
-# 11. Utilidad `cn`
+## 7. Comandos útiles
 
-El proyecto utiliza:
-
-```text
-frontend/src/lib/utils.ts
+### Docker
+```bash
+docker compose up -d    # Iniciar servicios en segundo plano
+docker ps               # Ver contenedores activos
+docker compose logs     # Ver logs de los servicios
+docker compose down     # Detener servicios
 ```
 
-Este archivo contiene la función utilizada para combinar clases de Tailwind:
+### Backend
+```bash
+cd backend
+mvn spring-boot:run     # Ejecutar servidor de desarrollo
+mvn clean package       # Compilar y empaquetar el proyecto
+```
 
-```ts
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+### Frontend
+```bash
+cd frontend
+npm install             # Instalar dependencias
+npm run dev             # Iniciar servidor de desarrollo
+npm run build           # Compilar para producción
+npm run preview         # Previsualizar compilación de producción
 ```
 
 ---
 
-# 12. Prueba actual del Backend
-
-Actualmente existe un recurso de prueba:
-
-```text
-/api/usuarios
-```
-
-Permite comprobar que:
-
-```text
-React / Cliente
-       ↓
-Spring Boot
-       ↓
-Spring Data JPA
-       ↓
-Hibernate
-       ↓
-MySQL
-```
-
-El recurso de prueba permite consultar usuarios:
-
-```http
-GET http://localhost:8080/api/usuarios
-```
-
-Crear un usuario:
-
-```http
-POST http://localhost:8080/api/usuarios
-```
-
-y eliminarlo mediante:
-
-```http
-DELETE http://localhost:8080/api/usuarios/{id}
-```
-
-> Este recurso se utiliza solamente para verificar que la conexión entre Spring Boot y MySQL funciona correctamente. No debe considerarse todavía parte de los requerimientos funcionales definitivos.
-
----
-
-
-
-# 15. Puertos utilizados
-
-| Servicio | Puerto |
-|---|---:|
-| Frontend / Vite | 5173 |
-| Backend / Spring Boot | 8080 |
-| MySQL | 3306 |
-
----
-
-# 16. Comandos útiles
-
-## Docker
-
-Iniciar servicios:
-
-```bash
-docker compose up -d
-```
-
-Ver contenedores:
-
-```bash
-docker ps
-```
-
-Ver logs:
-
-```bash
-docker compose logs
-```
-
-Detener servicios:
-
-```bash
-docker compose down
-```
-
----
-
-## Backend
-
-Ejecutar:
-
-```bash
-mvn spring-boot:run
-```
-
-Compilar:
-
-```bash
-mvn clean package
-```
-
----
-
-## Frontend
-
-Instalar dependencias:
-
-```bash
-npm install
-```
-
-Ejecutar:
-
-```bash
-npm run dev
-```
-
-Compilar para producción:
-
-```bash
-npm run build
-```
-
-Previsualizar la compilación:
-
-```bash
-npm run preview
-```
-
----
-
-# 16. Reglas de desarrollo
+## 8. Reglas de desarrollo
 
 1. No desarrollar funcionalidades de negocio sin revisar previamente los requerimientos.
 2. Mantener separadas las responsabilidades de frontend, backend y base de datos.
-3. Evitar colocar lógica de negocio directamente en los controladores.
-4. Utilizar servicios para la lógica de negocio del backend.
-5. Utilizar repositorios para el acceso a datos.
-6. Mantener los componentes de React organizados y reutilizables.
-7. Utilizar TypeScript correctamente y evitar `any` cuando sea posible.
-8. No almacenar contraseñas o credenciales reales directamente en el repositorio.
-9. Probar las funcionalidades antes de considerarlas terminadas.
-10. Documentar cambios importantes.
-11. No eliminar configuraciones existentes sin comprobar qué dependencias tienen.
-12. Los componentes de prueba deben diferenciarse de las funcionalidades reales del sistema.
-
----
-
-# 17. Próximos pasos
-
-El proyecto se encuentra actualmente en la etapa de configuración técnica.
-
-Los próximos pasos deberán realizarse en este orden:
-
-1. Definir y revisar los requerimientos funcionales.
-2. Definir los requerimientos no funcionales.
-3. Identificar las entidades principales del sistema.
-4. Diseñar la base de datos definitiva.
-5. Definir la arquitectura del backend.
-6. Definir los endpoints de la API REST.
-7. Definir la estructura definitiva del frontend.
-8. Implementar autenticación y autorización si los requerimientos lo necesitan.
-9. Implementar las funcionalidades principales.
-10. Realizar pruebas.
-11. Preparar el proyecto para producción.
-
----
-
-# 18. Estado del proyecto
-
-| Área | Estado |
-|---|---|
-| Estructura del proyecto | ✅ Configurada |
-| Spring Boot | ✅ Configurado |
-| MySQL | ✅ Configurado |
-| Docker | ✅ Configurado |
-| Conexión Backend → MySQL | ✅ Verificada |
-| React | ✅ Configurado |
-| Vite | ✅ Configurado |
-| TypeScript | ✅ Configurado |
-| Tailwind CSS | ✅ Configurado |
-| shadcn/ui | ✅ Configurado |
-| Base UI | ✅ Configurado |
-| API definitiva | ⏳ Pendiente |
-| Modelo de datos definitivo | ⏳ Pendiente |
-| Interfaz definitiva | ⏳ Pendiente |
-| Funcionalidades del sistema | ⏳ Pendiente de requerimientos |
-| Pruebas | ⏳ Pendiente |
-| Producción | ⏳ Pendiente |
-
----
-
-## Nota
-
-Este README se actualizará a medida que avance el desarrollo del proyecto.
-
-Las decisiones de arquitectura y las funcionalidades definitivas deben basarse en los requerimientos del proyecto y no en el código de prueba utilizado durante la configuración inicial.
+3. Evitar colocar lógica de negocio directamente en los controladores; utilizar servicios.
+4. Utilizar repositorios para el acceso a datos.
+5. Mantener los componentes de React organizados y reutilizables.
+6. Utilizar TypeScript correctamente y evitar el uso de `any`.
+7. No almacenar contraseñas o credenciales reales en el repositorio.
+8. Probar las funcionalidades antes de considerarlas terminadas.
+9. Documentar cambios importantes.
+10. No eliminar configuraciones existentes sin verificar sus dependencias.
