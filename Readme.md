@@ -36,6 +36,28 @@ npm run dev
 - **Frontend:** [http://localhost:5173](http://localhost:5173)
 - **Backend (API):** [http://localhost:8080](http://localhost:8080)
 
+### En caso de que PowerShell no reconozca los comandos
+
+1. **Verificar herramientas instaladas:**
+   ```bash
+   git --version
+   java -version
+   node -v
+   npm -v
+   docker --version
+   docker compose version
+   ```
+
+2. **Si algún comando da error de comando no reconocido**, agregarlo al `PATH` de Windows:
+   - Presionar `Win + R`, escribir `sysdm.cpl` y presionar **Enter**.
+   - Ir a **Opciones avanzadas** → **Variables de entorno...**
+   - En la sección de variables (de usuario o del sistema), seleccionar **`Path`** y pulsar **Editar**.
+   - Hacer clic en **Nuevo** y añadir la ruta que corresponda:
+     - **Git:** `C:\Program Files\Git\cmd`
+     - **Node.js:** `C:\Program Files\nodejs\`
+     - **npm:** `%AppData%\npm`
+   - Aceptar en todas las ventanas y **reiniciar la terminal** (PowerShell) para aplicar los cambios.
+
 ---
 
 ## 2. Requisitos previos
