@@ -1,0 +1,327 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" fill="none" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+  <style>
+    .math-txt { font-family: 'Times New Roman', 'Cambria Math', Georgia, serif; font-size: 14px; fill: #1e293b; stroke: none; }
+    .math-bold { font-weight: bold; }
+    .math-hand { font-family: 'Caveat', 'Comic Sans MS', cursive, sans-serif; font-size: 15px; fill: #1e293b; stroke: none; }
+    .hatch { stroke-width: 1.2; stroke: #334155; }
+    .thick { stroke-width: 1.8; }
+    .normal { stroke-width: 1.4; }
+    .thin { stroke-width: 1.0; }
+    .dashed { stroke-dasharray: 4, 3; }
+  </style>
+
+  <!-- 1. Trigonometric formula & power rule (Top Left) -->
+  <g transform="translate(60, 50)">
+    <text x="0" y="20" class="math-txt math-bold" font-size="16">a^(m/n) = √(a^m)</text>
+    <text x="140" y="20" class="math-txt math-bold" font-size="15">sin 30° = 1/2</text>
+    <!-- Angle sketch -->
+    <path d="M 120 40 L 70 40 L 105 15" class="normal" />
+    <path d="M 85 40 A 15 15 0 0 0 80 30" class="thin" />
+  </g>
+
+  <!-- 2. Column Addition: 1958 + 2467 = 4425 (Top Center) -->
+  <g transform="translate(380, 40)">
+    <text x="30" y="20" class="math-txt" font-size="16" letter-spacing="2">1958</text>
+    <text x="12" y="42" class="math-txt" font-size="16" letter-spacing="2">+ 2467</text>
+    <line x1="10" y1="50" x2="90" y2="50" class="thick" />
+    <text x="30" y="70" class="math-txt math-bold" font-size="16" letter-spacing="2">4425</text>
+  </g>
+
+  <!-- 3. Sphere with latitude/longitude (Top Right) -->
+  <g transform="translate(650, 70)">
+    <circle cx="40" cy="40" r="35" class="thick" />
+    <ellipse cx="40" cy="40" rx="35" ry="12" class="normal" />
+    <ellipse cx="40" cy="40" rx="14" ry="35" class="thin dashed" />
+    <line x1="40" y1="5" x2="40" y2="75" class="thin dashed" />
+    <!-- Small arrow -->
+    <path d="M 85 45 L 105 55 M 105 55 L 97 50 M 105 55 L 102 46" class="normal" />
+  </g>
+
+  <!-- 4. Pentagon with diagonals (Top center-left) -->
+  <g transform="translate(250, 40)">
+    <polygon points="50,5 90,20 80,75 20,75 10,20" class="thick" />
+    <line x1="50" y1="5" x2="80" y2="75" class="thin" />
+    <line x1="50" y1="5" x2="20" y2="75" class="thin" />
+    <line x1="10" y1="20" x2="90" y2="20" class="thin" />
+    <text x="47" y="0" class="math-txt">B</text>
+    <text x="94" y="22" class="math-txt">C</text>
+    <text x="82" y="88" class="math-txt">D</text>
+    <text x="12" y="88" class="math-txt">E</text>
+    <text x="0" y="22" class="math-txt">A</text>
+  </g>
+
+  <!-- 5. Pie Chart with crosshatched quarters (Top-ish) -->
+  <g transform="translate(180, 110)">
+    <circle cx="35" cy="35" r="30" class="thick" />
+    <line x1="5" y1="35" x2="65" y2="35" class="normal" />
+    <line x1="35" y1="5" x2="35" y2="65" class="normal" />
+    <!-- Hatched quarter -->
+    <path d="M 8 35 L 35 8 M 14 35 L 35 14 M 20 35 L 35 20 M 26 35 L 35 26" class="hatch" />
+    <!-- Opposite quarter -->
+    <path d="M 35 45 L 55 65 M 35 52 L 48 65 M 42 35 L 65 58 M 52 35 L 65 48" class="hatch" />
+  </g>
+
+  <!-- 6. Number Line with +/- signs (Top Right-Center) -->
+  <g transform="translate(480, 115)">
+    <line x1="0" y1="15" x2="110" y2="15" class="thick" />
+    <polyline points="102,10 110,15 102,20" class="thick" />
+    <circle cx="25" cy="15" r="2.5" fill="#1e293b" />
+    <circle cx="55" cy="15" r="2.5" fill="#1e293b" />
+    <circle cx="85" cy="15" r="2.5" fill="#1e293b" />
+    <text x="22" y="32" class="math-txt">A</text>
+    <text x="52" y="32" class="math-txt">B</text>
+    <text x="82" y="32" class="math-txt">C</text>
+    <text x="12" y="8" class="math-txt">−</text>
+    <text x="38" y="8" class="math-txt">+</text>
+    <text x="68" y="8" class="math-txt">−</text>
+    <text x="96" y="8" class="math-txt">+</text>
+  </g>
+
+  <!-- 7. Bar chart with question mark (Mid Top-Right) -->
+  <g transform="translate(670, 150)">
+    <!-- Downward arrow -->
+    <line x1="5" y1="0" x2="45" y2="20" class="thick" />
+    <polyline points="45,12 45,20 37,20" class="thick" />
+    <!-- 3 bars -->
+    <rect x="0" y="30" width="16" height="55" class="thick" />
+    <path d="M 0 38 L 16 34 M 0 46 L 16 42 M 0 54 L 16 50 M 0 62 L 16 58 M 0 70 L 16 66 M 0 78 L 16 74" class="hatch" />
+    
+    <rect x="24" y="45" width="16" height="40" class="thick" />
+    <text x="28" y="70" class="math-txt math-bold" font-size="16">?</text>
+    
+    <rect x="48" y="35" width="16" height="50" class="thick" />
+    <path d="M 48 42 L 64 38 M 48 50 L 64 46 M 48 58 L 64 54 M 48 66 L 64 62 M 48 74 L 64 70 M 48 82 L 64 78" class="hatch" />
+  </g>
+
+  <!-- 8. Sector with coordinate axes (Mid-Left) -->
+  <g transform="translate(50, 160)">
+    <line x1="20" y1="70" x2="100" y2="70" class="thick" />
+    <polyline points="93,65 100,70 93,75" class="thick" />
+    <line x1="20" y1="70" x2="20" y2="5" class="thick" />
+    <polyline points="15,12 20,5 25,12" class="thick" />
+    <path d="M 20 70 L 20 25 A 45 45 0 0 1 65 70 Z" class="normal" />
+    <!-- Hatching inside quadrant -->
+    <path d="M 20 60 L 30 70 M 20 48 L 42 70 M 20 36 L 54 70 M 24 27 L 62 65 M 34 26 L 65 57" class="hatch" />
+    <text x="10" y="25" class="math-txt">A</text>
+    <text x="68" y="85" class="math-txt">B</text>
+    <text x="18" y="200" class="math-txt math-bold">x ∩ y</text>
+  </g>
+
+  <!-- 9. 3D Triangular Prism (Mid-Left-Center) -->
+  <g transform="translate(190, 200)">
+    <polygon points="10,50 35,10 85,35 60,75" class="thick" />
+    <line x1="10" y1="50" x2="60" y2="75" class="thick" />
+    <!-- Front triangle hatched -->
+    <polygon points="10,50 35,10 60,75" class="normal" />
+    <path d="M 16 48 L 44 20 M 24 55 L 50 30 M 34 62 L 56 42 M 44 68 L 59 54" class="hatch" />
+    <!-- Dashed hidden lines -->
+    <line x1="35" y1="10" x2="60" y2="-15" class="thin dashed" />
+    <line x1="10" y1="50" x2="35" y2="25" class="thin dashed" />
+    <line x1="35" y1="25" x2="85" y2="35" class="thin dashed" />
+  </g>
+
+  <!-- 10. Circle with inscribed angle & Discriminant (Center) -->
+  <g transform="translate(360, 200)">
+    <circle cx="40" cy="40" r="35" class="thick" />
+    <line x1="40" y1="5" x2="40" y2="75" class="normal" />
+    <line x1="40" y1="75" x2="70" y2="22" class="normal" />
+    <text x="44" y="55" class="math-txt" font-size="12">30°</text>
+    <text x="95" y="45" class="math-txt math-bold" font-size="16">D = b² − 4ac</text>
+    <text x="105" y="80" class="math-txt math-bold" font-size="15">r = a√3 / 6</text>
+  </g>
+
+  <!-- 11. Decaying oscillation curve with shaded peak (Mid-Right) -->
+  <g transform="translate(540, 230)">
+    <!-- Axes -->
+    <line x1="0" y1="70" x2="140" y2="70" class="thick" />
+    <polyline points="133,65 140,70 133,75" class="thick" />
+    <line x1="10" y1="75" x2="10" y2="0" class="thick" />
+    <polyline points="5,8 10,0 15,8" class="thick" />
+    <!-- Decaying Sine curve -->
+    <path d="M 10 70 Q 25 -10 40 70 T 70 70 T 95 70 T 115 70 T 130 70" class="thick" />
+    <!-- Shaded smaller peak -->
+    <path d="M 45 70 Q 55 45 65 70 Z" class="normal" />
+    <path d="M 47 68 L 52 70 M 49 60 L 59 70 M 52 52 L 64 64 M 55 48 L 65 58" class="hatch" />
+    <!-- Arrow pointing down -->
+    <line x1="75" y1="15" x2="110" y2="40" class="thick" />
+    <polyline points="110,32 110,40 102,40" class="thick" />
+    <text x="115" y="100" class="math-txt math-bold">x = (9 × 15) / 100</text>
+  </g>
+
+  <!-- 12. Circle with 1/4 slice (Mid Right edge) -->
+  <g transform="translate(710, 280)">
+    <circle cx="35" cy="35" r="30" class="thick" />
+    <path d="M 35 35 L 65 35 A 30 30 0 0 0 35 5 Z" class="normal" />
+    <path d="M 38 12 L 60 34 M 45 8 L 64 27 M 54 8 L 65 19 M 35 22 L 48 35" class="hatch" />
+    <text x="70" y="25" class="math-txt">1/4</text>
+  </g>
+
+  <!-- 13. Ruler sketch & y = f(x) (Center Left) -->
+  <g transform="translate(150, 315)">
+    <!-- Ruler -->
+    <rect x="0" y="0" width="90" height="22" rx="2" class="thick" />
+    <line x1="15" y1="0" x2="15" y2="10" class="normal" /><line x1="30" y1="0" x2="30" y2="10" class="normal" />
+    <line x1="45" y1="0" x2="45" y2="10" class="normal" /><line x1="60" y1="0" x2="60" y2="10" class="normal" />
+    <line x1="75" y1="0" x2="75" y2="10" class="normal" />
+    <text x="12" y="19" class="math-txt" font-size="9">1</text>
+    <text x="27" y="19" class="math-txt" font-size="9">2</text>
+    <text x="42" y="19" class="math-txt" font-size="9">3</text>
+    <text x="57" y="19" class="math-txt" font-size="9">4</text>
+    <text x="72" y="19" class="math-txt" font-size="9">5</text>
+
+    <!-- Shaded rectangular prism -->
+    <g transform="translate(130, -8)">
+      <rect x="0" y="0" width="65" height="40" class="thick" />
+      <rect x="15" y="5" width="35" height="30" class="thick" />
+      <path d="M 15 15 L 25 5 M 15 25 L 35 5 M 15 35 L 45 5 M 25 35 L 50 10 M 35 35 L 50 20 M 45 35 L 50 30" class="hatch" />
+    </g>
+
+    <text x="175" y="75" class="math-txt math-bold" font-size="18">y = f(x)</text>
+  </g>
+
+  <!-- 14. Coordinate axes with cubic curve (Far Left) -->
+  <g transform="translate(40, 310)">
+    <line x1="0" y1="45" x2="80" y2="45" class="thick" />
+    <polyline points="73,40 80,45 73,50" class="thick" />
+    <line x1="40" y1="85" x2="40" y2="5" class="thick" />
+    <polyline points="35,12 40,5 45,12" class="thick" />
+    <path d="M 10 80 C 35 80, 35 45, 40 45 C 45 45, 45 10, 70 10" class="thick" />
+    <text x="75" y="60" class="math-txt">x</text>
+    <text x="45" y="15" class="math-txt">y</text>
+  </g>
+
+  <!-- 15. Arch with shaded section (Mid-Center) -->
+  <g transform="translate(130, 395)">
+    <line x1="0" y1="40" x2="130" y2="40" class="thick" />
+    <path d="M 10 40 A 60 30 0 0 1 120 40 Z" class="thick" />
+    <rect x="40" y="15" width="45" height="25" class="thick" />
+    <path d="M 40 25 L 50 15 M 40 35 L 60 15 M 45 40 L 70 15 M 55 40 L 80 15 M 65 40 L 85 20 M 75 40 L 85 30" class="hatch" />
+    <text x="5" y="55" class="math-txt">A</text>
+    <text x="32" y="55" class="math-txt">C</text>
+    <text x="58" y="10" class="math-txt">D</text>
+    <text x="80" y="55" class="math-txt">F</text>
+    <text x="122" y="55" class="math-txt">B</text>
+  </g>
+
+  <!-- 16. Percentages: 9 = 100%, x = 15% (Lower Left) -->
+  <g transform="translate(60, 480)">
+    <text x="0" y="20" class="math-txt math-bold" font-size="18">9 = 100%</text>
+    <text x="0" y="45" class="math-txt math-bold" font-size="18">x = 15%</text>
+    <!-- Sine wave -->
+    <path d="M 50 75 Q 65 60 80 75 T 110 75 T 130 75" class="thick" />
+    <line x1="40" y1="75" x2="135" y2="75" class="normal" />
+    <polyline points="128,70 135,75 128,80" class="normal" />
+  </g>
+
+  <!-- 17. Broken Circle / Pacman sector (Center-Bottom) -->
+  <g transform="translate(230, 490)">
+    <path d="M 50 50 L 80 15 A 40 40 0 1 1 50 10 L 50 50 Z" class="thick" />
+    <!-- Hatched missing wedge -->
+    <path d="M 50 50 L 50 10 A 40 40 0 0 1 80 15 Z" class="thick" />
+    <path d="M 50 40 L 60 50 M 50 28 L 70 48 M 50 16 L 78 44 M 55 10 L 80 35 M 65 10 L 80 25" class="hatch" />
+    <text x="25" y="55" class="math-txt math-bold" font-size="16">A</text>
+    <!-- Pointer arrow -->
+    <path d="M 100 10 L 70 25 M 70 25 L 75 18 M 70 25 L 78 26" class="normal" />
+    <text x="105" y="10" class="math-txt">B</text>
+  </g>
+
+  <!-- 18. Linear Function & Coordinates (Center-Right) -->
+  <g transform="translate(390, 490)">
+    <line x1="0" y1="65" x2="100" y2="65" class="thick" />
+    <polyline points="93,60 100,65 93,70" class="thick" />
+    <line x1="20" y1="80" x2="20" y2="0" class="thick" />
+    <polyline points="15,8 20,0 25,8" class="thick" />
+    <line x1="5" y1="10" x2="85" y2="75" class="thick" />
+    <!-- Dashed marker -->
+    <line x1="35" y1="5" x2="35" y2="65" class="normal dashed" />
+    <circle cx="35" cy="35" r="2.5" fill="#1e293b" />
+    <text x="42" y="38" class="math-txt">A</text>
+    <text x="10" y="78" class="math-txt">0</text>
+    <text x="102" y="68" class="math-txt">x</text>
+    <text x="10" y="8" class="math-txt">y</text>
+  </g>
+
+  <!-- 19. Truncated Pyramid (Lower Right-Center) -->
+  <g transform="translate(520, 500)">
+    <polygon points="40,5 60,5 85,60 15,60" class="thick" />
+    <!-- Horizontal slice lines -->
+    <line x1="30" y1="25" x2="70" y2="25" class="thick" />
+    <line x1="22" y1="45" x2="78" y2="45" class="thick" />
+    <!-- Hatched middle slice -->
+    <path d="M 23 45 L 35 25 M 31 45 L 43 25 M 39 45 L 51 25 M 47 45 L 59 25 M 55 45 L 67 25 M 63 45 L 71 29 M 71 45 L 75 38" class="hatch" />
+  </g>
+
+  <!-- 20. 3D Cylinder with axis (Far Right) -->
+  <g transform="translate(660, 480)">
+    <ellipse cx="40" cy="15" rx="35" ry="12" class="thick" />
+    <line x1="5" y1="15" x2="5" y2="75" class="thick" />
+    <line x1="75" y1="15" x2="75" y2="75" class="thick" />
+    <ellipse cx="40" cy="75" rx="35" ry="12" class="thick" />
+    <!-- Dashed middle ellipse -->
+    <ellipse cx="40" cy="45" rx="35" ry="12" class="normal dashed" />
+    <line x1="40" y1="5" x2="40" y2="85" class="thin dashed" />
+    <text x="35" y="30" class="math-txt">r</text>
+  </g>
+
+  <!-- 21. Pi constant and inequality (Lower Center-Right) -->
+  <g transform="translate(440, 590)">
+    <text x="0" y="30" class="math-txt math-bold" font-size="22">π ≈ 3,141592</text>
+    <text x="190" y="25" class="math-txt math-bold" font-size="16">a &lt; b</text>
+  </g>
+
+  <!-- 22. System of Equations with bracket (Lower Right) -->
+  <g transform="translate(460, 640)">
+    <!-- Big square bracket -->
+    <path d="M 12 0 L 0 0 L 0 55 L 12 55" class="thick" />
+    <text x="18" y="20" class="math-txt math-bold" font-size="15">x² − 1 = 0;</text>
+    <text x="18" y="45" class="math-txt math-bold" font-size="15">(x − 1)(x + 2) = 0</text>
+    
+    <!-- Venn diagram on the right -->
+    <g transform="translate(130, -5)">
+      <circle cx="25" cy="25" r="22" class="thick" />
+      <circle cx="48" cy="25" r="22" class="thick" />
+      <!-- Hatched intersection -->
+      <path d="M 36 12 L 44 20 M 31 22 L 44 35 M 34 32 L 39 37" class="hatch" />
+      <text x="15" y="30" class="math-txt math-bold">A</text>
+      <text x="54" y="30" class="math-txt math-bold">B</text>
+    </g>
+  </g>
+
+  <!-- 23. Right Triangle & cos y = 0.5 (Bottom Left) -->
+  <g transform="translate(130, 610)">
+    <polygon points="10,40 110,40 10,0" class="thick" />
+    <!-- Right angle indicator -->
+    <rect x="10" y="30" width="10" height="10" class="normal" />
+    <text x="0" y="20" class="math-txt">a</text>
+    <text x="55" y="55" class="math-txt">c</text>
+    <text x="60" y="18" class="math-txt">b</text>
+    <text x="55" y="80" class="math-txt math-bold" font-size="16">cos y = 0,5</text>
+  </g>
+
+  <!-- 24. Two congruent triangles meeting at vertex (Bottom Center) -->
+  <g transform="translate(300, 580)">
+    <polygon points="50,60 15,10 50,10" class="thick" />
+    <polygon points="50,60 85,110 50,110" class="thick" />
+    <!-- Ticks showing congruence -->
+    <line x1="28" y1="32" x2="34" y2="38" class="thick" />
+    <line x1="68" y1="82" x2="74" y2="88" class="thick" />
+    <line x1="47" y1="35" x2="53" y2="35" class="thick" />
+    <line x1="47" y1="85" x2="53" y2="85" class="thick" />
+    <text x="12" y="0" class="math-txt">A</text>
+    <text x="52" y="0" class="math-txt">B</text>
+    <text x="55" y="60" class="math-txt">0</text>
+    <text x="88" y="115" class="math-txt">D</text>
+    <text x="45" y="125" class="math-txt">C</text>
+  </g>
+
+  <!-- 25. Small extra geometric sketches (Scattered naturally) -->
+  <g transform="translate(480, 20)">
+    <polygon points="10,35 45,35 30,5" class="normal" />
+    <path d="M 45 40 L 75 40 L 60 15" class="normal" />
+  </g>
+  <g transform="translate(80, 260)">
+    <polygon points="10,50 35,50 22,5" class="thick" />
+    <path d="M 12 45 L 30 20 M 15 35 L 28 10" class="hatch" />
+    <text x="0" y="30" class="math-txt">2</text>
+  </g>
+</svg>

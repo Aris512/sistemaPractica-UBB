@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { AdeccaLogo } from "../login/AdeccaLogo";
-import { InstitutionalFooter } from "../login/InstitutionalFooter";
 import type { UserSession } from "../../types/auth";
 
 interface HomePageProps {
@@ -132,13 +130,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       <main className="neu-card-main w-full max-w-[1180px] p-5 sm:p-7 md:p-9 z-10 space-y-6">
         {/* Top Navigation Bar */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-300/70">
-          <div className="flex items-center gap-4">
-            <AdeccaLogo />
-            <div className="hidden xl:block h-8 w-[1px] bg-slate-300 mx-1"></div>
-            <span className="hidden xl:inline text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Sistema de Prácticas Profesionales
-            </span>
-          </div>
+         
 
           {/* Navigation Tabs */}
           <nav className="flex flex-wrap items-center gap-1.5 neu-inset-panel p-1.5">
@@ -400,10 +392,6 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           </div>
         </section>
 
-        {/* Institutional Footer */}
-        <div className="pt-4 border-t border-slate-300/70">
-          <InstitutionalFooter />
-        </div>
       </main>
     </div>
   );

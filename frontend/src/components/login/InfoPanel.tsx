@@ -1,83 +1,65 @@
-interface CurvedArrowProps {
-  color: string;
-}
-
-function CurvedArrow({ color }: CurvedArrowProps) {
+function CurvedArrow({ className }: { className?: string }) {
   return (
-    <div className="shrink-0 mt-0.5">
-      <svg
-        viewBox="0 0 24 24"
-        className="w-4 h-4"
-        fill="none"
-        stroke={color}
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M4 18c0-5 3-9 9-9h7" />
-        <polyline points="16 5 20 9 16 13" fill={color} />
-      </svg>
-    </div>
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={`w-5 h-5 shrink-0 ${className ?? ""}`}
+      aria-hidden="true"
+    >
+      <path d="M14 4v4H7a5 5 0 0 0-5 5v5h3v-5a2 2 0 0 1 2-2h7v4l6-6-6-6z" />
+    </svg>
   );
 }
 
 export function InfoPanel() {
   return (
-    <div className="flex flex-col justify-between h-full py-1 text-slate-700 text-xs md:text-[13px] leading-relaxed">
-      <div>
-        {/* Main Welcome Heading */}
-        <h2 className="text-2xl md:text-[28px] font-medium tracking-tight text-[#b8144c] mb-4">
-          Bienvenid@ a la Plataforma Adecca
-        </h2>
+    <div className="flex flex-col justify-center space-y-5 text-sm leading-relaxed select-text">
+      <h1 className="text-3xl sm:text-4xl font-light text-[#c2185b] tracking-tight mb-2 pr-12 sm:pr-16">
+        Bienvenid@ a la Plataforma de Practicas
+      </h1>
 
-        {/* Feature List with Colored Curved Arrows */}
-        <div className="space-y-3 text-slate-700">
-          {/* Point 1: Green */}
-          <div className="flex items-start gap-2">
-            <CurvedArrow color="#16a34a" />
-            <p>
-              <strong className="font-semibold text-slate-800">Adecca</strong> es una Plataforma Educativa que tiene por finalidad prestar servicios de apoyo a la docencia de Pregrado y Postgrado de la Universidad del Bío-Bío, favoreciendo la utilización de estrategias activas de enseñanza, para potenciar ambientes de trabajo colaborativos.
-            </p>
-          </div>
+      <div className="space-y-4 text-[13.5px] sm:text-[14px]">
+        {/* Item 1: Verde */}
+        <div className="flex items-start gap-3 text-slate-700">
+          <CurvedArrow className="text-[#2e7d32] mt-0.5" />
+          <p>
+            El sistema de practica es una <strong className="font-semibold text-slate-900">Plataforma Educativa</strong> que tiene por finalidad prestar{" "}
+            <strong className="font-semibold text-slate-900">servicios de apoyo a la docencia de Pregrado</strong>{" "}
+            de la Universidad del Bío-Bío, favoreciendo la utilización de estrategias activas  para potenciar ambientes de trabajo durante sus practicas.
+          </p>
+        </div>
 
-          {/* Point 2: Orange */}
-          <div className="flex items-start gap-2">
-            <CurvedArrow color="#ea580c" />
-            <p>
-              El diseño de Adecca permite que estudiantes y profesores la utilicen fácilmente, dado que sus funcionalidades han sido configuradas en función de las necesidades de estudiantes y profesores.
-            </p>
-          </div>
+        {/* Item 2: Naranja */}
+        <div className="flex items-start gap-3 text-slate-700">
+          <CurvedArrow className="text-[#f57c00] mt-0.5" />
+          <p>
+            El diseño del sistema de practicas permite que estudiantes y profesores la utilicen fácilmente, dado que sus funcionalidades han sido configuradas en función de las{" "}
+            <strong className="font-semibold text-slate-900">necesidades de estudiantes y profesores</strong>.
+          </p>
+        </div>
 
-          {/* Point 3: Red */}
-          <div className="flex items-start gap-2">
-            <CurvedArrow color="#dc2626" />
-            <p>
-              Adecca es una plataforma en constante diseño, construida en la Universidad del Bío-Bío, por lo cual invitamos a estudiantes y profesores a enviar comentarios y sugerencias, a objeto de continuar ofreciéndoles un servicio de calidad.
-            </p>
-          </div>
+        {/* Item 3: Terracota / Rojizo */}
+        <div className="flex items-start gap-3 text-slate-700">
+          <CurvedArrow className="text-[#c62828] mt-0.5" />
+          <p>
+            El sistema de practicas es una plataforma en constante desarrollo, diseñada y{" "}
+            <strong className="font-semibold text-slate-900">construida por Estudiantes de la Universidad del Bío-Bío</strong>
+          </p>
+        </div>
 
-          {/* Point 4: Magenta highlight */}
-          <div className="flex items-start gap-2 text-[#b8144c] font-medium">
-            <CurvedArrow color="#b8144c" />
-            <p>
-              Se recomienda el uso de navegadores estándares, como Google Chrome y Mozilla Firefox para un correcto funcionamiento. Por favor evite el uso de navegadores obsoletos.
-            </p>
-          </div>
 
-          {/* Point 5: Cyan/Blue */}
-          <div className="flex items-start gap-2">
-            <CurvedArrow color="#0284c7" />
-            <p>
-              Para consultas o problemas con la Plataforma Adecca, por favor escríbanos al correo{" "}
-              <a
-                href="mailto:adecca@ubiobio.cl"
-                className="text-sky-700 hover:text-sky-800 underline font-medium"
-              >
-                adecca@ubiobio.cl
-              </a>{" "}
-              o contáctenos al teléfono <span className="font-medium text-slate-800">(56-42)2463300</span> (Mesa de Ayuda).
-            </p>
-          </div>
+        {/* Item 5: Azul */}
+        <div className="flex items-start gap-3 text-[#0288d1]">
+          <CurvedArrow className="text-[#0288d1] mt-0.5" />
+          <p>
+            Para consultas o problemas con el sistema de practicas, contactenos al correo{" "}
+            <a
+              href="mailto:adecca@ubiobio.cl"
+              className="font-bold underline hover:text-[#01579b] transition-colors"
+            >
+              correo@ubiobio.cl
+            </a>{" "}
+          </p>
         </div>
       </div>
     </div>
