@@ -10,7 +10,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup } from "@/components/ui/field";
+import { Field, FieldGroup } from "@/components/ui/field";
+import { formatRut, formatRutStandard, validateRut, cleanRut } from "@/lib/rutUtils";
 import type { UserSession } from "@/types/auth";
 
 interface LoginFormProps {
@@ -18,21 +19,65 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoginSuccess }: LoginFormProps) {
-  const [email, setEmail] = useState("");
+  const [rut, setRut] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rutValidationError, setRutValidationError] = useState<string | null>(null);
+
+  function handleRutChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    const formatted = formatRut(value);
+    setRut(formatted);
+    setError(null);
+
+    const cleaned = cleanRut(value);
+    if (cleaned.length >= 8) {
+      if (!validateRut(value)) {
+        setRutValidationError("Dígito verificador incorrecto");
+      } else {
+        setRutValidationError(null);
+      }
+    } else {
+      setRutValidationError(null);
+    }
+  }
+
+  function handleRutBlur() {
+    if (rut.trim().length > 0 && !validateRut(rut)) {
+      setRutValidationError("El RUT ingresado no es válido (ej: 12345678-9)");
+    } else {
+      setRutValidationError(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!rut.trim()) {
+      setError("Por favor, ingrese su RUT institucional.");
+      return;
+    }
+
+    if (!validateRut(rut)) {
+      setError("El RUT ingresado no es válido. Compruebe el dígito verificador.");
+      return;
+    }
+
+    if (!password) {
+      setError("Por favor, ingrese su contraseña.");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const standardRut = formatRutStandard(rut);
       const res = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ rut: standardRut, password }),
       });
 
       const data = await res.json();
@@ -43,14 +88,15 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       }
 
       onLoginSuccess({
-        idUsuario: data.idUsuario,
+        rut: data.rut || standardRut,
+        idUsuario: data.rut || standardRut,
         nombre: data.nombre,
         apellido: data.apellido,
         correo: data.correo,
         roles: data.roles,
       });
     } catch {
-      setError("No se pudo conectar con el servidor.");
+      setError("No se pudo conectar con el servidor. Verifique que el backend esté activo.");
     } finally {
       setLoading(false);
     }
@@ -61,29 +107,41 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       <CardHeader>
         <CardTitle>Iniciar sesión</CardTitle>
         <CardDescription>
-          Ingresa tus credenciales institucionales para acceder al sistema.
+          Ingresa con tu RUT y contraseña para acceder a la plataforma.
         </CardDescription>
       </CardHeader>
 
       <CardContent>
         <form id="login-form" onSubmit={handleSubmit}>
           <FieldGroup>
-            {/* Email */}
+            {/* RUT */}
             <Field>
-              <Label htmlFor="email">Correo electrónico</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="rut">RUT institucional</Label>
+                {rutValidationError && (
+                  <span className="text-xs text-amber-600 font-medium">
+                    {rutValidationError}
+                  </span>
+                )}
+              </div>
               <Input
-                id="email"
-                type="email"
-                placeholder="usuario@ubiobio.cl"
-                autoComplete="email"
+                id="rut"
+                type="text"
+                placeholder="12345678-9"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                aria-invalid={!!error}
+                value={rut}
+                onChange={handleRutChange}
+                onBlur={handleRutBlur}
+                aria-invalid={!!error || !!rutValidationError}
+                maxLength={10}
               />
+              <span className="text-[11px] text-slate-500">
+                Formato: 12345678-9 (sin puntos, con guión)
+              </span>
             </Field>
 
-            {/* Password */}
+            {/* Contraseña */}
             <Field>
               <Label htmlFor="password">Contraseña</Label>
               <Input
@@ -93,13 +151,30 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 autoComplete="current-password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
                 aria-invalid={!!error}
               />
             </Field>
 
-            {/* Error message */}
-            {error && <FieldError>{error}</FieldError>}
+            {/* Mensaje de Error */}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium flex items-start gap-2">
+                <svg
+                  className="w-4 h-4 text-red-600 shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                  <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
           </FieldGroup>
         </form>
       </CardContent>
@@ -112,7 +187,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           className="w-full"
           disabled={loading}
         >
-          {loading ? "Iniciando sesión…" : "Ingresar"}
+          {loading ? "Iniciando sesión…" : "Ingresar con RUT"}
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">

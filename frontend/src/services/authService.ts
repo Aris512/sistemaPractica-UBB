@@ -2,7 +2,7 @@ import type { LoginCredentials, LoginResponse } from "../types/auth";
 
 export async function loginUser(credentials: LoginCredentials): Promise<LoginResponse> {
   try {
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch("http://localhost:8080/api/auth/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -12,7 +12,7 @@ export async function loginUser(credentials: LoginCredentials): Promise<LoginRes
 
     const data: LoginResponse = await response.json();
 
-    if (!response.ok) {
+    if (!response.ok || !data.success) {
       return {
         success: false,
         message: data.message || "Error al iniciar sesión. Verifique sus credenciales.",
@@ -23,7 +23,7 @@ export async function loginUser(credentials: LoginCredentials): Promise<LoginRes
   } catch (error) {
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Error de conexión con el servidor.",
+      message: error instanceof Error ? error.message : "No se pudo conectar con el servidor.",
     };
   }
 }

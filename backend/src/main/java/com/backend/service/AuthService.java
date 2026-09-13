@@ -13,6 +13,7 @@ import com.backend.dto.LoginResponse;
 import com.backend.model.Rol;
 import com.backend.model.Usuario;
 import com.backend.repository.UsuarioRepository;
+import com.backend.util.RutUtils;
 
 @Service
 public class AuthService {
@@ -26,19 +27,37 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse authenticate(LoginRequest request) {
-        if (request == null || request.getEmail() == null || request.getEmail().isBlank()) {
-            return LoginResponse.error("El correo electrónico es requerido");
+        if (request == null || request.getRut() == null || request.getRut().isBlank()) {
+            return LoginResponse.error("El RUT es requerido para iniciar sesión");
         }
 
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             return LoginResponse.error("La contraseña es requerida");
         }
 
-        String email = request.getEmail().trim();
-        Optional<Usuario> usuarioOpt = usuarioRepository.findByCorreo(email);
+        String rawRut = request.getRut().trim();
+
+        // Validación de formato y dígito verificador según Módulo 11
+        if (!RutUtils.isValid(rawRut)) {
+            return LoginResponse.error("El RUT ingresado no es válido. Verifique el formato y dígito verificador (ej: 12345678-9)");
+        }
+
+        // Búsqueda en formato estándar (ej: 12345678-9) o variantes
+        String standardRut = RutUtils.formatStandard(rawRut);
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByRut(standardRut);
 
         if (usuarioOpt.isEmpty()) {
-            return LoginResponse.error("Credenciales inválidas: usuario no encontrado");
+            // Intentar con RUT limpio sin guión por tolerancia
+            usuarioOpt = usuarioRepository.findByRut(RutUtils.clean(rawRut));
+        }
+
+        if (usuarioOpt.isEmpty()) {
+            // Intentar con RUT tal cual se envió
+            usuarioOpt = usuarioRepository.findByRut(rawRut);
+        }
+
+        if (usuarioOpt.isEmpty()) {
+            return LoginResponse.error("Credenciales inválidas: el RUT no se encuentra registrado en el sistema");
         }
 
         Usuario usuario = usuarioOpt.get();
@@ -46,14 +65,14 @@ public class AuthService {
         boolean passwordMatches = false;
 
         if (storedPassword != null) {
-            // Check BCrypt hash match
+            // Comprobar hash BCrypt
             try {
                 passwordMatches = passwordEncoder.matches(request.getPassword(), storedPassword);
             } catch (Exception ignored) {
-                // If not valid bcrypt pattern, fallback to plain text check
+                // Fallback a texto plano si no fuera un hash BCrypt válido
             }
 
-            // Fallback for plain-text storage if any
+            // Fallback para contraseñas sin hashear
             if (!passwordMatches && request.getPassword().equals(storedPassword)) {
                 passwordMatches = true;
             }
@@ -73,7 +92,7 @@ public class AuthService {
         }
 
         return LoginResponse.success(
-            usuario.getIdUsuario(),
+            usuario.getRut(),
             usuario.getNombre(),
             usuario.getApellido(),
             usuario.getCorreo(),

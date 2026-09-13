@@ -2,25 +2,36 @@ package com.backend.dto;
 
 public class LoginRequest {
 
-    private String email;
-    private String correo;
+    private String rut;
     private String password;
     private String contrasena;
+    private String email;
+    private String correo;
 
     public LoginRequest() {
     }
 
-    public LoginRequest(String email, String password) {
-        this.email = email;
+    public LoginRequest(String rut, String password) {
+        this.rut = rut;
         this.password = password;
     }
 
-    // Allows either 'email' or 'correo'
-    public String getEmail() {
+    public String getRut() {
+        if (rut != null && !rut.isBlank()) {
+            return rut.trim();
+        }
         if (email != null && !email.isBlank()) {
             return email.trim();
         }
         return correo != null ? correo.trim() : null;
+    }
+
+    public void setRut(String rut) {
+        this.rut = rut;
+    }
+
+    public String getEmail() {
+        return getRut();
     }
 
     public void setEmail(String email) {
@@ -28,14 +39,13 @@ public class LoginRequest {
     }
 
     public String getCorreo() {
-        return getEmail();
+        return getRut();
     }
 
     public void setCorreo(String correo) {
         this.correo = correo;
     }
 
-    // Allows either 'password' or 'contrasena'
     public String getPassword() {
         if (password != null && !password.isBlank()) {
             return password;

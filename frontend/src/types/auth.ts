@@ -1,10 +1,11 @@
 export interface LoginCredentials {
-  email: string;
+  rut: string;
   password: string;
 }
 
 export interface UserSession {
-  idUsuario: number;
+  rut: string;
+  idUsuario?: string | number;
   nombre: string;
   apellido: string;
   correo: string;
@@ -14,7 +15,8 @@ export interface UserSession {
 export interface LoginResponse {
   success: boolean;
   message: string;
-  idUsuario?: number;
+  rut?: string;
+  idUsuario?: string | number;
   nombre?: string;
   apellido?: string;
   correo?: string;

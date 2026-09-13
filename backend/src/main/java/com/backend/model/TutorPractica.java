@@ -21,7 +21,7 @@ public class TutorPractica {
     private String nombre;
 
     @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
     public TutorPractica() {

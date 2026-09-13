@@ -1,5 +1,5 @@
 TABLA: USUARIO
-- id_usuario
+- rut (PK)
 - nombre
 - apellido
 - correo
@@ -14,20 +14,20 @@ TABLA: ROLES
 
 
 TABLA: USUARIO_ROL
-- id_usuario
-- id_rol
+- rut_usuario (FK)
+- id_rol (FK)
 
 
 TABLA: ESTUDIANTE
 - id_estudiante
-- id_usuario
+- rut_usuario (FK)
 - semestre
 - estado
 
 
 TABLA: PROFESOR
 - id_profesor
-- id_usuario
+- rut_usuario (FK)
 - ramo
 
 
@@ -39,7 +39,7 @@ TABLA: CENTRO_PRACTICA
 
 TABLA: PROFESOR_COLABORADOR
 - id_colaborador
-- id_usuario
+- rut_usuario (FK)
 - id_centro
 - especialidad
 
@@ -47,7 +47,7 @@ TABLA: PROFESOR_COLABORADOR
 TABLA: TUTOR_PRACTICA
 - id_tutor
 - nombre
-- id_usuario
+- rut_usuario (FK)
 
 
 TABLA: ASIGNATURA
@@ -95,7 +95,7 @@ TABLA: DOCUMENTO
 - tipo
 - ubicacion
 - fecha_carga
-- id_usuario
+- rut_usuario (FK)
 
 
 TABLA: DOCUMENTO_PLANIFICACION

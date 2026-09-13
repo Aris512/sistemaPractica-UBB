@@ -17,6 +17,7 @@
     "cn": "^0.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-hot-toast": "^2.6.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3"
   },

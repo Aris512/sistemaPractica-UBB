@@ -23,7 +23,7 @@ public class Profesor {
     private Long idProfesor;
 
     @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
     private String ramo;

@@ -69,21 +69,23 @@ public class DataSeeder implements CommandLineRunner {
     private void seedUsuarios() {
         String contrasenaHasheada = passwordEncoder.encode("123456");
 
+        // Diferentes RUTs chilenos válidos calculados mediante algoritmo Módulo 11
         List<UsuarioInfo> usuariosIniciales = List.of(
-            new UsuarioInfo("Estudiante", "Prueba", "estudiante@test.com", "ESTUDIANTE"),
-            new UsuarioInfo("Profesor", "Asignatura", "profesor@test.com", "PROFESOR_ASIGNATURA"),
-            new UsuarioInfo("Profesor", "Colaborador", "colaborador@test.com", "PROFESOR_COLABORADOR"),
-            new UsuarioInfo("Tutor", "Practica", "tutor@test.com", "TUTOR_PRACTICA"),
-            new UsuarioInfo("Coordinador", "General", "coordinador@test.com", "COORDINADOR")
+            new UsuarioInfo("12345678-5", "Estudiante", "Prueba", "estudiante@test.com", "ESTUDIANTE"),
+            new UsuarioInfo("11111111-1", "Profesor", "Asignatura", "profesor@test.com", "PROFESOR_ASIGNATURA"),
+            new UsuarioInfo("10000013-K", "Profesor", "Colaborador", "colaborador@test.com", "PROFESOR_COLABORADOR"),
+            new UsuarioInfo("18765432-7", "Tutor", "Practica", "tutor@test.com", "TUTOR_PRACTICA"),
+            new UsuarioInfo("20123456-5", "Coordinador", "General", "coordinador@test.com", "COORDINADOR")
         );
 
         for (UsuarioInfo info : usuariosIniciales) {
-            Optional<Usuario> usuarioOpt = usuarioRepository.findByCorreo(info.correo());
+            Optional<Usuario> usuarioOpt = usuarioRepository.findByRut(info.rut());
             Rol rolAsociado = rolRepository.findByNombre(info.rol())
                 .orElseThrow(() -> new IllegalStateException("Rol no encontrado: " + info.rol()));
 
             if (usuarioOpt.isEmpty()) {
                 Usuario nuevoUsuario = new Usuario(
+                    info.rut(),
                     info.nombre(),
                     info.apellido(),
                     info.correo(),
@@ -91,7 +93,7 @@ public class DataSeeder implements CommandLineRunner {
                 );
                 nuevoUsuario.setRoles(new HashSet<>(Collections.singletonList(rolAsociado)));
                 usuarioRepository.save(nuevoUsuario);
-                logger.info("Usuario creado: {} con rol {}", info.correo(), info.rol());
+                logger.info("Usuario creado: RUT {} ({}) con rol {}", info.rut(), info.correo(), info.rol());
             } else {
                 Usuario usuarioExistente = usuarioOpt.get();
                 if (usuarioExistente.getRoles() == null) {
@@ -104,14 +106,14 @@ public class DataSeeder implements CommandLineRunner {
                 if (!yaTieneRol) {
                     usuarioExistente.getRoles().add(rolAsociado);
                     usuarioRepository.save(usuarioExistente);
-                    logger.info("Rol {} asignado al usuario existente: {}", info.rol(), info.correo());
+                    logger.info("Rol {} asignado al usuario existente con RUT: {}", info.rol(), info.rut());
                 } else {
-                    logger.info("Usuario '{}' ya existe y ya tiene asignado el rol '{}'. Omitiendo.", info.correo(), info.rol());
+                    logger.info("Usuario con RUT '{}' ya existe y ya tiene asignado el rol '{}'. Omitiendo.", info.rut(), info.rol());
                 }
             }
         }
     }
 
     private record RolInfo(String nombre, String descripcion) {}
-    private record UsuarioInfo(String nombre, String apellido, String correo, String rol) {}
+    private record UsuarioInfo(String rut, String nombre, String apellido, String correo, String rol) {}
 }

@@ -5,8 +5,6 @@ import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -18,9 +16,8 @@ import jakarta.persistence.Table;
 public class Usuario {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_usuario")
-    private Long idUsuario;
+    @Column(name = "rut", length = 12, nullable = false, unique = true)
+    private String rut;
 
     private String nombre;
 
@@ -37,7 +34,7 @@ public class Usuario {
     @ManyToMany
     @JoinTable(
         name = "usuario_rol",
-        joinColumns = @JoinColumn(name = "id_usuario"),
+        joinColumns = @JoinColumn(name = "rut_usuario"),
         inverseJoinColumns = @JoinColumn(name = "id_rol")
     )
     private Set<Rol> roles;
@@ -45,7 +42,8 @@ public class Usuario {
     public Usuario() {
     }
 
-    public Usuario(String nombre, String apellido, String correo, String contrasenaEncriptada) {
+    public Usuario(String rut, String nombre, String apellido, String correo, String contrasenaEncriptada) {
+        this.rut = rut;
         this.nombre = nombre;
         this.apellido = apellido;
         this.correo = correo;
@@ -53,12 +51,12 @@ public class Usuario {
         this.fechaCreacion = LocalDateTime.now();
     }
 
-    public Long getIdUsuario() {
-        return idUsuario;
+    public String getRut() {
+        return rut;
     }
 
-    public void setIdUsuario(Long idUsuario) {
-        this.idUsuario = idUsuario;
+    public void setRut(String rut) {
+        this.rut = rut;
     }
 
     public String getNombre() {

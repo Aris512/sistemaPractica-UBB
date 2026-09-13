@@ -188,7 +188,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
                   <span className="text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">
                     {user.roles[0] || "USUARIO"}
                   </span>
-                  <span className="text-[10px] text-slate-400">#{user.idUsuario}</span>
+                  <span className="text-[10px] font-mono text-slate-500">RUT: {user.rut}</span>
                 </div>
               </div>
             </div>

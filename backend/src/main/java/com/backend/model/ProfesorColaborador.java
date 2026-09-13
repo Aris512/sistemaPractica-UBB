@@ -23,7 +23,7 @@ public class ProfesorColaborador {
     private Long idColaborador;
 
     @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
     @ManyToOne

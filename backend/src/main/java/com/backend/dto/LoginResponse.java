@@ -6,7 +6,7 @@ public class LoginResponse {
 
     private boolean success;
     private String message;
-    private Long idUsuario;
+    private String rut;
     private String nombre;
     private String apellido;
     private String correo;
@@ -15,10 +15,10 @@ public class LoginResponse {
     public LoginResponse() {
     }
 
-    public LoginResponse(boolean success, String message, Long idUsuario, String nombre, String apellido, String correo, Set<String> roles) {
+    public LoginResponse(boolean success, String message, String rut, String nombre, String apellido, String correo, Set<String> roles) {
         this.success = success;
         this.message = message;
-        this.idUsuario = idUsuario;
+        this.rut = rut;
         this.nombre = nombre;
         this.apellido = apellido;
         this.correo = correo;
@@ -32,8 +32,8 @@ public class LoginResponse {
         return resp;
     }
 
-    public static LoginResponse success(Long idUsuario, String nombre, String apellido, String correo, Set<String> roles) {
-        return new LoginResponse(true, "Inicio de sesión exitoso", idUsuario, nombre, apellido, correo, roles);
+    public static LoginResponse success(String rut, String nombre, String apellido, String correo, Set<String> roles) {
+        return new LoginResponse(true, "Inicio de sesión exitoso", rut, nombre, apellido, correo, roles);
     }
 
     public boolean isSuccess() {
@@ -52,12 +52,12 @@ public class LoginResponse {
         this.message = message;
     }
 
-    public Long getIdUsuario() {
-        return idUsuario;
+    public String getRut() {
+        return rut;
     }
 
-    public void setIdUsuario(Long idUsuario) {
-        this.idUsuario = idUsuario;
+    public void setRut(String rut) {
+        this.rut = rut;
     }
 
     public String getNombre() {
