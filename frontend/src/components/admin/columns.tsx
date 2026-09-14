@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { MoreHorizontalIcon } from "lucide-react";
+import type React from "react";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Invoice } from "./data-table-features";
 
@@ -12,74 +12,35 @@ export interface ColumnDef<T> {
   sortable?: boolean;
 }
 
-interface ActionMenuProps {
+interface ActionButtonsProps {
   invoice: Invoice;
   onAction?: (action: string, invoice: Invoice) => void;
 }
 
-function ActionMenu({ invoice, onAction }: ActionMenuProps) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
-
-  const handleSelect = (action: string) => {
-    setOpen(false);
-    if (onAction) {
-      onAction(action, invoice);
-    }
-  };
-
+function ActionButtons({ invoice, onAction }: ActionButtonsProps) {
   return (
-    <div className="relative inline-block text-right" ref={menuRef}>
+    <div className="flex items-center justify-end gap-1">
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
-        onClick={() => setOpen((prev) => !prev)}
+        className="size-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+        title="Editar factura"
+        onClick={() => onAction?.("edit", invoice)}
       >
-        <MoreHorizontalIcon className="size-4" />
-        <span className="sr-only">Open menu</span>
+        <PencilIcon className="size-4" />
+        <span className="sr-only">Editar</span>
       </Button>
 
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-36 origin-top-right rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md outline-none">
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-left"
-            onClick={() => handleSelect("edit")}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground text-left"
-            onClick={() => handleSelect("duplicate")}
-          >
-            Duplicate
-          </button>
-          <div className="-mx-1 my-1 h-px bg-border" />
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm text-destructive outline-none hover:bg-destructive/10 text-left"
-            onClick={() => handleSelect("delete")}
-          >
-            Delete
-          </button>
-        </div>
-      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer"
+        title="Eliminar factura"
+        onClick={() => onAction?.("delete", invoice)}
+      >
+        <Trash2Icon className="size-4" />
+        <span className="sr-only">Eliminar</span>
+      </Button>
     </div>
   );
 }
@@ -142,11 +103,11 @@ export const invoiceColumns: ColumnDef<Invoice>[] = [
   {
     id: "actions",
     header: "Actions",
-    headerClassName: "text-right",
+    headerClassName: "text-right w-[100px]",
     className: "text-right",
     sortable: false,
     cell: (item, onAction) => (
-      <ActionMenu invoice={item} onAction={onAction} />
+      <ActionButtons invoice={item} onAction={onAction} />
     ),
   },
 ];
