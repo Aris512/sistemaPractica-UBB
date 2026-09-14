@@ -1,5 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
+// ── Tipo principal para la tabla de usuarios ──
+export interface UsuarioRow {
+  rut: string;
+  nombre: string;
+  rol: string;
+  curso: string;
+}
+
+// ── Mantener el alias Invoice para no romper los modales existentes ──
 export interface Invoice {
   invoice: string;
   paymentStatus: "Paid" | "Pending" | "Unpaid" | string;
@@ -10,55 +19,33 @@ export interface Invoice {
 export type SortDirection = "asc" | "desc" | null;
 
 export interface SortState {
-  column: keyof Invoice | null;
+  column: keyof UsuarioRow | null;
   direction: SortDirection;
 }
 
-export const initialInvoices: Invoice[] = [
-  {
-    invoice: "INV001",
-    paymentStatus: "Paid",
-    totalAmount: "$250.00",
-    paymentMethod: "Credit Card",
-  },
-  {
-    invoice: "INV002",
-    paymentStatus: "Pending",
-    totalAmount: "$150.00",
-    paymentMethod: "PayPal",
-  },
-  {
-    invoice: "INV003",
-    paymentStatus: "Unpaid",
-    totalAmount: "$350.00",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    invoice: "INV004",
-    paymentStatus: "Paid",
-    totalAmount: "$450.00",
-    paymentMethod: "Credit Card",
-  },
-  {
-    invoice: "INV005",
-    paymentStatus: "Paid",
-    totalAmount: "$550.00",
-    paymentMethod: "PayPal",
-  },
-  {
-    invoice: "INV006",
-    paymentStatus: "Pending",
-    totalAmount: "$200.00",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    invoice: "INV007",
-    paymentStatus: "Unpaid",
-    totalAmount: "$300.00",
-    paymentMethod: "Credit Card",
-  },
-];
+// Roles posibles para filtro
+export const USER_ROLES = [
+  "ALL",
+  "ESTUDIANTE",
+  "PROFESOR_ASIGNATURA",
+  "PROFESOR_COLABORADOR",
+  "TUTOR_PRACTICA",
+  "COORDINADOR",
+] as const;
 
+// Etiqueta visual amigable para cada rol
+export function rolLabel(rol: string): string {
+  const labels: Record<string, string> = {
+    ESTUDIANTE: "Estudiante",
+    PROFESOR_ASIGNATURA: "Profesor Asignatura",
+    PROFESOR_COLABORADOR: "Profesor Colaborador",
+    TUTOR_PRACTICA: "Tutor Práctica",
+    COORDINADOR: "Coordinador",
+  };
+  return labels[rol] ?? rol;
+}
+
+// ── Helpers de Invoice mantenidos para modales ──
 export const PAYMENT_METHODS = ["ALL", "Credit Card", "PayPal", "Bank Transfer"] as const;
 export const PAYMENT_STATUSES = ["ALL", "Paid", "Pending", "Unpaid"] as const;
 
@@ -79,74 +66,105 @@ export function calculateTotalAmount(items: Invoice[]): string {
   return formatCurrency(total);
 }
 
-export function sortInvoices(
-  items: Invoice[],
-  column: keyof Invoice | null,
+// ── Sort y filter para UsuarioRow ──
+export function sortUsuarios(
+  items: UsuarioRow[],
+  column: keyof UsuarioRow | null,
   direction: SortDirection
-): Invoice[] {
+): UsuarioRow[] {
   if (!column || !direction) return items;
 
   return [...items].sort((a, b) => {
-    let comparison = 0;
-    if (column === "totalAmount") {
-      comparison = parseAmount(a.totalAmount) - parseAmount(b.totalAmount);
-    } else {
-      comparison = String(a[column]).localeCompare(String(b[column]));
-    }
+    const comparison = String(a[column]).localeCompare(String(b[column]));
     return direction === "asc" ? comparison : -comparison;
   });
 }
 
-export function filterInvoices(
-  items: Invoice[],
+export function filterUsuarios(
+  items: UsuarioRow[],
   searchQuery: string,
-  statusFilter: string = "ALL",
-  methodFilter: string = "ALL"
-): Invoice[] {
+  roleFilter: string = "ALL"
+): UsuarioRow[] {
   const query = searchQuery.trim().toLowerCase();
 
   return items.filter((item) => {
-    const matchesStatus =
-      statusFilter === "ALL" ||
-      item.paymentStatus.toLowerCase() === statusFilter.toLowerCase();
+    const matchesRole =
+      roleFilter === "ALL" ||
+      item.rol.toLowerCase() === roleFilter.toLowerCase();
 
-    const matchesMethod =
-      methodFilter === "ALL" ||
-      item.paymentMethod.toLowerCase() === methodFilter.toLowerCase();
-
-    if (!matchesStatus || !matchesMethod) return false;
+    if (!matchesRole) return false;
     if (!query) return true;
 
     return (
-      item.invoice.toLowerCase().includes(query) ||
-      item.paymentMethod.toLowerCase().includes(query) ||
-      item.paymentStatus.toLowerCase().includes(query) ||
-      item.totalAmount.toLowerCase().includes(query)
+      item.rut.toLowerCase().includes(query) ||
+      item.nombre.toLowerCase().includes(query) ||
+      item.rol.toLowerCase().includes(query) ||
+      item.curso.toLowerCase().includes(query)
     );
   });
 }
 
+// ── Hook principal: fetch de usuarios reales ──
 export function useDataTableFeatures(
-  initialData: Invoice[] = initialInvoices,
+  _initialData?: unknown,
   defaultPageSize: number = 5
 ) {
-  const [data, setData] = useState<Invoice[]>(initialData);
+  const [data, setData] = useState<UsuarioRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [methodFilter, setMethodFilter] = useState("ALL");
+  const [roleFilter, setRoleFilter] = useState("ALL");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultPageSize);
+  const [pageSize] = useState(defaultPageSize);
   const [sortState, setSortState] = useState<SortState>({
     column: null,
     direction: null,
   });
 
+  // Fetch usuarios desde el backend
+  const fetchUsuarios = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const credentials = btoa("admin:admin123");
+      const res = await fetch("http://localhost:8080/admin/usuarios", {
+        headers: {
+          Authorization: `Basic ${credentials}`,
+        },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+
+      const json = await res.json();
+
+      const rows: UsuarioRow[] = json.map(
+        (u: { rut: string; nombre: string; roles: string[]; correo: string }) => ({
+          rut: u.rut,
+          nombre: u.nombre,
+          rol: u.roles.length > 0 ? u.roles[0] : "SIN ROL",
+          curso: "—", // Campo sin relación directa en el modelo actual
+        })
+      );
+
+      setData(rows);
+    } catch (err) {
+      console.error("Error al cargar usuarios:", err);
+      setError("No se pudieron cargar los usuarios");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsuarios();
+  }, [fetchUsuarios]);
+
   // Reset to first page whenever real-time filters change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, statusFilter, methodFilter]);
+  }, [searchQuery, roleFilter]);
 
-  const handleSort = (column: keyof Invoice) => {
+  const handleSort = (column: keyof UsuarioRow) => {
     setSortState((prev) => {
       if (prev.column !== column) {
         return { column, direction: "asc" };
@@ -159,9 +177,9 @@ export function useDataTableFeatures(
   };
 
   const filteredAndSortedData = useMemo(() => {
-    const filtered = filterInvoices(data, searchQuery, statusFilter, methodFilter);
-    return sortInvoices(filtered, sortState.column, sortState.direction);
-  }, [data, searchQuery, statusFilter, methodFilter, sortState]);
+    const filtered = filterUsuarios(data, searchQuery, roleFilter);
+    return sortUsuarios(filtered, sortState.column, sortState.direction);
+  }, [data, searchQuery, roleFilter, sortState]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredAndSortedData.length / pageSize));
@@ -179,50 +197,19 @@ export function useDataTableFeatures(
     return filteredAndSortedData.slice(start, start + pageSize);
   }, [filteredAndSortedData, page, pageSize]);
 
-  const totalAmount = useMemo(() => {
-    return calculateTotalAmount(filteredAndSortedData);
-  }, [filteredAndSortedData]);
-
   const hasActiveFilters = useMemo(() => {
-    return Boolean(
-      searchQuery.trim() !== "" || statusFilter !== "ALL" || methodFilter !== "ALL"
-    );
-  }, [searchQuery, statusFilter, methodFilter]);
+    return Boolean(searchQuery.trim() !== "" || roleFilter !== "ALL");
+  }, [searchQuery, roleFilter]);
 
   const clearFilters = () => {
     setSearchQuery("");
-    setStatusFilter("ALL");
-    setMethodFilter("ALL");
+    setRoleFilter("ALL");
     setPage(1);
   };
 
-  const createInvoice = (newInvoice: Invoice) => {
-    setData((prev) => [newInvoice, ...prev]);
-  };
-
-  const updateInvoice = (originalInvoiceId: string, updatedInvoice: Invoice) => {
-    setData((prev) =>
-      prev.map((item) =>
-        item.invoice === originalInvoiceId ? updatedInvoice : item
-      )
-    );
-  };
-
-  const deleteInvoice = (invoiceId: string) => {
-    setData((prev) => prev.filter((item) => item.invoice !== invoiceId));
-  };
-
-  const duplicateInvoice = (invoiceId: string) => {
-    setData((prev) => {
-      const item = prev.find((i) => i.invoice === invoiceId);
-      if (!item) return prev;
-      const count = prev.filter((i) => i.invoice.startsWith(item.invoice)).length;
-      const newInvoice: Invoice = {
-        ...item,
-        invoice: `${item.invoice}-C${count}`,
-      };
-      return [newInvoice, ...prev];
-    });
+  // ── Operaciones CRUD (stub para mantener la interfaz) ──
+  const deleteUsuario = (rut: string) => {
+    setData((prev) => prev.filter((item) => item.rut !== rut));
   };
 
   return {
@@ -233,23 +220,27 @@ export function useDataTableFeatures(
     page,
     setPage,
     pageSize,
-    setPageSize,
     totalPages,
     totalItems: filteredAndSortedData.length,
     searchQuery,
     setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-    methodFilter,
-    setMethodFilter,
+    roleFilter,
+    setRoleFilter,
     hasActiveFilters,
     clearFilters,
     sortState,
     handleSort,
-    totalAmount,
-    createInvoice,
-    updateInvoice,
-    deleteInvoice,
-    duplicateInvoice,
+    loading,
+    error,
+    refetch: fetchUsuarios,
+    deleteUsuario,
+    // Mantener compatibilidad con modales existentes (no se usan pero evitan errores)
+    statusFilter: "ALL",
+    setStatusFilter: (_v: string) => {},
+    methodFilter: "ALL",
+    setMethodFilter: (_v: string) => {},
+    createInvoice: (_inv: Invoice) => {},
+    updateInvoice: (_id: string, _inv: Invoice) => {},
+    deleteInvoice: (_id: string) => {},
   };
 }

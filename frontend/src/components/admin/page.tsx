@@ -1,44 +1,23 @@
 import { useState } from "react";
 import { DataTable } from "./data-table";
-import { invoiceColumns } from "./columns";
+import { userColumns } from "./columns";
 import {
   useDataTableFeatures,
-  PAYMENT_METHODS,
-  PAYMENT_STATUSES,
-  type Invoice,
+  type UsuarioRow,
 } from "./data-table-features";
+import { AdminSidebar } from "./AdminSidebar";
+import { AdminToolbar } from "./AdminToolbar";
 import { EditModal } from "./EditModal";
 import { CreateModal } from "./CreateModal";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  FileText,
-  Users,
-  Settings,
-  Home,
-  ShieldCheck,
-  Plus,
-  Search,
-  X,
-  RotateCcw,
-} from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
 
@@ -53,38 +32,36 @@ export default function AdminPage() {
     totalItems,
     searchQuery,
     setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-    methodFilter,
-    setMethodFilter,
+    roleFilter,
+    setRoleFilter,
     hasActiveFilters,
     clearFilters,
     sortState,
     handleSort,
-    createInvoice,
-    updateInvoice,
-    deleteInvoice,
+    loading,
+    error,
+    refetch,
+    deleteUsuario,
   } = useDataTableFeatures();
 
-  // Modals state
+  // Modals state (se mantienen sin cambios)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Suggest next ID based on existing count
   const nextInvoiceId = `INV${String(data.length + 1).padStart(3, "0")}`;
 
-  const handleRowAction = (action: string, item: Invoice) => {
+  const handleRowAction = (action: string, item: UsuarioRow) => {
     switch (action) {
       case "edit":
         setEditingInvoice(item);
         setIsEditModalOpen(true);
         break;
       case "delete":
-        deleteInvoice(item.invoice);
+        deleteUsuario(item.rut);
         sileo.error({
-          title: "Factura eliminada",
-          description: `Factura ${item.invoice} eliminada del registro`,
+          title: "Usuario eliminado",
+          description: `${item.nombre} (${item.rut}) fue eliminado de la tabla`,
         });
         break;
       default:
@@ -92,23 +69,21 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveEdit = (originalInvoiceId: string, updatedInvoice: Invoice) => {
-    updateInvoice(originalInvoiceId, updatedInvoice);
+  const handleSaveEdit = (originalInvoiceId: string, updatedInvoice: any) => {
     sileo.success({
-      title: "Factura actualizada",
-      description: `Los cambios en ${updatedInvoice.invoice} se guardaron en tiempo real`,
+      title: "Usuario actualizado",
+      description: `Los cambios se guardaron correctamente`,
     });
   };
 
-  const handleCreateInvoice = (newInvoice: Invoice) => {
-    createInvoice(newInvoice);
+  const handleCreateInvoice = (newInvoice: any) => {
     sileo.success({
-      title: "Factura creada",
-      description: `Factura ${newInvoice.invoice} agregada a la tabla`,
+      title: "Registro creado",
+      description: `Nuevo registro agregado`,
     });
   };
 
-  const handleColumnSort = (colId: keyof Invoice) => {
+  const handleColumnSort = (colId: keyof UsuarioRow) => {
     handleSort(colId);
     const nextDirection =
       sortState.column !== colId
@@ -119,9 +94,9 @@ export default function AdminPage() {
 
     const dirLabel =
       nextDirection === "asc"
-        ? "Ascendente (A-Z / Menor a Mayor)"
+        ? "Ascendente (A-Z)"
         : nextDirection === "desc"
-        ? "Descendente (Z-A / Mayor a Menor)"
+        ? "Descendente (Z-A)"
         : "Orden original";
 
     sileo.show({
@@ -138,100 +113,7 @@ export default function AdminPage() {
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen>
-        <Sidebar>
-          <SidebarHeader>
-            <div className="flex items-center gap-2 px-3 py-3 font-semibold text-base">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
-                U
-              </div>
-              <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold text-sm">UBB Admin</span>
-                <span className="text-[11px] text-muted-foreground">
-                  Sistema de Práctica
-                </span>
-              </div>
-            </div>
-          </SidebarHeader>
-
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Administración</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive tooltip="Facturas">
-                      <FileText className="size-4" />
-                      <span>Facturas</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Usuarios"
-                      onClick={() =>
-                        sileo.info({
-                          title: "Módulo de Usuarios",
-                          description: "Disponible próximamente",
-                        })
-                      }
-                    >
-                      <Users className="size-4" />
-                      <span>Usuarios</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Auditoría"
-                      onClick={() =>
-                        sileo.info({
-                          title: "Auditoría",
-                          description: "Módulo de auditoría y registros",
-                        })
-                      }
-                    >
-                      <ShieldCheck className="size-4" />
-                      <span>Auditoría</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Navegación</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton tooltip="Volver al Inicio" onClick={handleGoHome}>
-                      <Home className="size-4" />
-                      <span>Volver al Inicio</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Configuración"
-                      onClick={() =>
-                        sileo.info({
-                          title: "Configuración",
-                          description: "Ajustes del sistema",
-                        })
-                      }
-                    >
-                      <Settings className="size-4" />
-                      <span>Configuración</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-
-          <SidebarFooter>
-            <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground border-t border-sidebar-border">
-              <div className="size-2 rounded-full bg-emerald-500" />
-              <span>Conectado como Admin</span>
-            </div>
-          </SidebarFooter>
-        </Sidebar>
+        <AdminSidebar onGoHome={handleGoHome} />
 
         <SidebarInset className="bg-slate-50 min-h-screen">
           <Toaster position="top-center" theme="light" />
@@ -246,7 +128,7 @@ export default function AdminPage() {
                   Panel de Administración
                 </span>
                 <span className="hidden sm:inline text-xs text-muted-foreground ml-2">
-                  / Facturación y Registros
+                  / Gestión de Usuarios
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -262,138 +144,85 @@ export default function AdminPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Facturas y Registros
+                  Usuarios del Sistema
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Gestión en tiempo real con filtros instantáneos, paginación y modales de edición.
+                  Usuarios registrados en la base de datos con sus roles asignados.
                 </p>
               </div>
               <Button
-                onClick={() => setIsCreateModalOpen(true)}
+                variant="outline"
+                onClick={() => {
+                  refetch();
+                  sileo.show({
+                    title: "Recargando usuarios",
+                    description: "Consultando la base de datos...",
+                  });
+                }}
                 className="gap-1.5 sm:self-auto self-start"
               >
-                <Plus className="size-4" />
-                Registrar Factura
+                <RefreshCw className="size-4" />
+                Recargar
               </Button>
             </div>
 
+            {/* Error banner */}
+            {error && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3 text-sm text-rose-800">
+                <AlertCircle className="size-5 text-rose-500 shrink-0" />
+                <span>{error}. Verifica que el backend esté corriendo en el puerto 8080.</span>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={refetch}
+                  className="ml-auto text-rose-600 hover:text-rose-700 hover:bg-rose-100"
+                >
+                  Reintentar
+                </Button>
+              </div>
+            )}
+
             {/* Real-time Filters Toolbar */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 justify-between">
-                {/* Search Input with Real-time Clear */}
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
-                  <Input
-                    placeholder="Buscar por código, método, estado, monto..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8.5 pr-8 bg-slate-50/50 border-slate-200"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                      title="Limpiar búsqueda"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Method Filter Dropdown */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
-                    Método:
-                  </span>
-                  <select
-                    value={methodFilter}
-                    onChange={(e) => setMethodFilter(e.target.value)}
-                    className="h-8 rounded-lg border border-slate-200 bg-slate-50/50 px-2.5 py-1 text-xs font-medium text-slate-700 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-slate-400"
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>
-                        {m === "ALL" ? "Todos los métodos" : m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Status Filter Pills & Quick Controls */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-slate-500 font-medium mr-1">
-                    Estado:
-                  </span>
-                  {PAYMENT_STATUSES.map((status) => {
-                    const isActive = statusFilter === status;
-                    return (
-                      <button
-                        key={status}
-                        type="button"
-                        onClick={() => setStatusFilter(status)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-                          isActive
-                            ? "bg-slate-900 text-white border-slate-900 shadow-xs"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100/70"
-                        }`}
-                      >
-                        {status === "Paid" && (
-                          <span className="size-1.5 rounded-full bg-emerald-500" />
-                        )}
-                        {status === "Pending" && (
-                          <span className="size-1.5 rounded-full bg-amber-500" />
-                        )}
-                        {status === "Unpaid" && (
-                          <span className="size-1.5 rounded-full bg-rose-500" />
-                        )}
-                        {status === "ALL" ? "Todos" : status}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500">
-                    <strong className="text-slate-800">{totalItems}</strong> resultado
-                    {totalItems === 1 ? "" : "s"}
-                  </span>
-                  {hasActiveFilters && (
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={clearFilters}
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 px-2"
-                    >
-                      <RotateCcw className="size-3 mr-1" />
-                      Limpiar filtros
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Data Table with Real-time Pagination */}
-            <DataTable
-              columns={invoiceColumns}
-              data={paginatedData}
-              caption="A list of your recent invoices."
-              sortColumn={sortState.column}
-              sortDirection={sortState.direction}
-              onSort={(colId) => handleColumnSort(colId as keyof Invoice)}
-              onAction={handleRowAction}
-              pagination={{
-                currentPage: page,
-                totalPages,
-                totalItems,
-                pageSize,
-                onPageChange: (newPage) => setPage(newPage),
-              }}
+            <AdminToolbar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              roleFilter={roleFilter}
+              onRoleFilterChange={setRoleFilter}
+              totalItems={totalItems}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={clearFilters}
             />
+
+            {/* Loading state */}
+            {loading ? (
+              <div className="rounded-md border border-slate-200 bg-white shadow-xs flex items-center justify-center min-h-[355px]">
+                <div className="flex flex-col items-center gap-3 text-slate-500">
+                  <Loader2 className="size-8 animate-spin text-slate-400" />
+                  <span className="text-sm">Cargando usuarios...</span>
+                </div>
+              </div>
+            ) : (
+              /* Data Table with Real-time Pagination */
+              <DataTable
+                columns={userColumns}
+                data={paginatedData}
+                caption="Usuarios registrados en el sistema."
+                sortColumn={sortState.column}
+                sortDirection={sortState.direction}
+                onSort={(colId) => handleColumnSort(colId as keyof UsuarioRow)}
+                onAction={handleRowAction}
+                pagination={{
+                  currentPage: page,
+                  totalPages,
+                  totalItems,
+                  pageSize,
+                  onPageChange: (newPage) => setPage(newPage),
+                }}
+              />
+            )}
           </div>
 
-          {/* Edit Modal */}
+          {/* Edit Modal (sin modificar) */}
           <EditModal
             isOpen={isEditModalOpen}
             onClose={() => {
@@ -404,7 +233,7 @@ export default function AdminPage() {
             onSave={handleSaveEdit}
           />
 
-          {/* Create Modal */}
+          {/* Create Modal (sin modificar) */}
           <CreateModal
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}

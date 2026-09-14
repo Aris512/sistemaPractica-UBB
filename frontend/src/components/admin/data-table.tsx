@@ -135,7 +135,7 @@ export function DataTable<T>({
             <span className="font-semibold text-slate-800">
               {pagination.totalItems}
             </span>{" "}
-            facturas
+            registros
           </div>
 
           <Pagination className="w-auto mx-0 justify-end">

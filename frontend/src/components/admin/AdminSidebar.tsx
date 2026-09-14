@@ -1,0 +1,103 @@
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+import { Users, Settings, Home, ShieldCheck } from "lucide-react";
+import { sileo } from "sileo";
+
+interface AdminSidebarProps {
+  onGoHome: () => void;
+}
+
+export function AdminSidebar({ onGoHome }: AdminSidebarProps) {
+  return (
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-3 py-3 font-semibold text-base">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
+            U
+          </div>
+          <div className="flex flex-col gap-0.5 leading-none">
+            <span className="font-semibold text-sm">UBB Admin</span>
+            <span className="text-[11px] text-muted-foreground">
+              Sistema de Práctica
+            </span>
+          </div>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Administración</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive tooltip="Usuarios">
+                  <Users className="size-4" />
+                  <span>Usuarios</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Auditoría"
+                  onClick={() =>
+                    sileo.info({
+                      title: "Auditoría",
+                      description: "Módulo de auditoría y registros",
+                    })
+                  }
+                >
+                  <ShieldCheck className="size-4" />
+                  <span>Auditoría</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Volver al Inicio" onClick={onGoHome}>
+                  <Home className="size-4" />
+                  <span>Volver al Inicio</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Configuración"
+                  onClick={() =>
+                    sileo.info({
+                      title: "Configuración",
+                      description: "Ajustes del sistema",
+                    })
+                  }
+                >
+                  <Settings className="size-4" />
+                  <span>Configuración</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground border-t border-sidebar-border">
+          <div className="size-2 rounded-full bg-emerald-500" />
+          <span>Conectado como Admin</span>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
