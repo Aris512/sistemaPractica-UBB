@@ -27,7 +27,8 @@ import {
   Home,
   ShieldCheck,
 } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster, sileo } from "sileo";
+import "sileo/styles.css";
 
 export default function AdminPage() {
   const {
@@ -46,26 +47,23 @@ export default function AdminPage() {
   const handleRowAction = (action: string, item: Invoice) => {
     switch (action) {
       case "edit":
-        toast(
-          `Factura ${item.invoice} abierta para edición (${item.paymentMethod} • ${item.totalAmount})`,
-          {
-            icon: "📝",
-            duration: 3500,
-          }
-        );
+        sileo.info({
+          title: `Factura ${item.invoice}`,
+          description: `Abierta para edición (${item.paymentMethod} • ${item.totalAmount})`,
+        });
         break;
       case "duplicate":
         duplicateInvoice(item.invoice);
-        toast.success(`Factura ${item.invoice} duplicada correctamente`, {
-          icon: "📋",
-          duration: 3500,
+        sileo.success({
+          title: "Factura duplicada",
+          description: `Factura ${item.invoice} duplicada correctamente`,
         });
         break;
       case "delete":
         deleteInvoice(item.invoice);
-        toast.error(`Factura ${item.invoice} eliminada del registro`, {
-          icon: "🗑️",
-          duration: 3500,
+        sileo.error({
+          title: "Factura eliminada",
+          description: `Factura ${item.invoice} eliminada del registro`,
         });
         break;
       default:
@@ -75,11 +73,10 @@ export default function AdminPage() {
 
   const handleStatusFilterChange = (status: string) => {
     setStatusFilter(status);
-    const label = status === "ALL" ? "Todas las facturas" : `Estado: ${status}`;
-    toast(`Filtro aplicado: ${label}`, {
-      icon: "🔍",
-      id: "filter-status",
-      duration: 2000,
+    const label = status === "ALL" ? "Mostrando todas las facturas" : `Filtrando por: ${status}`;
+    sileo.show({
+      title: "Filtro aplicado",
+      description: label,
     });
   };
 
@@ -99,10 +96,9 @@ export default function AdminPage() {
         ? "Descendente (Z-A / Mayor a Menor)"
         : "Orden original";
 
-    toast(`Ordenado por ${colId}: ${dirLabel}`, {
-      icon: "↕️",
-      id: "sort-toast",
-      duration: 2500,
+    sileo.show({
+      title: `Ordenado por ${colId}`,
+      description: dirLabel,
     });
   };
 
@@ -144,8 +140,9 @@ export default function AdminPage() {
                     <SidebarMenuButton
                       tooltip="Usuarios"
                       onClick={() =>
-                        toast("Módulo de usuarios disponible próximamente", {
-                          icon: "👥",
+                        sileo.info({
+                          title: "Módulo de Usuarios",
+                          description: "Disponible próximamente",
                         })
                       }
                     >
@@ -157,7 +154,10 @@ export default function AdminPage() {
                     <SidebarMenuButton
                       tooltip="Auditoría"
                       onClick={() =>
-                        toast("Módulo de auditoría y registros", { icon: "🛡️" })
+                        sileo.info({
+                          title: "Auditoría",
+                          description: "Módulo de auditoría y registros",
+                        })
                       }
                     >
                       <ShieldCheck className="size-4" />
@@ -182,7 +182,10 @@ export default function AdminPage() {
                     <SidebarMenuButton
                       tooltip="Configuración"
                       onClick={() =>
-                        toast("Ajustes del sistema", { icon: "⚙️" })
+                        sileo.info({
+                          title: "Configuración",
+                          description: "Ajustes del sistema",
+                        })
                       }
                     >
                       <Settings className="size-4" />
@@ -203,21 +206,7 @@ export default function AdminPage() {
         </Sidebar>
 
         <SidebarInset className="bg-slate-50 min-h-screen">
-          <Toaster
-            position="top-center"
-            reverseOrder={false}
-            toastOptions={{
-              duration: 3500,
-              className:
-                "bg-white text-slate-900 border border-slate-200 shadow-md font-medium text-sm",
-              style: {
-                background: "#ffffff",
-                color: "#0f172a",
-                border: "1px solid #e2e8f0",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-              },
-            }}
-          />
+          <Toaster position="top-center" theme="light" />
 
           {/* Top Bar with Sidebar Trigger */}
           <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-white px-4 sm:px-6">
