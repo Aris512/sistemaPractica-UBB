@@ -1,12 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LoginForm } from "./components/login/LoginForm";
 import { InfoPanel } from "./components/login/InfoPanel";
 import { UbbLogoBadge } from "./components/login/UbbLogoBadge";
 import { HomePage } from "./components/home/HomePage";
+import AdminPage from "./components/admin/page";
 import type { UserSession } from "./types/auth";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
+    window.addEventListener("popstate", handleLocationChange);
+    return () => window.removeEventListener("popstate", handleLocationChange);
+  }, []);
+
+  // If path is /admin, render AdminPage
+  if (currentPath === "/admin" || currentPath.startsWith("/admin/")) {
+    return <AdminPage />;
+  }
 
   // If user is authenticated, display the Home Page
   if (currentUser) {
