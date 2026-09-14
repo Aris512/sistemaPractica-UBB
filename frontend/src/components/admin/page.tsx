@@ -26,6 +26,7 @@ import {
   Settings,
   Home,
   ShieldCheck,
+  LogOut,
 } from "lucide-react";
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
@@ -103,6 +104,14 @@ export default function AdminPage() {
   };
 
   const handleGoHome = () => {
+    // Invalida las credenciales HTTP Basic en la memoria del navegador
+    // para que la próxima vez que se ingrese a /admin vuelva a solicitar el popup nativo
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", "/admin", true, "logout", "logout");
+      xhr.send();
+    } catch (_) {}
+
     window.history.pushState({}, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate"));
   };
@@ -180,6 +189,16 @@ export default function AdminPage() {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton
+                      tooltip="Cerrar Sesión"
+                      onClick={handleGoHome}
+                      className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    >
+                      <LogOut className="size-4" />
+                      <span>Cerrar Sesión</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
                       tooltip="Configuración"
                       onClick={() =>
                         sileo.info({
@@ -198,9 +217,19 @@ export default function AdminPage() {
           </SidebarContent>
 
           <SidebarFooter>
-            <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground border-t border-sidebar-border">
-              <div className="size-2 rounded-full bg-emerald-500" />
-              <span>Conectado como Admin</span>
+            <div className="flex items-center justify-between p-2 text-xs text-muted-foreground border-t border-sidebar-border">
+              <div className="flex items-center gap-2">
+                <div className="size-2 rounded-full bg-emerald-500" />
+                <span>Conectado como Admin</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleGoHome}
+                title="Cerrar sesión de administrador"
+                className="text-xs text-rose-500 hover:text-rose-700 font-medium hover:underline cursor-pointer"
+              >
+                Salir
+              </button>
             </div>
           </SidebarFooter>
         </Sidebar>
