@@ -5,9 +5,10 @@ import {
   useDataTableFeatures,
   type UsuarioRow,
 } from "./data-table-features";
-import { AdminSidebar } from "./AdminSidebar";
+import { AdminSidebar, type AdminSection } from "./AdminSidebar";
 import { AdminToolbar } from "./AdminToolbar";
 import { EditModal, CreateModal } from "./usuarios";
+import { AsignaturasView } from "./asignaturas";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,11 +17,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { RefreshCw, Loader2, AlertCircle, UserPlus } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle, UserPlus, LogOut } from "lucide-react";
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
 
 export default function AdminPage() {
+  const [activeSection, setActiveSection] = useState<AdminSection>("usuarios");
+
   const {
     data,
     paginatedData,
@@ -49,7 +52,7 @@ export default function AdminPage() {
     deleteUsuario,
   } = useDataTableFeatures();
 
-  // Modals state (se mantienen sin cambios)
+  // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -119,7 +122,7 @@ export default function AdminPage() {
     });
   };
 
-  const handleGoHome = () => {
+  const handleLogout = () => {
     window.history.pushState({}, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate"));
   };
@@ -127,14 +130,19 @@ export default function AdminPage() {
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen>
-        <AdminSidebar onGoHome={handleGoHome} />
+        <AdminSidebar
+          activeSection={activeSection}
+          onSelectSection={(sec) => setActiveSection(sec)}
+          onLogout={handleLogout}
+          onGoHome={handleLogout}
+        />
 
         <SidebarInset className="bg-slate-50 min-h-screen">
           <Toaster position="top-center" theme="light" />
 
           {/* Top Bar with Sidebar Trigger */}
           <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-white px-4 sm:px-6">
-            <SidebarTrigger className="-ml-1 text-slate-700 hover:text-slate-900" />
+            <SidebarTrigger className="-ml-1 text-slate-700 hover:text-slate-900 cursor-pointer" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <div className="flex flex-1 items-center justify-between">
               <div>
@@ -142,135 +150,149 @@ export default function AdminPage() {
                   Panel de Administración
                 </span>
                 <span className="hidden sm:inline text-xs text-muted-foreground ml-2">
-                  / Gestión de Usuarios
+                  {activeSection === "usuarios"
+                    ? "/ Gestión de Usuarios"
+                    : "/ Gestión de Asignaturas"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="xs" onClick={handleGoHome}>
-                  ← Inicio
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={handleLogout}
+                  className="gap-1.5 cursor-pointer text-slate-600 hover:text-rose-600 hover:bg-rose-50"
+                  title="Cerrar sesión administrativa"
+                >
+                  <LogOut className="size-3.5" />
+                  <span>Cerrar sesión</span>
                 </Button>
               </div>
             </div>
           </header>
 
-          {/* Main Content Area */}
-          <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Usuarios del Sistema
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Usuarios registrados en la base de datos con sus roles asignados.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 sm:self-auto self-start">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    refetch();
-                    sileo.show({
-                      title: "Recargando usuarios",
-                      description: "Consultando la base de datos...",
-                    });
-                  }}
-                  className="gap-1.5"
-                >
-                  <RefreshCw className="size-4" />
-                  Recargar
-                </Button>
-                <Button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
-                >
-                  <UserPlus className="size-4" />
-                  Nuevo Usuario
-                </Button>
-              </div>
-            </div>
-
-            {/* Error banner */}
-            {error && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3 text-sm text-rose-800">
-                <AlertCircle className="size-5 text-rose-500 shrink-0" />
-                <span>{error}. Verifica que el backend esté corriendo en el puerto 8080.</span>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={refetch}
-                  className="ml-auto text-rose-600 hover:text-rose-700 hover:bg-rose-100"
-                >
-                  Reintentar
-                </Button>
-              </div>
-            )}
-
-            {/* Real-time Filters Toolbar */}
-            <AdminToolbar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              roleFilter={roleFilter}
-              onRoleFilterChange={setRoleFilter}
-              asignaturaFilter={asignaturaFilter}
-              onAsignaturaFilterChange={setAsignaturaFilter}
-              estadoFilter={estadoFilter}
-              onEstadoFilterChange={setEstadoFilter}
-              availableAsignaturas={availableAsignaturas}
-              totalItems={totalItems}
-              hasActiveFilters={hasActiveFilters}
-              onClearFilters={clearFilters}
-              pageSize={pageSize}
-              onPageSizeChange={setPageSize}
-            />
-
-            {/* Loading state */}
-            {loading ? (
-              <div className="rounded-md border border-slate-200 bg-white shadow-xs flex items-center justify-center min-h-[355px]">
-                <div className="flex flex-col items-center gap-3 text-slate-500">
-                  <Loader2 className="size-8 animate-spin text-slate-400" />
-                  <span className="text-sm">Cargando usuarios...</span>
+          {/* Renderizado condicional según la sección activa */}
+          {activeSection === "asignaturas" ? (
+            <AsignaturasView />
+          ) : (
+            /* Main Content Area - Usuarios */
+            <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                    Usuarios del Sistema
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Usuarios registrados en la base de datos con sus roles asignados.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 sm:self-auto self-start">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      refetch();
+                      sileo.show({
+                        title: "Recargando usuarios",
+                        description: "Consultando la base de datos...",
+                      });
+                    }}
+                    className="gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="size-4" />
+                    Recargar
+                  </Button>
+                  <Button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer"
+                  >
+                    <UserPlus className="size-4" />
+                    Nuevo Usuario
+                  </Button>
                 </div>
               </div>
-            ) : (
-              /* Data Table with Real-time Pagination */
-              <DataTable
-                columns={userColumns}
-                data={paginatedData}
-                caption="Usuarios registrados en el sistema."
-                sortColumn={sortState.column}
-                sortDirection={sortState.direction}
-                onSort={(colId) => handleColumnSort(colId as keyof UsuarioRow)}
-                onAction={handleRowAction}
-                pagination={{
-                  currentPage: page,
-                  totalPages,
-                  totalItems,
-                  pageSize,
-                  onPageChange: (newPage) => setPage(newPage),
-                  onPageSizeChange: (newSize) => setPageSize(newSize),
-                }}
+
+              {/* Error banner */}
+              {error && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3 text-sm text-rose-800">
+                  <AlertCircle className="size-5 text-rose-500 shrink-0" />
+                  <span>{error}. Verifica que el backend esté corriendo en el puerto 8080.</span>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={refetch}
+                    className="ml-auto text-rose-600 hover:text-rose-700 hover:bg-rose-100 cursor-pointer"
+                  >
+                    Reintentar
+                  </Button>
+                </div>
+              )}
+
+              {/* Real-time Filters Toolbar */}
+              <AdminToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                roleFilter={roleFilter}
+                onRoleFilterChange={setRoleFilter}
+                asignaturaFilter={asignaturaFilter}
+                onAsignaturaFilterChange={setAsignaturaFilter}
+                estadoFilter={estadoFilter}
+                onEstadoFilterChange={setEstadoFilter}
+                availableAsignaturas={availableAsignaturas}
+                totalItems={totalItems}
+                hasActiveFilters={hasActiveFilters}
+                onClearFilters={clearFilters}
+                pageSize={pageSize}
+                onPageSizeChange={setPageSize}
               />
-            )}
-          </div>
 
-          {/* Edit Modal */}
-          <EditModal
-            isOpen={isEditModalOpen}
-            onClose={() => {
-              setIsEditModalOpen(false);
-              setEditingInvoice(null);
-            }}
-            user={editingInvoice}
-            onSave={handleSaveEdit}
-          />
+              {/* Loading state */}
+              {loading ? (
+                <div className="rounded-md border border-slate-200 bg-white shadow-xs flex items-center justify-center min-h-[355px]">
+                  <div className="flex flex-col items-center gap-3 text-slate-500">
+                    <Loader2 className="size-8 animate-spin text-slate-400" />
+                    <span className="text-sm">Cargando usuarios...</span>
+                  </div>
+                </div>
+              ) : (
+                /* Data Table with Real-time Pagination */
+                <DataTable
+                  columns={userColumns}
+                  data={paginatedData}
+                  caption="Usuarios registrados en el sistema."
+                  sortColumn={sortState.column}
+                  sortDirection={sortState.direction}
+                  onSort={(colId) => handleColumnSort(colId as keyof UsuarioRow)}
+                  onAction={handleRowAction}
+                  pagination={{
+                    currentPage: page,
+                    totalPages,
+                    totalItems,
+                    pageSize,
+                    onPageChange: (newPage) => setPage(newPage),
+                    onPageSizeChange: (newSize) => setPageSize(newSize),
+                  }}
+                />
+              )}
 
-          {/* Create Modal */}
-          <CreateModal
-            isOpen={isCreateModalOpen}
-            onClose={() => setIsCreateModalOpen(false)}
-            suggestedId={nextInvoiceId}
-            onCreate={handleCreateUser}
-          />
+              {/* Edit Modal */}
+              <EditModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                  setIsEditModalOpen(false);
+                  setEditingInvoice(null);
+                }}
+                user={editingInvoice}
+                onSave={handleSaveEdit}
+              />
+
+              {/* Create Modal */}
+              <CreateModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                suggestedId={nextInvoiceId}
+                onCreate={handleCreateUser}
+              />
+            </div>
+          )}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

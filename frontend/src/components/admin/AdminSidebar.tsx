@@ -10,14 +10,26 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, Settings, Home, ShieldCheck } from "lucide-react";
+import { Users, BookOpen, ShieldCheck, LogOut } from "lucide-react";
 import { sileo } from "sileo";
 
+export type AdminSection = "usuarios" | "asignaturas";
+
 interface AdminSidebarProps {
-  onGoHome: () => void;
+  activeSection?: AdminSection;
+  onSelectSection?: (section: AdminSection) => void;
+  onLogout?: () => void;
+  onGoHome?: () => void;
 }
 
-export function AdminSidebar({ onGoHome }: AdminSidebarProps) {
+export function AdminSidebar({
+  activeSection = "usuarios",
+  onSelectSection,
+  onLogout,
+  onGoHome,
+}: AdminSidebarProps) {
+  const handleLogoutAction = onLogout || onGoHome;
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -40,11 +52,29 @@ export function AdminSidebar({ onGoHome }: AdminSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton isActive tooltip="Usuarios">
+                <SidebarMenuButton
+                  isActive={activeSection === "usuarios"}
+                  tooltip="Usuarios"
+                  onClick={() => onSelectSection?.("usuarios")}
+                  className="cursor-pointer"
+                >
                   <Users className="size-4" />
                   <span>Usuarios</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeSection === "asignaturas"}
+                  tooltip="Asignaturas"
+                  onClick={() => onSelectSection?.("asignaturas")}
+                  className="cursor-pointer"
+                >
+                  <BookOpen className="size-4" />
+                  <span>Asignaturas</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Auditoría"
@@ -54,6 +84,7 @@ export function AdminSidebar({ onGoHome }: AdminSidebarProps) {
                       description: "Módulo de auditoría y registros",
                     })
                   }
+                  className="cursor-pointer"
                 >
                   <ShieldCheck className="size-4" />
                   <span>Auditoría</span>
@@ -63,28 +94,19 @@ export function AdminSidebar({ onGoHome }: AdminSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
+        {/* Grupo de sesión ubicado al fondo del sidebar */}
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupLabel>Sesión</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Volver al Inicio" onClick={onGoHome}>
-                  <Home className="size-4" />
-                  <span>Volver al Inicio</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Configuración"
-                  onClick={() =>
-                    sileo.info({
-                      title: "Configuración",
-                      description: "Ajustes del sistema",
-                    })
-                  }
+                  tooltip="Cerrar sesión"
+                  onClick={handleLogoutAction}
+                  className="cursor-pointer text-slate-600 hover:text-rose-600 hover:bg-rose-50/70"
                 >
-                  <Settings className="size-4" />
-                  <span>Configuración</span>
+                  <LogOut className="size-4" />
+                  <span>Cerrar sesión</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
