@@ -87,6 +87,11 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         return;
       }
 
+      if (data.estado === false) {
+        setError("Acceso denegado: su cuenta de usuario se encuentra inactiva. Contacte al administrador.");
+        return;
+      }
+
       onLoginSuccess({
         rut: data.rut || standardRut,
         idUsuario: data.rut || standardRut,
@@ -94,6 +99,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         apellido: data.apellido,
         correo: data.correo,
         roles: data.roles,
+        estado: data.estado !== undefined ? data.estado : true,
       });
     } catch {
       setError("No se pudo conectar con el servidor. Verifique que el backend esté activo.");

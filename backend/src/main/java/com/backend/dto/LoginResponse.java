@@ -11,6 +11,7 @@ public class LoginResponse {
     private String apellido;
     private String correo;
     private Set<String> roles;
+    private Boolean estado;
 
     public LoginResponse() {
     }
@@ -23,6 +24,7 @@ public class LoginResponse {
         this.apellido = apellido;
         this.correo = correo;
         this.roles = roles;
+        this.estado = true;
     }
 
     public static LoginResponse error(String message) {
@@ -34,6 +36,12 @@ public class LoginResponse {
 
     public static LoginResponse success(String rut, String nombre, String apellido, String correo, Set<String> roles) {
         return new LoginResponse(true, "Inicio de sesión exitoso", rut, nombre, apellido, correo, roles);
+    }
+
+    public static LoginResponse success(String rut, String nombre, String apellido, String correo, Set<String> roles, Boolean estado) {
+        LoginResponse resp = new LoginResponse(true, "Inicio de sesión exitoso", rut, nombre, apellido, correo, roles);
+        resp.setEstado(estado);
+        return resp;
     }
 
     public boolean isSuccess() {
@@ -90,5 +98,13 @@ public class LoginResponse {
 
     public void setRoles(Set<String> roles) {
         this.roles = roles;
+    }
+
+    public Boolean getEstado() {
+        return estado;
+    }
+
+    public void setEstado(Boolean estado) {
+        this.estado = estado;
     }
 }

@@ -18,6 +18,8 @@ interface AdminToolbarProps {
   onRoleFilterChange: (role: string) => void;
   asignaturaFilter?: string;
   onAsignaturaFilterChange?: (asignatura: string) => void;
+  estadoFilter?: string;
+  onEstadoFilterChange?: (estado: string) => void;
   availableAsignaturas?: string[];
   totalItems: number;
   hasActiveFilters: boolean;
@@ -41,6 +43,8 @@ export function AdminToolbar({
   onRoleFilterChange,
   asignaturaFilter = "ALL",
   onAsignaturaFilterChange,
+  estadoFilter = "ALL",
+  onEstadoFilterChange,
   availableAsignaturas = [],
   totalItems,
   hasActiveFilters,
@@ -94,6 +98,31 @@ export function AdminToolbar({
                     {asig}
                   </option>
                 ))}
+              </select>
+            </div>
+          )}
+
+          {/* Filtro por Estado */}
+          {onEstadoFilterChange && (
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+              <span className={`size-2 rounded-full ${
+                estadoFilter === "ACTIVO"
+                  ? "bg-emerald-500"
+                  : estadoFilter === "INACTIVO"
+                  ? "bg-rose-500"
+                  : "bg-slate-400"
+              }`} />
+              <span className="text-xs font-medium text-slate-600 hidden sm:inline">
+                Estado:
+              </span>
+              <select
+                value={estadoFilter}
+                onChange={(e) => onEstadoFilterChange(e.target.value)}
+                className="bg-transparent text-xs font-medium text-slate-800 outline-none cursor-pointer pr-1"
+              >
+                <option value="ALL">Todos los estados</option>
+                <option value="ACTIVO">Activos</option>
+                <option value="INACTIVO">Inactivos</option>
               </select>
             </div>
           )}
@@ -217,6 +246,19 @@ export function AdminToolbar({
                 type="button"
                 onClick={() => onAsignaturaFilterChange("ALL")}
                 className="hover:text-emerald-950 cursor-pointer"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          )}
+
+          {estadoFilter !== "ALL" && onEstadoFilterChange && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 text-xs">
+              Estado: {estadoFilter === "ACTIVO" ? "Activos" : "Inactivos"}
+              <button
+                type="button"
+                onClick={() => onEstadoFilterChange("ALL")}
+                className="hover:text-amber-950 cursor-pointer"
               >
                 <X className="size-3" />
               </button>

@@ -27,6 +27,7 @@ export interface NewUserData {
   rol: string;
   asignatura?: string;
   idAsignatura?: number | null;
+  estado?: boolean;
 }
 
 interface AsignaturaItem {
@@ -70,6 +71,7 @@ export function CreateModal({
   const [contrasena, setContrasena] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rol, setRol] = useState("ESTUDIANTE");
+  const [estado, setEstado] = useState(true);
 
   // Roles dinámicos cargados desde la base de datos
   const [roles, setRoles] = useState<RolItem[]>([]);
@@ -93,6 +95,7 @@ export function CreateModal({
       setContrasena("");
       setShowPassword(false);
       setRol("ESTUDIANTE");
+      setEstado(true);
       setAsignaturaId("");
       setServerError(null);
       setSubmitting(false);
@@ -208,6 +211,7 @@ export function CreateModal({
           correo: correo.trim(),
           contrasena,
           rol,
+          estado,
           idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
           asignatura: selectedAsig ? selectedAsig.nombre : null,
         }),
@@ -230,6 +234,7 @@ export function CreateModal({
         rol,
         asignatura: selectedAsig ? selectedAsig.nombre : "—",
         idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
+        estado,
       });
 
       onClose();
@@ -398,23 +403,39 @@ export function CreateModal({
               </Field>
             </div>
 
-            {/* Correo Electrónico */}
-            <Field>
-              <FieldLabel htmlFor="create-user-correo">Correo Electrónico</FieldLabel>
-              <Input
-                id="create-user-correo"
-                type="email"
-                value={correo}
-                onChange={(e) => {
-                  setCorreo(e.target.value);
-                  if (errors.correo) setErrors((prev) => ({ ...prev, correo: undefined }));
-                }}
-                placeholder="ej. juan.perez@test.com"
-                className="bg-white"
-              />
-              {errors.correo && <FieldError>{errors.correo}</FieldError>}
-              <FieldDescription>Dirección de correo para notificaciones y acceso.</FieldDescription>
-            </Field>
+            {/* Correo Electrónico y Estado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="create-user-correo">Correo Electrónico</FieldLabel>
+                <Input
+                  id="create-user-correo"
+                  type="email"
+                  value={correo}
+                  onChange={(e) => {
+                    setCorreo(e.target.value);
+                    if (errors.correo) setErrors((prev) => ({ ...prev, correo: undefined }));
+                  }}
+                  placeholder="ej. juan.perez@test.com"
+                  className="bg-white"
+                />
+                {errors.correo && <FieldError>{errors.correo}</FieldError>}
+                <FieldDescription>Dirección institucional.</FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="create-user-estado">Estado de Cuenta</FieldLabel>
+                <select
+                  id="create-user-estado"
+                  value={estado ? "true" : "false"}
+                  onChange={(e) => setEstado(e.target.value === "true")}
+                  className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <option value="true">Activo (Habilitado para ingresar)</option>
+                  <option value="false">Inactivo (Acceso bloqueado)</option>
+                </select>
+                <FieldDescription>Los inactivos no podrán ingresar.</FieldDescription>
+              </Field>
+            </div>
 
             {/* Contraseña con toggle de visibilidad */}
             <Field>

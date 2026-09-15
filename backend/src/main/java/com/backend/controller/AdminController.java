@@ -102,6 +102,8 @@ public class AdminController {
                 }
             }
             dto.put("curso", curso);
+            dto.put("estado", u.isActivo());
+            dto.put("estadoTexto", u.getEstado());
 
             resultado.add(dto);
         }
@@ -144,8 +146,19 @@ public class AdminController {
             return ResponseEntity.badRequest().body(Map.of("error", "La contraseña es obligatoria."));
         }
 
+        String estadoStr = "activo";
+        if (payload.containsKey("estado")) {
+            Object estadoObj = payload.get("estado");
+            if (estadoObj instanceof Boolean) {
+                estadoStr = (Boolean) estadoObj ? "activo" : "inactivo";
+            } else if (estadoObj != null) {
+                String s = estadoObj.toString().trim();
+                estadoStr = ("false".equalsIgnoreCase(s) || "inactivo".equalsIgnoreCase(s)) ? "inactivo" : "activo";
+            }
+        }
+
         String hash = passwordEncoder.encode(contrasena);
-        Usuario nuevoUsuario = new Usuario(rut, nombre, apellido, correo, hash);
+        Usuario nuevoUsuario = new Usuario(rut, nombre, apellido, correo, hash, estadoStr);
 
         if (!rolNombre.isEmpty()) {
             Optional<Rol> rolOpt = rolRepository.findByNombre(rolNombre);
@@ -189,7 +202,8 @@ public class AdminController {
             "message", "Usuario creado con éxito",
             "rut", guardado.getRut(),
             "nombre", guardado.getNombre() + " " + guardado.getApellido(),
-            "correo", guardado.getCorreo()
+            "correo", guardado.getCorreo(),
+            "estado", guardado.isActivo()
         ));
     }
 
@@ -237,6 +251,17 @@ public class AdminController {
             Optional<Rol> rolOpt = rolRepository.findByNombre(rolNombre);
             if (rolOpt.isPresent()) {
                 usuario.setRoles(new HashSet<>(Collections.singletonList(rolOpt.get())));
+            }
+        }
+
+        // Actualizar estado si viene especificado
+        if (payload.containsKey("estado")) {
+            Object estadoObj = payload.get("estado");
+            if (estadoObj instanceof Boolean) {
+                usuario.setActivo((Boolean) estadoObj);
+            } else if (estadoObj != null) {
+                String s = estadoObj.toString().trim();
+                usuario.setActivo(!"false".equalsIgnoreCase(s) && !"inactivo".equalsIgnoreCase(s));
             }
         }
 
@@ -290,7 +315,8 @@ public class AdminController {
             "message", "Usuario actualizado con éxito",
             "rut", guardado.getRut(),
             "nombre", guardado.getNombre() + " " + guardado.getApellido(),
-            "correo", guardado.getCorreo()
+            "correo", guardado.getCorreo(),
+            "estado", guardado.isActivo()
         ));
     }
 }

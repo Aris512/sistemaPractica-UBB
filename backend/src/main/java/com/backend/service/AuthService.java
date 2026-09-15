@@ -82,6 +82,10 @@ public class AuthService {
             return LoginResponse.error("Credenciales inválidas: contraseña incorrecta");
         }
 
+        if (!usuario.isActivo()) {
+            return LoginResponse.error("Acceso denegado: su cuenta de usuario se encuentra inactiva. Contacte al administrador.");
+        }
+
         Set<String> roles = new HashSet<>();
         if (usuario.getRoles() != null) {
             for (Rol rol : usuario.getRoles()) {
@@ -96,7 +100,8 @@ public class AuthService {
             usuario.getNombre(),
             usuario.getApellido(),
             usuario.getCorreo(),
-            roles
+            roles,
+            usuario.isActivo()
         );
     }
 }

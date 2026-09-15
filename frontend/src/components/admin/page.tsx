@@ -36,6 +36,8 @@ export default function AdminPage() {
     setRoleFilter,
     asignaturaFilter,
     setAsignaturaFilter,
+    estadoFilter,
+    setEstadoFilter,
     availableAsignaturas,
     hasActiveFilters,
     clearFilters,
@@ -211,6 +213,8 @@ export default function AdminPage() {
               onRoleFilterChange={setRoleFilter}
               asignaturaFilter={asignaturaFilter}
               onAsignaturaFilterChange={setAsignaturaFilter}
+              estadoFilter={estadoFilter}
+              onEstadoFilterChange={setEstadoFilter}
               availableAsignaturas={availableAsignaturas}
               totalItems={totalItems}
               hasActiveFilters={hasActiveFilters}

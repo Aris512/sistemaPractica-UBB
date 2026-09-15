@@ -28,6 +28,7 @@ export interface EditUserData {
   rol: string;
   asignatura?: string;
   idAsignatura?: number | null;
+  estado?: boolean;
 }
 
 interface AsignaturaItem {
@@ -77,6 +78,7 @@ export function EditModal({
   const [contrasena, setContrasena] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rol, setRol] = useState("ESTUDIANTE");
+  const [estado, setEstado] = useState(true);
 
   // Roles dinámicos cargados desde la base de datos
   const [roles, setRoles] = useState<RolItem[]>([]);
@@ -111,6 +113,7 @@ export function EditModal({
       setContrasena("");
       setShowPassword(false);
       setRol(targetUser.rol || "ESTUDIANTE");
+      setEstado(targetUser.estado !== undefined ? Boolean(targetUser.estado) : true);
       setServerError(null);
       setSubmitting(false);
       setErrors({});
@@ -228,6 +231,7 @@ export function EditModal({
           correo: correo.trim(),
           contrasena: contrasena.trim() || null,
           rol,
+          estado,
           idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
           asignatura: selectedAsig ? selectedAsig.nombre : null,
         }),
@@ -248,6 +252,7 @@ export function EditModal({
         rol,
         curso: selectedAsig ? selectedAsig.nombre : "—",
         asignatura: selectedAsig ? selectedAsig.nombre : "—",
+        estado,
       });
 
       onClose();
@@ -410,23 +415,39 @@ export function EditModal({
               </Field>
             </div>
 
-            {/* Correo Electrónico */}
-            <Field>
-              <FieldLabel htmlFor="edit-user-correo">Correo Electrónico</FieldLabel>
-              <Input
-                id="edit-user-correo"
-                type="email"
-                value={correo}
-                onChange={(e) => {
-                  setCorreo(e.target.value);
-                  if (errors.correo) setErrors((prev) => ({ ...prev, correo: undefined }));
-                }}
-                placeholder="ej. juan.perez@test.com"
-                className="bg-white"
-              />
-              {errors.correo && <FieldError>{errors.correo}</FieldError>}
-              <FieldDescription>Dirección de correo electrónico institucional.</FieldDescription>
-            </Field>
+            {/* Correo Electrónico y Estado */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="edit-user-correo">Correo Electrónico</FieldLabel>
+                <Input
+                  id="edit-user-correo"
+                  type="email"
+                  value={correo}
+                  onChange={(e) => {
+                    setCorreo(e.target.value);
+                    if (errors.correo) setErrors((prev) => ({ ...prev, correo: undefined }));
+                  }}
+                  placeholder="ej. juan.perez@test.com"
+                  className="bg-white"
+                />
+                {errors.correo && <FieldError>{errors.correo}</FieldError>}
+                <FieldDescription>Dirección de correo institucional.</FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="edit-user-estado">Estado de la Cuenta</FieldLabel>
+                <select
+                  id="edit-user-estado"
+                  value={estado ? "true" : "false"}
+                  onChange={(e) => setEstado(e.target.value === "true")}
+                  className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <option value="true">Activo (Habilitado para ingresar)</option>
+                  <option value="false">Inactivo (Acceso bloqueado)</option>
+                </select>
+                <FieldDescription>Los inactivos no podrán ingresar.</FieldDescription>
+              </Field>
+            </div>
 
             {/* Contraseña opcional al editar */}
             <Field>

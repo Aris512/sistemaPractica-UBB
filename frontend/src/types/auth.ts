@@ -10,6 +10,7 @@ export interface UserSession {
   apellido: string;
   correo: string;
   roles: string[];
+  estado?: boolean;
 }
 
 export interface LoginResponse {
@@ -21,4 +22,5 @@ export interface LoginResponse {
   apellido?: string;
   correo?: string;
   roles?: string[];
+  estado?: boolean;
 }

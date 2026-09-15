@@ -84,6 +84,23 @@ function RolBadge({ rol }: { rol: string }) {
   );
 }
 
+function EstadoBadge({ estado }: { estado: boolean }) {
+  if (estado) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-xs">
+        <span className="size-1.5 rounded-full bg-emerald-500" />
+        Activo
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/80 shadow-xs">
+      <span className="size-1.5 rounded-full bg-rose-500" />
+      Inactivo
+    </span>
+  );
+}
+
 export const userColumns: ColumnDef<UsuarioRow>[] = [
   {
     id: "rut",
@@ -96,7 +113,14 @@ export const userColumns: ColumnDef<UsuarioRow>[] = [
     id: "nombre",
     header: "Nombre",
     sortable: true,
-    cell: (item) => <span>{item.nombre}</span>,
+    cell: (item) => (
+      <div className="flex flex-col">
+        <span className="font-medium text-slate-800">{item.nombre}</span>
+        {item.correo && (
+          <span className="text-xs text-slate-400 font-mono">{item.correo}</span>
+        )}
+      </div>
+    ),
   },
   {
     id: "rol",
@@ -111,6 +135,13 @@ export const userColumns: ColumnDef<UsuarioRow>[] = [
     cell: (item) => (
       <span className="text-slate-500 text-sm">{item.curso}</span>
     ),
+  },
+  {
+    id: "estado",
+    header: "Estado",
+    headerClassName: "w-[110px]",
+    sortable: true,
+    cell: (item) => <EstadoBadge estado={item.estado} />,
   },
   {
     id: "actions",

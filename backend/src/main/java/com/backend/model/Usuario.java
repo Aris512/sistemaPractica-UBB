@@ -31,6 +31,9 @@ public class Usuario {
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
 
+    @Column(name = "estado", length = 20, nullable = false)
+    private String estado = "activo";
+
     @ManyToMany
     @JoinTable(
         name = "usuario_rol",
@@ -40,6 +43,7 @@ public class Usuario {
     private Set<Rol> roles;
 
     public Usuario() {
+        this.estado = "activo";
     }
 
     public Usuario(String rut, String nombre, String apellido, String correo, String contrasenaEncriptada) {
@@ -49,6 +53,17 @@ public class Usuario {
         this.correo = correo;
         this.contrasenaEncriptada = contrasenaEncriptada;
         this.fechaCreacion = LocalDateTime.now();
+        this.estado = "activo";
+    }
+
+    public Usuario(String rut, String nombre, String apellido, String correo, String contrasenaEncriptada, String estado) {
+        this.rut = rut;
+        this.nombre = nombre;
+        this.apellido = apellido;
+        this.correo = correo;
+        this.contrasenaEncriptada = contrasenaEncriptada;
+        this.fechaCreacion = LocalDateTime.now();
+        this.estado = (estado != null && !estado.isBlank()) ? estado : "activo";
     }
 
     public String getRut() {
@@ -105,5 +120,21 @@ public class Usuario {
 
     public void setRoles(Set<Rol> roles) {
         this.roles = roles;
+    }
+
+    public String getEstado() {
+        return estado != null ? estado : "activo";
+    }
+
+    public void setEstado(String estado) {
+        this.estado = (estado != null && !estado.isBlank()) ? estado : "activo";
+    }
+
+    public boolean isActivo() {
+        return "activo".equalsIgnoreCase(this.estado);
+    }
+
+    public void setActivo(boolean activo) {
+        this.estado = activo ? "activo" : "inactivo";
     }
 }

@@ -7,6 +7,7 @@ export interface UsuarioRow {
   correo?: string;
   rol: string;
   curso: string;
+  estado: boolean;
 }
 
 // ── Mantener el alias Invoice para no romper los modales existentes ──
@@ -85,7 +86,8 @@ export function filterUsuarios(
   items: UsuarioRow[],
   searchQuery: string,
   roleFilter: string = "ALL",
-  asignaturaFilter: string = "ALL"
+  asignaturaFilter: string = "ALL",
+  estadoFilter: string = "ALL"
 ): UsuarioRow[] {
   const query = searchQuery.trim().toLowerCase();
 
@@ -104,13 +106,18 @@ export function filterUsuarios(
 
     if (!matchesAsignatura) return false;
 
+    if (estadoFilter === "ACTIVO" && !item.estado) return false;
+    if (estadoFilter === "INACTIVO" && item.estado) return false;
+
     if (!query) return true;
 
     return (
       item.rut.toLowerCase().includes(query) ||
       item.nombre.toLowerCase().includes(query) ||
+      (item.correo && item.correo.toLowerCase().includes(query)) ||
       item.rol.toLowerCase().includes(query) ||
-      item.curso.toLowerCase().includes(query)
+      item.curso.toLowerCase().includes(query) ||
+      (item.estado ? "activo" : "inactivo").includes(query)
     );
   });
 }
@@ -127,6 +134,7 @@ export function useDataTableFeatures(
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [asignaturaFilter, setAsignaturaFilter] = useState("ALL");
+  const [estadoFilter, setEstadoFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
   const [sortState, setSortState] = useState<SortState>({
@@ -150,12 +158,13 @@ export function useDataTableFeatures(
       const json = await res.json();
 
       const rows: UsuarioRow[] = json.map(
-        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string }) => ({
+        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string; estado?: boolean }) => ({
           rut: u.rut,
           nombre: u.nombre,
           correo: u.correo,
-          rol: u.roles.length > 0 ? u.roles[0] : "SIN ROL",
+          rol: u.roles && u.roles.length > 0 ? u.roles[0] : "SIN ROL",
           curso: u.curso || "—",
+          estado: u.estado !== undefined ? Boolean(u.estado) : true,
         })
       );
 
@@ -175,7 +184,7 @@ export function useDataTableFeatures(
   // Reset to first page whenever real-time filters change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, roleFilter, asignaturaFilter, pageSize]);
+  }, [searchQuery, roleFilter, asignaturaFilter, estadoFilter, pageSize]);
 
   const handleSort = (column: keyof UsuarioRow) => {
     setSortState((prev) => {
@@ -201,9 +210,9 @@ export function useDataTableFeatures(
   }, [data]);
 
   const filteredAndSortedData = useMemo(() => {
-    const filtered = filterUsuarios(data, searchQuery, roleFilter, asignaturaFilter);
+    const filtered = filterUsuarios(data, searchQuery, roleFilter, asignaturaFilter, estadoFilter);
     return sortUsuarios(filtered, sortState.column, sortState.direction);
-  }, [data, searchQuery, roleFilter, asignaturaFilter, sortState]);
+  }, [data, searchQuery, roleFilter, asignaturaFilter, estadoFilter, sortState]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredAndSortedData.length / pageSize));
@@ -225,14 +234,16 @@ export function useDataTableFeatures(
     return Boolean(
       searchQuery.trim() !== "" ||
       roleFilter !== "ALL" ||
-      asignaturaFilter !== "ALL"
+      asignaturaFilter !== "ALL" ||
+      estadoFilter !== "ALL"
     );
-  }, [searchQuery, roleFilter, asignaturaFilter]);
+  }, [searchQuery, roleFilter, asignaturaFilter, estadoFilter]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setRoleFilter("ALL");
     setAsignaturaFilter("ALL");
+    setEstadoFilter("ALL");
     setPage(1);
   };
 
@@ -258,6 +269,8 @@ export function useDataTableFeatures(
     setRoleFilter,
     asignaturaFilter,
     setAsignaturaFilter,
+    estadoFilter,
+    setEstadoFilter,
     availableAsignaturas,
     hasActiveFilters,
     clearFilters,
