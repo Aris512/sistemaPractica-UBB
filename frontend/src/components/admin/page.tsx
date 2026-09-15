@@ -7,8 +7,7 @@ import {
 } from "./data-table-features";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminToolbar } from "./AdminToolbar";
-import { EditModal } from "./EditModal";
-import { CreateModal } from "./CreateModal";
+import { EditModal, CreateModal } from "./usuarios";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,7 +16,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle, UserPlus } from "lucide-react";
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
 
@@ -28,12 +27,16 @@ export default function AdminPage() {
     page,
     setPage,
     pageSize,
+    setPageSize,
     totalPages,
     totalItems,
     searchQuery,
     setSearchQuery,
     roleFilter,
     setRoleFilter,
+    asignaturaFilter,
+    setAsignaturaFilter,
+    availableAsignaturas,
     hasActiveFilters,
     clearFilters,
     sortState,
@@ -70,17 +73,26 @@ export default function AdminPage() {
   };
 
   const handleSaveEdit = (_originalInvoiceId: string, _updatedInvoice: any) => {
+    refetch();
     sileo.success({
       title: "Usuario actualizado",
-      description: `Los cambios se guardaron correctamente`,
+      description: "Los cambios se guardaron correctamente en la base de datos",
     });
   };
 
-  const handleCreateInvoice = (_newInvoice: any) => {
-    sileo.success({
-      title: "Registro creado",
-      description: `Nuevo registro agregado`,
-    });
+  const handleCreateUser = (newUser: any) => {
+    refetch();
+    if (newUser && newUser.nombre) {
+      sileo.success({
+        title: "Usuario guardado en base de datos",
+        description: `Se registró a ${newUser.nombre} ${newUser.apellido} (${newUser.rol}) en la base de datos`,
+      });
+    } else {
+      sileo.success({
+        title: "Usuario guardado",
+        description: "El nuevo usuario fue registrado y persistido con éxito en la base de datos.",
+      });
+    }
   };
 
   const handleColumnSort = (colId: keyof UsuarioRow) => {
@@ -150,20 +162,29 @@ export default function AdminPage() {
                   Usuarios registrados en la base de datos con sus roles asignados.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  refetch();
-                  sileo.show({
-                    title: "Recargando usuarios",
-                    description: "Consultando la base de datos...",
-                  });
-                }}
-                className="gap-1.5 sm:self-auto self-start"
-              >
-                <RefreshCw className="size-4" />
-                Recargar
-              </Button>
+              <div className="flex items-center gap-2 sm:self-auto self-start">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    refetch();
+                    sileo.show({
+                      title: "Recargando usuarios",
+                      description: "Consultando la base de datos...",
+                    });
+                  }}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className="size-4" />
+                  Recargar
+                </Button>
+                <Button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-xs"
+                >
+                  <UserPlus className="size-4" />
+                  Nuevo Usuario
+                </Button>
+              </div>
             </div>
 
             {/* Error banner */}
@@ -188,9 +209,14 @@ export default function AdminPage() {
               onSearchChange={setSearchQuery}
               roleFilter={roleFilter}
               onRoleFilterChange={setRoleFilter}
+              asignaturaFilter={asignaturaFilter}
+              onAsignaturaFilterChange={setAsignaturaFilter}
+              availableAsignaturas={availableAsignaturas}
               totalItems={totalItems}
               hasActiveFilters={hasActiveFilters}
               onClearFilters={clearFilters}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
             />
 
             {/* Loading state */}
@@ -217,28 +243,29 @@ export default function AdminPage() {
                   totalItems,
                   pageSize,
                   onPageChange: (newPage) => setPage(newPage),
+                  onPageSizeChange: (newSize) => setPageSize(newSize),
                 }}
               />
             )}
           </div>
 
-          {/* Edit Modal (sin modificar) */}
+          {/* Edit Modal */}
           <EditModal
             isOpen={isEditModalOpen}
             onClose={() => {
               setIsEditModalOpen(false);
               setEditingInvoice(null);
             }}
-            invoice={editingInvoice}
+            user={editingInvoice}
             onSave={handleSaveEdit}
           />
 
-          {/* Create Modal (sin modificar) */}
+          {/* Create Modal */}
           <CreateModal
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
             suggestedId={nextInvoiceId}
-            onCreate={handleCreateInvoice}
+            onCreate={handleCreateUser}
           />
         </SidebarInset>
       </SidebarProvider>

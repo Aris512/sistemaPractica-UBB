@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 export interface UsuarioRow {
   rut: string;
   nombre: string;
+  correo?: string;
   rol: string;
   curso: string;
 }
@@ -83,7 +84,8 @@ export function sortUsuarios(
 export function filterUsuarios(
   items: UsuarioRow[],
   searchQuery: string,
-  roleFilter: string = "ALL"
+  roleFilter: string = "ALL",
+  asignaturaFilter: string = "ALL"
 ): UsuarioRow[] {
   const query = searchQuery.trim().toLowerCase();
 
@@ -93,6 +95,15 @@ export function filterUsuarios(
       item.rol.toLowerCase() === roleFilter.toLowerCase();
 
     if (!matchesRole) return false;
+
+    const matchesAsignatura =
+      asignaturaFilter === "ALL" ||
+      (asignaturaFilter === "NONE"
+        ? item.curso === "—" || !item.curso
+        : item.curso.toLowerCase() === asignaturaFilter.toLowerCase());
+
+    if (!matchesAsignatura) return false;
+
     if (!query) return true;
 
     return (
@@ -107,7 +118,7 @@ export function filterUsuarios(
 // ── Hook principal: fetch de usuarios reales ──
 export function useDataTableFeatures(
   _initialData?: unknown,
-  defaultPageSize: number = 5
+  defaultPageSize: number = 10
 ) {
   const [data, setData] = useState<UsuarioRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,8 +126,9 @@ export function useDataTableFeatures(
 
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [asignaturaFilter, setAsignaturaFilter] = useState("ALL");
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(defaultPageSize);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
   const [sortState, setSortState] = useState<SortState>({
     column: null,
     direction: null,
@@ -141,6 +153,7 @@ export function useDataTableFeatures(
         (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string }) => ({
           rut: u.rut,
           nombre: u.nombre,
+          correo: u.correo,
           rol: u.roles.length > 0 ? u.roles[0] : "SIN ROL",
           curso: u.curso || "—",
         })
@@ -162,7 +175,7 @@ export function useDataTableFeatures(
   // Reset to first page whenever real-time filters change
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, roleFilter]);
+  }, [searchQuery, roleFilter, asignaturaFilter, pageSize]);
 
   const handleSort = (column: keyof UsuarioRow) => {
     setSortState((prev) => {
@@ -176,10 +189,21 @@ export function useDataTableFeatures(
     });
   };
 
+  // Extraer lista de asignaturas disponibles de los datos cargados
+  const availableAsignaturas = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach((u) => {
+      if (u.curso && u.curso !== "—") {
+        set.add(u.curso);
+      }
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
   const filteredAndSortedData = useMemo(() => {
-    const filtered = filterUsuarios(data, searchQuery, roleFilter);
+    const filtered = filterUsuarios(data, searchQuery, roleFilter, asignaturaFilter);
     return sortUsuarios(filtered, sortState.column, sortState.direction);
-  }, [data, searchQuery, roleFilter, sortState]);
+  }, [data, searchQuery, roleFilter, asignaturaFilter, sortState]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredAndSortedData.length / pageSize));
@@ -198,12 +222,17 @@ export function useDataTableFeatures(
   }, [filteredAndSortedData, page, pageSize]);
 
   const hasActiveFilters = useMemo(() => {
-    return Boolean(searchQuery.trim() !== "" || roleFilter !== "ALL");
-  }, [searchQuery, roleFilter]);
+    return Boolean(
+      searchQuery.trim() !== "" ||
+      roleFilter !== "ALL" ||
+      asignaturaFilter !== "ALL"
+    );
+  }, [searchQuery, roleFilter, asignaturaFilter]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setRoleFilter("ALL");
+    setAsignaturaFilter("ALL");
     setPage(1);
   };
 
@@ -220,12 +249,16 @@ export function useDataTableFeatures(
     page,
     setPage,
     pageSize,
+    setPageSize,
     totalPages,
     totalItems: filteredAndSortedData.length,
     searchQuery,
     setSearchQuery,
     roleFilter,
     setRoleFilter,
+    asignaturaFilter,
+    setAsignaturaFilter,
+    availableAsignaturas,
     hasActiveFilters,
     clearFilters,
     sortState,

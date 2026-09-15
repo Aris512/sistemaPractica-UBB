@@ -16,48 +16,169 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { parseAmount, formatCurrency, type Invoice } from "./data-table-features";
+import { Eye, EyeOff, UserPlus, BookOpen, Loader2, AlertCircle } from "lucide-react";
+
+export interface NewUserData {
+  rut: string;
+  nombre: string;
+  apellido: string;
+  correo: string;
+  contrasena: string;
+  rol: string;
+  asignatura?: string;
+  idAsignatura?: number | null;
+}
+
+interface AsignaturaItem {
+  idAsignatura: number;
+  nombre: string;
+  descripcion?: string;
+  semestre?: string;
+}
+
+interface RolItem {
+  idRol: number;
+  nombre: string;
+  descripcion?: string;
+}
 
 interface CreateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  suggestedId?: string;
-  onCreate: (newInvoice: Invoice) => void;
+  suggestedId?: string; // Mantenido por retrocompatibilidad
+  onCreate?: (newUser: NewUserData | any) => void;
 }
+
+const getRolLabel = (nombre: string): string => {
+  if (!nombre) return "";
+  return nombre
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
 export function CreateModal({
   isOpen,
   onClose,
-  suggestedId = "INV008",
   onCreate,
 }: CreateModalProps) {
-  const [invoiceCode, setInvoiceCode] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("Paid");
-  const [paymentMethod, setPaymentMethod] = useState("Credit Card");
-  const [totalAmount, setTotalAmount] = useState("");
-  const [errors, setErrors] = useState<{ invoice?: string; totalAmount?: string }>({});
+  const [rut, setRut] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
+  const [correo, setCorreo] = useState("");
+  const [contrasena, setContrasena] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rol, setRol] = useState("ESTUDIANTE");
+
+  // Roles dinámicos cargados desde la base de datos
+  const [roles, setRoles] = useState<RolItem[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  // Asignaturas dinámicas cargadas desde la base de datos
+  const [asignaturas, setAsignaturas] = useState<AsignaturaItem[]>([]);
+  const [asignaturaId, setAsignaturaId] = useState("");
+  const [loadingAsignaturas, setLoadingAsignaturas] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
     if (isOpen) {
-      setInvoiceCode(suggestedId);
-      setPaymentStatus("Paid");
-      setPaymentMethod("Credit Card");
-      setTotalAmount("$100.00");
+      setRut("");
+      setNombre("");
+      setApellido("");
+      setCorreo("");
+      setContrasena("");
+      setShowPassword(false);
+      setRol("ESTUDIANTE");
+      setAsignaturaId("");
+      setServerError(null);
+      setSubmitting(false);
       setErrors({});
-    }
-  }, [isOpen, suggestedId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+      // Cargar roles desde la base de datos (/api/roles)
+      const fetchRoles = async () => {
+        setLoadingRoles(true);
+        try {
+          const res = await fetch("http://localhost:8080/api/roles");
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              setRoles(data);
+              if (data.length > 0 && !data.some((r: RolItem) => r.nombre === "ESTUDIANTE")) {
+                setRol(data[0].nombre);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error al cargar roles desde la base de datos:", err);
+        } finally {
+          setLoadingRoles(false);
+        }
+      };
+
+      // Cargar asignaturas desde la base de datos (/api/asignaturas)
+      const fetchAsignaturas = async () => {
+        setLoadingAsignaturas(true);
+        try {
+          const res = await fetch("http://localhost:8080/api/asignaturas");
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              setAsignaturas(data);
+            }
+          } else {
+            setAsignaturas([]);
+          }
+        } catch (err) {
+          console.error("Error al cargar asignaturas desde la base de datos:", err);
+          setAsignaturas([]);
+        } finally {
+          setLoadingAsignaturas(false);
+        }
+      };
+
+      fetchRoles();
+      fetchAsignaturas();
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: { invoice?: string; totalAmount?: string } = {};
+    const newErrors: Record<string, string> = {};
 
-    if (!invoiceCode.trim()) {
-      newErrors.invoice = "El código de factura es obligatorio.";
+    const cleanRut = rut.trim();
+    if (!cleanRut) {
+      newErrors.rut = "El RUT es obligatorio.";
+    } else if (cleanRut.length < 8) {
+      newErrors.rut = "Ingresa un RUT válido (ej. 12345678-5).";
     }
 
-    const numAmount = parseAmount(totalAmount);
-    if (!totalAmount.trim() || isNaN(numAmount) || numAmount < 0) {
-      newErrors.totalAmount = "Ingresa un monto válido mayor o igual a 0.";
+    if (!nombre.trim()) {
+      newErrors.nombre = "El nombre es obligatorio.";
+    }
+
+    if (!apellido.trim()) {
+      newErrors.apellido = "El apellido es obligatorio.";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!correo.trim()) {
+      newErrors.correo = "El correo electrónico es obligatorio.";
+    } else if (!emailRegex.test(correo.trim())) {
+      newErrors.correo = "Ingresa un formato de correo válido.";
+    }
+
+    if (!contrasena) {
+      newErrors.contrasena = "La contraseña es obligatoria.";
+    } else if (contrasena.length < 6) {
+      newErrors.contrasena = "La contraseña debe tener al menos 6 caracteres.";
+    }
+
+    if (!rol) {
+      newErrors.rol = "Debes seleccionar un rol.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -65,101 +186,285 @@ export function CreateModal({
       return;
     }
 
-    const formattedAmount = totalAmount.startsWith("$")
-      ? totalAmount
-      : formatCurrency(numAmount);
+    const selectedAsig = asignaturas.find(
+      (a) => String(a.idAsignatura) === asignaturaId
+    );
 
-    onCreate({
-      invoice: invoiceCode.trim(),
-      paymentStatus,
-      paymentMethod,
-      totalAmount: formattedAmount,
-    });
+    setSubmitting(true);
+    setServerError(null);
 
-    onClose();
+    try {
+      const credentials = btoa("admin:admin123");
+      const res = await fetch("http://localhost:8080/admin/usuarios", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${credentials}`,
+        },
+        body: JSON.stringify({
+          rut: cleanRut,
+          nombre: nombre.trim(),
+          apellido: apellido.trim(),
+          correo: correo.trim(),
+          contrasena,
+          rol,
+          idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
+          asignatura: selectedAsig ? selectedAsig.nombre : null,
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(
+          json?.error || `Error ${res.status}: No se pudo guardar el usuario en la base de datos.`
+        );
+      }
+
+      onCreate?.({
+        rut: cleanRut,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        correo: correo.trim(),
+        contrasena,
+        rol,
+        asignatura: selectedAsig ? selectedAsig.nombre : "—",
+        idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
+      });
+
+      onClose();
+    } catch (err: any) {
+      console.error("Error al registrar usuario en la base de datos:", err);
+      setServerError(err.message || "Error al conectar con la base de datos para guardar el usuario.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-md bg-white border border-slate-200">
+      <DialogContent className="sm:max-w-lg bg-white border border-slate-200">
         <DialogHeader>
-          <DialogTitle className="text-slate-900 font-bold">Nueva Factura</DialogTitle>
-          <DialogDescription className="text-slate-500">
-            Ingresa los datos para registrar una nueva factura en la tabla.
-          </DialogDescription>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-slate-100 rounded-lg text-slate-800">
+              <UserPlus className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-slate-900 font-bold">Nuevo Usuario</DialogTitle>
+              <DialogDescription className="text-slate-500 text-xs">
+                Ingresa los datos para registrar un nuevo usuario en la plataforma.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {serverError && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 animate-in fade-in duration-200">
+              <AlertCircle className="size-4 text-rose-500 shrink-0" />
+              <span>{serverError}</span>
+            </div>
+          )}
+
           <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="create-invoice-code">Código de Factura</FieldLabel>
-              <Input
-                id="create-invoice-code"
-                value={invoiceCode}
+            {/* RUT y Rol */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="create-user-rut">RUT</FieldLabel>
+                <Input
+                  id="create-user-rut"
+                  value={rut}
+                  onChange={(e) => {
+                    setRut(e.target.value);
+                    if (errors.rut) setErrors((prev) => ({ ...prev, rut: undefined }));
+                  }}
+                  placeholder="ej. 12345678-5"
+                  className="bg-white"
+                />
+                {errors.rut && <FieldError>{errors.rut}</FieldError>}
+                <FieldDescription>RUT con guión.</FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="create-user-rol" className="flex items-center gap-1.5">
+                  Rol (Tabla &quot;roles&quot;)
+                  {loadingRoles && (
+                    <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                  )}
+                </FieldLabel>
+                <select
+                  id="create-user-rol"
+                  value={rol}
+                  onChange={(e) => {
+                    setRol(e.target.value);
+                    if (errors.rol) setErrors((prev) => ({ ...prev, rol: undefined }));
+                  }}
+                  disabled={loadingRoles}
+                  className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  {loadingRoles ? (
+                    <option value="">Cargando roles de la BD...</option>
+                  ) : (
+                    <>
+                      {rol && !roles.some((r) => r.nombre === rol) && (
+                        <option value={rol}>{getRolLabel(rol)}</option>
+                      )}
+                      {roles.map((r) => (
+                        <option key={r.idRol} value={r.nombre}>
+                          {getRolLabel(r.nombre)}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                <FieldDescription>Rol cargado de la base de datos.</FieldDescription>
+                {errors.rol && <FieldError>{errors.rol}</FieldError>}
+              </Field>
+            </div>
+
+            {/* Asignatura disponible para todos los usuarios */}
+            <Field className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 transition-all">
+              <FieldLabel
+                htmlFor="create-user-asignatura"
+                className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
+              >
+                <BookOpen className="size-3.5 text-blue-600" />
+                Asignatura (Tabla &quot;asignatura&quot;)
+                {loadingAsignaturas && (
+                  <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                )}
+              </FieldLabel>
+              <select
+                id="create-user-asignatura"
+                value={asignaturaId}
                 onChange={(e) => {
-                  setInvoiceCode(e.target.value);
-                  if (errors.invoice) setErrors((prev) => ({ ...prev, invoice: undefined }));
+                  setAsignaturaId(e.target.value);
+                  if (errors.asignatura) {
+                    setErrors((prev) => ({ ...prev, asignatura: undefined }));
+                  }
                 }}
-                placeholder="ej. INV008"
+                disabled={loadingAsignaturas}
+                className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="">
+                  {loadingAsignaturas
+                    ? "Cargando asignaturas de la BD..."
+                    : "-- Sin Asignatura (Opcional) --"}
+                </option>
+                {asignaturas.map((asig) => (
+                  <option key={asig.idAsignatura} value={String(asig.idAsignatura)}>
+                    {asig.nombre} {asig.semestre ? `(Semestre ${asig.semestre})` : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.asignatura && (
+                <FieldError className="text-rose-600 mt-1">{errors.asignatura}</FieldError>
+              )}
+              <FieldDescription className="text-slate-500 text-[11px]">
+                Asignatura de la carrera vinculada desde la base de datos (estudiantes, profesores, tutores, etc.).
+              </FieldDescription>
+            </Field>
+
+            {/* Nombre y Apellido */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="create-user-nombre">Nombre</FieldLabel>
+                <Input
+                  id="create-user-nombre"
+                  value={nombre}
+                  onChange={(e) => {
+                    setNombre(e.target.value);
+                    if (errors.nombre) setErrors((prev) => ({ ...prev, nombre: undefined }));
+                  }}
+                  placeholder="ej. Juan"
+                  className="bg-white"
+                />
+                {errors.nombre && <FieldError>{errors.nombre}</FieldError>}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="create-user-apellido">Apellido</FieldLabel>
+                <Input
+                  id="create-user-apellido"
+                  value={apellido}
+                  onChange={(e) => {
+                    setApellido(e.target.value);
+                    if (errors.apellido) setErrors((prev) => ({ ...prev, apellido: undefined }));
+                  }}
+                  placeholder="ej. Pérez"
+                  className="bg-white"
+                />
+                {errors.apellido && <FieldError>{errors.apellido}</FieldError>}
+              </Field>
+            </div>
+
+            {/* Correo Electrónico */}
+            <Field>
+              <FieldLabel htmlFor="create-user-correo">Correo Electrónico</FieldLabel>
+              <Input
+                id="create-user-correo"
+                type="email"
+                value={correo}
+                onChange={(e) => {
+                  setCorreo(e.target.value);
+                  if (errors.correo) setErrors((prev) => ({ ...prev, correo: undefined }));
+                }}
+                placeholder="ej. juan.perez@test.com"
                 className="bg-white"
               />
-              {errors.invoice && <FieldError>{errors.invoice}</FieldError>}
-              <FieldDescription>Identificador único con formato INV###.</FieldDescription>
+              {errors.correo && <FieldError>{errors.correo}</FieldError>}
+              <FieldDescription>Dirección de correo para notificaciones y acceso.</FieldDescription>
             </Field>
 
+            {/* Contraseña con toggle de visibilidad */}
             <Field>
-              <FieldLabel htmlFor="create-status">Estado de Pago</FieldLabel>
-              <select
-                id="create-status"
-                value={paymentStatus}
-                onChange={(e) => setPaymentStatus(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="Paid">Paid (Pagado)</option>
-                <option value="Pending">Pending (Pendiente)</option>
-                <option value="Unpaid">Unpaid (No Pagado)</option>
-              </select>
-              <FieldDescription>Estado inicial del registro.</FieldDescription>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="create-method">Método de Pago</FieldLabel>
-              <select
-                id="create-method"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="Credit Card">Credit Card</option>
-                <option value="PayPal">PayPal</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-              </select>
-              <FieldDescription>Medio seleccionado para la transacción.</FieldDescription>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="create-amount">Monto Total</FieldLabel>
-              <Input
-                id="create-amount"
-                value={totalAmount}
-                onChange={(e) => {
-                  setTotalAmount(e.target.value);
-                  if (errors.totalAmount) setErrors((prev) => ({ ...prev, totalAmount: undefined }));
-                }}
-                placeholder="ej. $150.00"
-                className="bg-white"
-              />
-              {errors.totalAmount && <FieldError>{errors.totalAmount}</FieldError>}
-              <FieldDescription>Valor monetario a registrar en USD.</FieldDescription>
+              <FieldLabel htmlFor="create-user-contrasena">Contraseña</FieldLabel>
+              <div className="relative">
+                <Input
+                  id="create-user-contrasena"
+                  type={showPassword ? "text" : "password"}
+                  value={contrasena}
+                  onChange={(e) => {
+                    setContrasena(e.target.value);
+                    if (errors.contrasena) setErrors((prev) => ({ ...prev, contrasena: undefined }));
+                  }}
+                  placeholder="••••••••"
+                  className="bg-white pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+              {errors.contrasena && <FieldError>{errors.contrasena}</FieldError>}
+              <FieldDescription>Mínimo 6 caracteres.</FieldDescription>
             </Field>
           </FieldGroup>
 
           <DialogFooter className="mt-4 pt-2 border-t border-slate-100 sm:justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancelar
             </Button>
-            <Button type="submit">
-              Crear Factura
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 cursor-pointer"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Guardando en BD...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="size-4" />
+                  Crear Usuario
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -167,3 +472,4 @@ export function CreateModal({
     </Dialog>
   );
 }
+

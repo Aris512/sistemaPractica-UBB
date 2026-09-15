@@ -16,43 +16,190 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { parseAmount, formatCurrency, type Invoice } from "./data-table-features";
+import { Eye, EyeOff, UserCheck, BookOpen, Loader2, AlertCircle, Lock } from "lucide-react";
+import type { UsuarioRow } from "../data-table-features";
+
+export interface EditUserData {
+  rut: string;
+  nombre: string;
+  apellido: string;
+  correo: string;
+  contrasena?: string;
+  rol: string;
+  asignatura?: string;
+  idAsignatura?: number | null;
+}
+
+interface AsignaturaItem {
+  idAsignatura: number;
+  nombre: string;
+  descripcion?: string;
+  semestre?: string;
+}
+
+interface RolItem {
+  idRol: number;
+  nombre: string;
+  descripcion?: string;
+}
 
 interface EditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  invoice: Invoice | null;
-  onSave: (originalInvoiceId: string, updatedInvoice: Invoice) => void;
+  user?: UsuarioRow | any | null;
+  invoice?: any | null; // Retrocompatibilidad para page.tsx
+  onSave?: (originalRut: string, updatedUser: any) => void;
 }
 
-export function EditModal({ isOpen, onClose, invoice, onSave }: EditModalProps) {
-  const [invoiceCode, setInvoiceCode] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("Paid");
-  const [paymentMethod, setPaymentMethod] = useState("Credit Card");
-  const [totalAmount, setTotalAmount] = useState("");
-  const [errors, setErrors] = useState<{ invoice?: string; totalAmount?: string }>({});
+const getRolLabel = (nombre: string): string => {
+  if (!nombre) return "";
+  return nombre
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+export function EditModal({
+  isOpen,
+  onClose,
+  user,
+  invoice,
+  onSave,
+}: EditModalProps) {
+  // Soporte tanto para prop "user" como "invoice" por retrocompatibilidad
+  const targetUser = user || invoice;
+
+  const [rut, setRut] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
+  const [correo, setCorreo] = useState("");
+  const [contrasena, setContrasena] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rol, setRol] = useState("ESTUDIANTE");
+
+  // Roles dinámicos cargados desde la base de datos
+  const [roles, setRoles] = useState<RolItem[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  // Asignaturas dinámicas cargadas desde la base de datos
+  const [asignaturas, setAsignaturas] = useState<AsignaturaItem[]>([]);
+  const [asignaturaId, setAsignaturaId] = useState("");
+  const [loadingAsignaturas, setLoadingAsignaturas] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
-    if (invoice) {
-      setInvoiceCode(invoice.invoice);
-      setPaymentStatus(invoice.paymentStatus);
-      setPaymentMethod(invoice.paymentMethod);
-      setTotalAmount(invoice.totalAmount);
+    if (isOpen && targetUser) {
+      const userRut = targetUser.rut || targetUser.invoice || "";
+      setRut(userRut);
+
+      // Separar nombre completo si viene en un solo campo
+      const full = (targetUser.nombre || "").trim();
+      const parts = full.split(/\s+/);
+      if (parts.length > 1) {
+        setNombre(parts[0]);
+        setApellido(parts.slice(1).join(" "));
+      } else {
+        setNombre(full);
+        setApellido(targetUser.apellido || "");
+      }
+
+      setCorreo(targetUser.correo || "");
+      setContrasena("");
+      setShowPassword(false);
+      setRol(targetUser.rol || "ESTUDIANTE");
+      setServerError(null);
+      setSubmitting(false);
       setErrors({});
-    }
-  }, [invoice]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+      // Cargar roles desde la base de datos (/api/roles)
+      const fetchRoles = async () => {
+        setLoadingRoles(true);
+        try {
+          const res = await fetch("http://localhost:8080/api/roles");
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              setRoles(data);
+            }
+          }
+        } catch (err) {
+          console.error("Error al cargar roles desde la base de datos:", err);
+        } finally {
+          setLoadingRoles(false);
+        }
+      };
+
+      // Cargar asignaturas desde la base de datos (/api/asignaturas)
+      const fetchAsignaturas = async () => {
+        setLoadingAsignaturas(true);
+        try {
+          const res = await fetch("http://localhost:8080/api/asignaturas");
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              setAsignaturas(data);
+              // Si el usuario ya tiene curso/asignatura asignada, preseleccionar su id
+              const userCurso = (targetUser.curso || targetUser.asignatura || "").trim();
+              if (userCurso && userCurso !== "—" && userCurso !== "-") {
+                const matching = data.find(
+                  (a: AsignaturaItem) =>
+                    a.nombre.toLowerCase() === userCurso.toLowerCase()
+                );
+                if (matching) {
+                  setAsignaturaId(String(matching.idAsignatura));
+                } else {
+                  setAsignaturaId("");
+                }
+              } else {
+                setAsignaturaId("");
+              }
+            }
+          } else {
+            setAsignaturas([]);
+          }
+        } catch (err) {
+          console.error("Error al cargar asignaturas desde la base de datos:", err);
+          setAsignaturas([]);
+        } finally {
+          setLoadingAsignaturas(false);
+        }
+      };
+
+      fetchRoles();
+      fetchAsignaturas();
+    }
+  }, [isOpen, targetUser]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newErrors: { invoice?: string; totalAmount?: string } = {};
+    const newErrors: Record<string, string> = {};
 
-    if (!invoiceCode.trim()) {
-      newErrors.invoice = "El código de factura es obligatorio.";
+    if (!nombre.trim()) {
+      newErrors.nombre = "El nombre es obligatorio.";
     }
 
-    const numAmount = parseAmount(totalAmount);
-    if (!totalAmount.trim() || isNaN(numAmount) || numAmount < 0) {
-      newErrors.totalAmount = "Ingresa un monto válido mayor o igual a 0.";
+    if (!apellido.trim()) {
+      newErrors.apellido = "El apellido es obligatorio.";
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!correo.trim()) {
+      newErrors.correo = "El correo electrónico es obligatorio.";
+    } else if (!emailRegex.test(correo.trim())) {
+      newErrors.correo = "Ingresa un formato de correo válido.";
+    }
+
+    // Contraseña es opcional al editar; si se escribe, debe tener >= 6 caracteres
+    if (contrasena && contrasena.length < 6) {
+      newErrors.contrasena = "La nueva contraseña debe tener al menos 6 caracteres.";
+    }
+
+    if (!rol) {
+      newErrors.rol = "Debes seleccionar un rol.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -60,103 +207,278 @@ export function EditModal({ isOpen, onClose, invoice, onSave }: EditModalProps) 
       return;
     }
 
-    if (!invoice) return;
+    const selectedAsig = asignaturas.find(
+      (a) => String(a.idAsignatura) === asignaturaId
+    );
 
-    const formattedAmount = totalAmount.startsWith("$")
-      ? totalAmount
-      : formatCurrency(numAmount);
+    setSubmitting(true);
+    setServerError(null);
 
-    onSave(invoice.invoice, {
-      invoice: invoiceCode.trim(),
-      paymentStatus,
-      paymentMethod,
-      totalAmount: formattedAmount,
-    });
+    try {
+      const credentials = btoa("admin:admin123");
+      const res = await fetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${credentials}`,
+        },
+        body: JSON.stringify({
+          nombre: nombre.trim(),
+          apellido: apellido.trim(),
+          correo: correo.trim(),
+          contrasena: contrasena.trim() || null,
+          rol,
+          idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
+          asignatura: selectedAsig ? selectedAsig.nombre : null,
+        }),
+      });
 
-    onClose();
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(
+          json?.error || `Error ${res.status}: No se pudieron guardar los cambios en la base de datos.`
+        );
+      }
+
+      onSave?.(rut, {
+        rut,
+        nombre: `${nombre.trim()} ${apellido.trim()}`,
+        correo: correo.trim(),
+        rol,
+        curso: selectedAsig ? selectedAsig.nombre : "—",
+        asignatura: selectedAsig ? selectedAsig.nombre : "—",
+      });
+
+      onClose();
+    } catch (err: any) {
+      console.error("Error al actualizar usuario en la base de datos:", err);
+      setServerError(err.message || "Error al conectar con la base de datos.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-md bg-white border border-slate-200">
+      <DialogContent className="sm:max-w-lg bg-white border border-slate-200">
         <DialogHeader>
-          <DialogTitle className="text-slate-900 font-bold">Editar Factura</DialogTitle>
-          <DialogDescription className="text-slate-500">
-            Modifica los detalles del registro seleccionado en tiempo real.
-          </DialogDescription>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-blue-50 text-blue-700 rounded-lg">
+              <UserCheck className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-slate-900 font-bold">Editar Usuario</DialogTitle>
+              <DialogDescription className="text-slate-500 text-xs">
+                Modifica los datos del usuario seleccionado en la plataforma.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          {serverError && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 animate-in fade-in duration-200">
+              <AlertCircle className="size-4 text-rose-500 shrink-0" />
+              <span>{serverError}</span>
+            </div>
+          )}
+
           <FieldGroup className="gap-3">
-            <Field>
-              <FieldLabel htmlFor="edit-invoice-code">Código de Factura</FieldLabel>
-              <Input
-                id="edit-invoice-code"
-                value={invoiceCode}
+            {/* RUT (Read-only) y Rol */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="edit-user-rut" className="flex items-center gap-1">
+                  <Lock className="size-3 text-slate-400" />
+                  RUT (Identificador)
+                </FieldLabel>
+                <Input
+                  id="edit-user-rut"
+                  value={rut}
+                  disabled
+                  className="bg-slate-100 text-slate-600 cursor-not-allowed font-mono text-xs"
+                />
+                <FieldDescription>El RUT no se puede modificar.</FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="edit-user-rol" className="flex items-center gap-1.5">
+                  Rol (Tabla &quot;roles&quot;)
+                  {loadingRoles && (
+                    <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                  )}
+                </FieldLabel>
+                <select
+                  id="edit-user-rol"
+                  value={rol}
+                  onChange={(e) => {
+                    setRol(e.target.value);
+                    if (errors.rol) setErrors((prev) => ({ ...prev, rol: undefined }));
+                  }}
+                  disabled={loadingRoles}
+                  className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  {loadingRoles ? (
+                    <option value="">Cargando roles de la BD...</option>
+                  ) : (
+                    <>
+                      {rol && !roles.some((r) => r.nombre === rol) && (
+                        <option value={rol}>{getRolLabel(rol)}</option>
+                      )}
+                      {roles.map((r) => (
+                        <option key={r.idRol} value={r.nombre}>
+                          {getRolLabel(r.nombre)}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                <FieldDescription>Rol cargado de la base de datos.</FieldDescription>
+              </Field>
+            </div>
+
+            {/* Asignatura disponible para todos los roles */}
+            <Field className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 transition-all">
+              <FieldLabel
+                htmlFor="edit-user-asignatura"
+                className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
+              >
+                <BookOpen className="size-3.5 text-blue-600" />
+                Asignatura (Tabla &quot;asignatura&quot;)
+                {loadingAsignaturas && (
+                  <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                )}
+              </FieldLabel>
+              <select
+                id="edit-user-asignatura"
+                value={asignaturaId}
                 onChange={(e) => {
-                  setInvoiceCode(e.target.value);
-                  if (errors.invoice) setErrors((prev) => ({ ...prev, invoice: undefined }));
+                  setAsignaturaId(e.target.value);
+                  if (errors.asignatura) {
+                    setErrors((prev) => ({ ...prev, asignatura: undefined }));
+                  }
                 }}
-                placeholder="ej. INV001"
+                disabled={loadingAsignaturas}
+                className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="">
+                  {loadingAsignaturas
+                    ? "Cargando asignaturas de la BD..."
+                    : "-- Sin Asignatura (Opcional) --"}
+                </option>
+                {asignaturas.map((asig) => (
+                  <option key={asig.idAsignatura} value={String(asig.idAsignatura)}>
+                    {asig.nombre} {asig.semestre ? `(Semestre ${asig.semestre})` : ""}
+                  </option>
+                ))}
+              </select>
+              <FieldDescription className="text-slate-500 text-[11px]">
+                Asignatura vinculada a este usuario obtenida directamente de la base de datos.
+              </FieldDescription>
+            </Field>
+
+            {/* Nombre y Apellido */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field>
+                <FieldLabel htmlFor="edit-user-nombre">Nombre</FieldLabel>
+                <Input
+                  id="edit-user-nombre"
+                  value={nombre}
+                  onChange={(e) => {
+                    setNombre(e.target.value);
+                    if (errors.nombre) setErrors((prev) => ({ ...prev, nombre: undefined }));
+                  }}
+                  placeholder="ej. Juan"
+                  className="bg-white"
+                />
+                {errors.nombre && <FieldError>{errors.nombre}</FieldError>}
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="edit-user-apellido">Apellido</FieldLabel>
+                <Input
+                  id="edit-user-apellido"
+                  value={apellido}
+                  onChange={(e) => {
+                    setApellido(e.target.value);
+                    if (errors.apellido) setErrors((prev) => ({ ...prev, apellido: undefined }));
+                  }}
+                  placeholder="ej. Pérez"
+                  className="bg-white"
+                />
+                {errors.apellido && <FieldError>{errors.apellido}</FieldError>}
+              </Field>
+            </div>
+
+            {/* Correo Electrónico */}
+            <Field>
+              <FieldLabel htmlFor="edit-user-correo">Correo Electrónico</FieldLabel>
+              <Input
+                id="edit-user-correo"
+                type="email"
+                value={correo}
+                onChange={(e) => {
+                  setCorreo(e.target.value);
+                  if (errors.correo) setErrors((prev) => ({ ...prev, correo: undefined }));
+                }}
+                placeholder="ej. juan.perez@test.com"
                 className="bg-white"
               />
-              {errors.invoice && <FieldError>{errors.invoice}</FieldError>}
-              <FieldDescription>Identificador único de la factura.</FieldDescription>
+              {errors.correo && <FieldError>{errors.correo}</FieldError>}
+              <FieldDescription>Dirección de correo electrónico institucional.</FieldDescription>
             </Field>
 
+            {/* Contraseña opcional al editar */}
             <Field>
-              <FieldLabel htmlFor="edit-status">Estado de Pago</FieldLabel>
-              <select
-                id="edit-status"
-                value={paymentStatus}
-                onChange={(e) => setPaymentStatus(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="Paid">Paid (Pagado)</option>
-                <option value="Pending">Pending (Pendiente)</option>
-                <option value="Unpaid">Unpaid (No Pagado)</option>
-              </select>
-              <FieldDescription>Estado actual del procesamiento de cobro.</FieldDescription>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="edit-method">Método de Pago</FieldLabel>
-              <select
-                id="edit-method"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="Credit Card">Credit Card</option>
-                <option value="PayPal">PayPal</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-              </select>
-              <FieldDescription>Canal registrado para la transacción.</FieldDescription>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="edit-amount">Monto Total</FieldLabel>
-              <Input
-                id="edit-amount"
-                value={totalAmount}
-                onChange={(e) => {
-                  setTotalAmount(e.target.value);
-                  if (errors.totalAmount) setErrors((prev) => ({ ...prev, totalAmount: undefined }));
-                }}
-                placeholder="ej. $250.00"
-                className="bg-white"
-              />
-              {errors.totalAmount && <FieldError>{errors.totalAmount}</FieldError>}
-              <FieldDescription>Valor monetario de la factura en USD.</FieldDescription>
+              <FieldLabel htmlFor="edit-user-contrasena">Nueva Contraseña (Opcional)</FieldLabel>
+              <div className="relative">
+                <Input
+                  id="edit-user-contrasena"
+                  type={showPassword ? "text" : "password"}
+                  value={contrasena}
+                  onChange={(e) => {
+                    setContrasena(e.target.value);
+                    if (errors.contrasena) setErrors((prev) => ({ ...prev, contrasena: undefined }));
+                  }}
+                  placeholder="•••••••• (dejar en blanco para no modificar)"
+                  className="bg-white pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+              {errors.contrasena && <FieldError>{errors.contrasena}</FieldError>}
+              <FieldDescription>
+                Dejar vacío si no deseas modificar la contraseña actual.
+              </FieldDescription>
             </Field>
           </FieldGroup>
 
           <DialogFooter className="mt-4 pt-2 border-t border-slate-100 sm:justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
               Cancelar
             </Button>
-            <Button type="submit">
-              Guardar Cambios
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50 cursor-pointer"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Guardando en BD...
+                </>
+              ) : (
+                <>
+                  <UserCheck className="size-4" />
+                  Guardar Cambios
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -164,3 +486,4 @@ export function EditModal({ isOpen, onClose, invoice, onSave }: EditModalProps) 
     </Dialog>
   );
 }
+

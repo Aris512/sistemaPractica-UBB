@@ -23,6 +23,7 @@ export interface DataTablePaginationProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 interface DataTableProps<T> {
@@ -117,25 +118,43 @@ export function DataTable<T>({
       {/* Fixed bottom pagination bar - always stays anchored in this position */}
       {pagination && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 bg-slate-50/70 mt-auto shrink-0">
-          <div className="text-xs text-slate-500">
-            Mostrando{" "}
-            <span className="font-semibold text-slate-800">
-              {pagination.totalItems === 0
-                ? 0
-                : (pagination.currentPage - 1) * pagination.pageSize + 1}
-            </span>{" "}
-            a{" "}
-            <span className="font-semibold text-slate-800">
-              {Math.min(
-                pagination.currentPage * pagination.pageSize,
-                pagination.totalItems
-              )}
-            </span>{" "}
-            de{" "}
-            <span className="font-semibold text-slate-800">
-              {pagination.totalItems}
-            </span>{" "}
-            registros
+          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <div>
+              Mostrando{" "}
+              <span className="font-semibold text-slate-800">
+                {pagination.totalItems === 0
+                  ? 0
+                  : (pagination.currentPage - 1) * pagination.pageSize + 1}
+              </span>{" "}
+              a{" "}
+              <span className="font-semibold text-slate-800">
+                {Math.min(
+                  pagination.currentPage * pagination.pageSize,
+                  pagination.totalItems
+                )}
+              </span>{" "}
+              de{" "}
+              <span className="font-semibold text-slate-800">
+                {pagination.totalItems}
+              </span>{" "}
+              registros
+            </div>
+
+            {pagination.onPageSizeChange && (
+              <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                <span>Por página:</span>
+                <select
+                  value={pagination.pageSize}
+                  onChange={(e) => pagination.onPageSizeChange?.(Number(e.target.value))}
+                  className="h-6 rounded border border-slate-300 bg-white px-1.5 text-xs font-medium text-slate-700 outline-none cursor-pointer"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <Pagination className="w-auto mx-0 justify-end">
