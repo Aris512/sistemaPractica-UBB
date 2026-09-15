@@ -26,7 +26,9 @@ public class Profesor {
     @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
-    private String ramo;
+    @ManyToOne
+    @JoinColumn(name = "id_asignatura")
+    private Asignatura asignatura;
 
     @ManyToMany
     @JoinTable(
@@ -39,9 +41,9 @@ public class Profesor {
     public Profesor() {
     }
 
-    public Profesor(Usuario usuario, String ramo) {
+    public Profesor(Usuario usuario, Asignatura asignatura) {
         this.usuario = usuario;
-        this.ramo = ramo;
+        this.asignatura = asignatura;
     }
 
     public Long getIdProfesor() {
@@ -60,12 +62,12 @@ public class Profesor {
         this.usuario = usuario;
     }
 
-    public String getRamo() {
-        return ramo;
+    public Asignatura getAsignatura() {
+        return asignatura;
     }
 
-    public void setRamo(String ramo) {
-        this.ramo = ramo;
+    public void setAsignatura(Asignatura asignatura) {
+        this.asignatura = asignatura;
     }
 
     public Set<Asignatura> getAsignaturas() {

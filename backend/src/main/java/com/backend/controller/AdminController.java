@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
@@ -11,8 +12,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.backend.model.Rol;
+import com.backend.model.Estudiante;
+import com.backend.model.Profesor;
 import com.backend.model.Usuario;
+import com.backend.repository.EstudianteRepository;
+import com.backend.repository.ProfesorRepository;
 import com.backend.repository.UsuarioRepository;
 
 /**
@@ -29,9 +33,15 @@ import com.backend.repository.UsuarioRepository;
 public class AdminController {
 
     private final UsuarioRepository usuarioRepository;
+    private final EstudianteRepository estudianteRepository;
+    private final ProfesorRepository profesorRepository;
 
-    public AdminController(UsuarioRepository usuarioRepository) {
+    public AdminController(UsuarioRepository usuarioRepository,
+                           EstudianteRepository estudianteRepository,
+                           ProfesorRepository profesorRepository) {
         this.usuarioRepository = usuarioRepository;
+        this.estudianteRepository = estudianteRepository;
+        this.profesorRepository = profesorRepository;
     }
 
     @GetMapping
@@ -57,10 +67,23 @@ public class AdminController {
             List<String> roles = new ArrayList<>();
             if (u.getRoles() != null) {
                 roles = u.getRoles().stream()
-                    .map(Rol::getNombre)
+                    .filter(r -> r != null)
+                    .map(r -> r.getNombre())
                     .collect(Collectors.toList());
             }
             dto.put("roles", roles);
+
+            String curso = "—";
+            Optional<Estudiante> estudianteOpt = estudianteRepository.findByUsuario(u);
+            if (estudianteOpt.isPresent() && estudianteOpt.get().getAsignatura() != null) {
+                curso = estudianteOpt.get().getAsignatura().getNombre();
+            } else {
+                Optional<Profesor> profesorOpt = profesorRepository.findByUsuario(u);
+                if (profesorOpt.isPresent() && profesorOpt.get().getAsignatura() != null) {
+                    curso = profesorOpt.get().getAsignatura().getNombre();
+                }
+            }
+            dto.put("curso", curso);
 
             resultado.add(dto);
         }

@@ -69,14 +69,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveEdit = (originalInvoiceId: string, updatedInvoice: any) => {
+  const handleSaveEdit = (_originalInvoiceId: string, _updatedInvoice: any) => {
     sileo.success({
       title: "Usuario actualizado",
       description: `Los cambios se guardaron correctamente`,
     });
   };
 
-  const handleCreateInvoice = (newInvoice: any) => {
+  const handleCreateInvoice = (_newInvoice: any) => {
     sileo.success({
       title: "Registro creado",
       description: `Nuevo registro agregado`,

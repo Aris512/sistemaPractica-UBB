@@ -138,11 +138,11 @@ export function useDataTableFeatures(
       const json = await res.json();
 
       const rows: UsuarioRow[] = json.map(
-        (u: { rut: string; nombre: string; roles: string[]; correo: string }) => ({
+        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string }) => ({
           rut: u.rut,
           nombre: u.nombre,
           rol: u.roles.length > 0 ? u.roles[0] : "SIN ROL",
-          curso: "—", // Campo sin relación directa en el modelo actual
+          curso: u.curso || "—",
         })
       );
 

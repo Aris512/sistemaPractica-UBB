@@ -21,14 +21,14 @@ TABLA: USUARIO_ROL
 TABLA: ESTUDIANTE
 - id_estudiante
 - rut_usuario (FK)
-- semestre
+- id_asignatura (FK)
 - estado
 
 
 TABLA: PROFESOR
 - id_profesor
 - rut_usuario (FK)
-- ramo
+- id_asignatura (FK)
 
 
 TABLA: CENTRO_PRACTICA
