@@ -1,4 +1,4 @@
-import type React from "react";
+
 import { PencilIcon, Trash2Icon, BookOpen, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "../columns";
