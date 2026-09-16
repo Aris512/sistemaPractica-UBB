@@ -1,20 +1,32 @@
 import type { UserSession } from "@/types/auth";
 import escudoImg from "@/components/login/logo/escudo.png";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { LogOut } from "lucide-react";
-import { sileo } from "sileo";
+import { Avatar, AvatarFallback, AvatarBadge } from "@/components/ui/avatar";
 
 interface HomeHeaderProps {
   user: UserSession;
-  onLogout: () => void;
   formattedDate: string;
+  onOpenProfile?: () => void;
+  onLogout?: () => void;
 }
 
 export function HomeHeader({
   user,
-  onLogout,
   formattedDate,
+  onOpenProfile,
 }: HomeHeaderProps) {
+  const rolDisplay = (user.roles && user.roles[0]) || user.rol || "Estudiante";
+
+  const getInitials = () => {
+    if (user.nombre && user.apellido) {
+      return `${user.nombre.charAt(0)}${user.apellido.charAt(0)}`.toUpperCase();
+    }
+    if (user.nombre) {
+      return user.nombre.slice(0, 2).toUpperCase();
+    }
+    return "U";
+  };
+
   return (
     <header className="h-16 bg-white border-b border-slate-200/80 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
       {/* Lado Izquierdo: Trigger del sidebar + Escudo UBB */}
@@ -40,30 +52,38 @@ export function HomeHeader({
         </div>
       </div>
 
-      {/* Lado Derecho: Fecha en tiempo real + Botón Salir */}
+      {/* Lado Derecho: Fecha en tiempo real + Identificación de Usuario (Avatar interactivo) */}
       <div className="flex items-center gap-3 sm:gap-4">
+        {/* Fecha en tiempo real */}
         <div className="text-right hidden sm:block">
-          <div className="text-xs font-semibold text-slate-800">
+          <div className="text-xs font-semibold text-slate-700">
             {formattedDate}
-          </div>
-          <div className="text-[11px] text-slate-400">
-            Bienvenido, <span className="font-medium text-slate-600">{user.nombre}</span>
           </div>
         </div>
 
+        <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+        {/* Identificación del Usuario con Avatar interactivo */}
         <button
-          onClick={() => {
-            sileo.show({
-              title: "Sesión finalizada",
-              description: "Hasta pronto " + user.nombre,
-            });
-            onLogout();
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-rose-300 hover:bg-rose-50 text-slate-600 hover:text-rose-700 text-xs font-medium transition-colors cursor-pointer"
-          title="Cerrar sesión"
+          type="button"
+          onClick={onOpenProfile}
+          className="flex items-center gap-2.5 p-1.5 -mr-1 rounded-xl hover:bg-slate-100/80 active:bg-slate-200/70 transition-all cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-sky-500/40 group"
+          title="Ver mi perfil académico"
         >
-          <LogOut className="size-3.5" />
-          <span className="hidden sm:inline">Cerrar Sesión</span>
+          <Avatar size="default" className="border border-sky-200/80 bg-sky-50 text-sky-800 transition-transform group-hover:scale-105">
+            <AvatarFallback className="bg-sky-100 text-sky-900 font-bold text-xs">
+              {getInitials()}
+            </AvatarFallback>
+            <AvatarBadge className="bg-emerald-500 ring-white" />
+          </Avatar>
+          <div className="flex flex-col text-left">
+            <span className="text-xs font-bold text-slate-800 leading-tight group-hover:text-sky-700 transition-colors">
+              {user.nombre} {user.apellido || ""}
+            </span>
+            <span className="text-[10.5px] font-medium text-sky-700 leading-tight">
+              {rolDisplay}
+            </span>
+          </div>
         </button>
       </div>
     </header>

@@ -3,6 +3,7 @@ import type { UserSession } from "@/types/auth";
 import type { HomeMenuKey } from "./types";
 import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
+import { PerfilUsuario } from "./PerfilUsuario";
 import { MallaCurricular } from "@/components/malla_curricular";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
@@ -47,13 +48,18 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         {/* Cabecera institucional con escudo UBB */}
         <HomeHeader
           user={user}
-          onLogout={onLogout}
           formattedDate={formattedDate}
+          onOpenProfile={() => setActiveMenu("perfil")}
+          onLogout={onLogout}
         />
 
-        {/* Contenido principal: Malla Curricular interactiva */}
+        {/* Contenido principal: Malla Curricular interactiva o Perfil */}
         <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
-          <MallaCurricular userRut={user?.rut} />
+          {activeMenu === "perfil" ? (
+            <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />
+          ) : (
+            <MallaCurricular userRut={user?.rut} />
+          )}
         </main>
 
         {/* Footer Institucional */}
@@ -65,9 +71,9 @@ export function HomePage({ user, onLogout }: HomePageProps) {
               rel="noopener noreferrer"
               className="text-sky-700 hover:underline font-semibold"
             >
-              Acerca de Adecca
+              Acerca de Sistema de Práctica
             </a>
-            , Universidad del Bío-Bío © 2013-2026
+            , Universidad del Bío-Bío © 2026
           </p>
         </footer>
       </SidebarInset>

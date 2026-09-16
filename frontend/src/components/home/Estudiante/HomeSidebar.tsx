@@ -4,6 +4,7 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -15,16 +16,13 @@ import {
   Home,
   GraduationCap,
   BookOpen,
-  User,
-  Mail,
-  CheckSquare,
-  Globe,
   FileText,
+  LogOut,
 } from "lucide-react";
 import { sileo } from "sileo";
 
 interface HomeSidebarProps {
-  user: UserSession;
+  user?: UserSession;
   activeMenu: HomeMenuKey;
   onSelectMenu: (menu: HomeMenuKey) => void;
   onLogout?: () => void;
@@ -49,10 +47,10 @@ function AdeccaLogo() {
       </svg>
       <div className="flex flex-col leading-none">
         <span className="text-lg font-bold tracking-tight text-slate-900 font-sans">
-          Adecca
+          Sistema de Práctica
         </span>
         <span className="text-[10px] text-slate-500 font-medium">
-          Plataforma de educación en línea
+          Pedadogía en Educación Matemática 
         </span>
       </div>
     </div>
@@ -63,59 +61,12 @@ export function HomeSidebar({
   user,
   activeMenu,
   onSelectMenu,
+  onLogout,
   totalCourses,
 }: HomeSidebarProps) {
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
       <SidebarHeader className="p-4 border-b border-slate-100">
-        {/* Accesos directos circulares */}
-        <div className="flex items-center justify-between gap-1.5 p-1.5 bg-slate-100/70 rounded-xl mb-3">
-          <button
-            onClick={() =>
-              sileo.show({
-                title: "Perfil del Usuario",
-                description: `${user.nombre} (${(user.roles && user.roles[0]) || user.rol || "Estudiante"})`,
-              })
-            }
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-            title="Mi Perfil"
-          >
-            <User className="size-4" />
-          </button>
-          <button
-            onClick={() =>
-              sileo.show({
-                title: "Bandeja de Entrada",
-                description: "Sin mensajes nuevos por ahora",
-              })
-            }
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all cursor-pointer relative"
-            title="Mensajes"
-          >
-            <Mail className="size-4" />
-            <span className="size-2 rounded-full bg-amber-500 absolute top-1.5 right-1.5" />
-          </button>
-          <button
-            onClick={() =>
-              sileo.show({
-                title: "Mis Calificaciones",
-                description: "Calificaciones actualizadas del semestre 2026-2",
-              })
-            }
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-            title="Calificaciones"
-          >
-            <CheckSquare className="size-4" />
-          </button>
-          <button
-            onClick={() => window.open("https://www.ubiobio.cl", "_blank")}
-            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white transition-all cursor-pointer"
-            title="Portal Institucional UBB"
-          >
-            <Globe className="size-4" />
-          </button>
-        </div>
-
         {/* Logo Adecca */}
         <AdeccaLogo />
       </SidebarHeader>
@@ -212,6 +163,24 @@ export function HomeSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-3 border-t border-slate-100 bg-white">
+        <button
+          onClick={() => {
+            if (onLogout) {
+              sileo.show({
+                title: "Sesión finalizada",
+                description: "Hasta pronto " + (user?.nombre || ""),
+              });
+              onLogout();
+            }
+          }}
+          className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-sm font-medium transition-colors cursor-pointer shadow-2xs group"
+          title="Cerrar sesión"
+        >
+          <LogOut className="size-4 text-slate-500 group-hover:text-rose-600 shrink-0" />
+          <span>Cerrar Sesión</span>
+        </button>
+      </SidebarFooter>
     </Sidebar>
   );
 }

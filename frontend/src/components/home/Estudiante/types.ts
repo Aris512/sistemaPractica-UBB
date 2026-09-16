@@ -22,7 +22,8 @@ export type HomeMenuKey =
   | "cursos-publicos"
   | "resultados-test"
   | "calendario"
-  | "bodega";
+  | "bodega"
+  | "perfil";
 
 // Cursos iniciales fieles al pantallazo de Adecca UBB
 export const INITIAL_COURSES: CourseItem[] = [

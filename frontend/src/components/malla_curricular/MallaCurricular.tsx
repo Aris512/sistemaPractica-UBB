@@ -178,7 +178,7 @@ export function MallaCurricular({
                     {/* Cabecera del Semestre */}
                     <div className="border-b border-cyan-100 pb-1 mb-1">
                       <span className="text-[#0097a7] font-extrabold text-[11px] tracking-wider uppercase">
-                        {semestre.romano} SEMESTRE
+                        {semestre.romano}
                       </span>
                     </div>
 
