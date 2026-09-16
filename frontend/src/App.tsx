@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { LoginForm } from "./components/login/LoginForm";
 import { InfoPanel } from "./components/login/InfoPanel";
 import { UbbLogoBadge } from "./components/login/UbbLogoBadge";
-import { HomePage } from "./components/home/HomePage";
+import { HomePage } from "./components/home/Estudiante";
 import AdminPage from "./components/admin/page";
 import type { UserSession } from "./types/auth";
 

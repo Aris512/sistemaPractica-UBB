@@ -57,6 +57,10 @@ public class Estudiante {
         return asignatura;
     }
 
+    public Long getIdAsignatura() {
+        return asignatura != null ? asignatura.getIdAsignatura() : null;
+    }
+
     public void setAsignatura(Asignatura asignatura) {
         this.asignatura = asignatura;
     }

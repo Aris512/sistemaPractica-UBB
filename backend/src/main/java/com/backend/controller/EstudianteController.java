@@ -38,6 +38,15 @@ public class EstudianteController {
         return ResponseEntity.ok(estudiante);
     }
 
+    @GetMapping("/rut/{rut}")
+    public ResponseEntity<Estudiante> obtenerPorRut(@PathVariable String rut) {
+        Estudiante estudiante = estudianteService.obtenerPorRut(rut);
+        if (estudiante == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(estudiante);
+    }
+
     @PostMapping
     public ResponseEntity<Estudiante> crear(@RequestBody Estudiante estudiante) {
         return ResponseEntity.ok(estudianteService.crear(estudiante));

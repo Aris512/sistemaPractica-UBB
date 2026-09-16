@@ -24,6 +24,25 @@ public class EstudianteService {
         return estudianteRepository.findById(id).orElse(null);
     }
 
+    public Estudiante obtenerPorRut(String rut) {
+        if (rut == null || rut.isBlank()) {
+            return null;
+        }
+        java.util.Optional<Estudiante> opt = estudianteRepository.findByUsuarioRut(rut);
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+
+        String clean = com.backend.util.RutUtils.clean(rut);
+        opt = estudianteRepository.findByUsuarioRut(clean);
+        if (opt.isPresent()) {
+            return opt.get();
+        }
+
+        String standard = com.backend.util.RutUtils.formatStandard(rut);
+        return estudianteRepository.findByUsuarioRut(standard).orElse(null);
+    }
+
     public Estudiante crear(Estudiante estudiante) {
         return estudianteRepository.save(estudiante);
     }
