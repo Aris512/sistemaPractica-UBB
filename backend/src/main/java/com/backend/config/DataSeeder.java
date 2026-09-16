@@ -12,13 +12,19 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
+import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
 import com.backend.model.Estudiante;
+import com.backend.model.Evidencia;
 import com.backend.model.Profesor;
 import com.backend.model.Rol;
 import com.backend.model.Usuario;
+import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.EstudianteRepository;
+import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.RolRepository;
 import com.backend.repository.UsuarioRepository;
@@ -33,18 +39,24 @@ public class DataSeeder implements CommandLineRunner {
     private final AsignaturaRepository asignaturaRepository;
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
+    private final ActividadRepository actividadRepository;
+    private final EvidenciaRepository evidenciaRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public DataSeeder(RolRepository rolRepository,
                       UsuarioRepository usuarioRepository,
                       AsignaturaRepository asignaturaRepository,
                       EstudianteRepository estudianteRepository,
-                      ProfesorRepository profesorRepository) {
+                      ProfesorRepository profesorRepository,
+                      ActividadRepository actividadRepository,
+                      EvidenciaRepository evidenciaRepository) {
         this.rolRepository = rolRepository;
         this.usuarioRepository = usuarioRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
+        this.actividadRepository = actividadRepository;
+        this.evidenciaRepository = evidenciaRepository;
     }
 
     @Override
@@ -58,6 +70,7 @@ public class DataSeeder implements CommandLineRunner {
         seedAsignaturas();
         seedUsuarios();
         seedEstudiantesYProfesores();
+        seedActividadesYEvidencias();
 
         logger.info("=================================================");
         logger.info("DataSeeder finalizado con éxito.");
@@ -238,6 +251,60 @@ public class DataSeeder implements CommandLineRunner {
                         logger.info("Profesor RUT {} actualizado con Asignatura '{}'", info.rut(), asignatura.getNombre());
                     }
                 }
+            }
+        }
+    }
+
+    private void seedActividadesYEvidencias() {
+        if (actividadRepository.count() == 0) {
+            Optional<Profesor> profesorOpt = profesorRepository.findByUsuarioRut("11111111-1");
+            Optional<Asignatura> asignaturaOpt = asignaturaRepository.findByNombreIgnoreCase("Práctica Pedagógica");
+            Optional<Estudiante> estudianteOpt = estudianteRepository.findByUsuarioRut("12345678-5");
+
+            if (profesorOpt.isPresent() && asignaturaOpt.isPresent()) {
+                Profesor profesor = profesorOpt.get();
+                Asignatura asignatura = asignaturaOpt.get();
+
+                // Actividad 1: Con entrega revisada
+                Actividad act1 = new Actividad(
+                    profesor,
+                    asignatura,
+                    "Evidencia 1: Planificación de Clase y Recursos Didácticos",
+                    "El estudiante debe adjuntar la planificación de aula para su primera intervención en el centro de práctica, incluyendo objetivos de aprendizaje, secuencia didáctica y materiales de apoyo.",
+                    LocalDateTime.now().plusDays(7)
+                );
+                actividadRepository.save(act1);
+                logger.info("Actividad inicial creada: {}", act1.getTitulo());
+
+                if (estudianteOpt.isPresent()) {
+                    Estudiante estudiante = estudianteOpt.get();
+                    Evidencia ev1 = new Evidencia(
+                        act1,
+                        estudiante,
+                        "Planificacion_Unidad_Funciones_JavierToro.pdf",
+                        "https://ejemplo.edu/evidencias/planificacion_unidad1.pdf",
+                        "Adjunto la propuesta de planificación con énfasis en resolución colaborativa de problemas matemáticos."
+                    );
+                    ev1.setFechaEntrega(LocalDateTime.now().minusDays(2));
+                    ev1.setEstado("REVISADO");
+                    ev1.setCalificacion(6.5);
+                    ev1.setRetroalimentacion("Excelente articulación metodológica y selección de recursos. Sugiero profundizar un poco más en la pauta de cotejo para el cierre de la clase.");
+                    ev1.setFechaRevision(LocalDateTime.now().minusHours(8));
+                    ev1.setRevisadoPor(profesor);
+                    evidenciaRepository.save(ev1);
+                    logger.info("Evidencia inicial de prueba creada y revisada para estudiante: {}", estudiante.getUsuario().getRut());
+                }
+
+                // Actividad 2: Pendiente para el estudiante
+                Actividad act2 = new Actividad(
+                    profesor,
+                    asignatura,
+                    "Evidencia 2: Registro Reflexivo de Observación de Aula",
+                    "Documento de análisis pedagógico crítico respecto a la dinámica del aula observada durante las primeras 15 horas de práctica pedagógica en terreno.",
+                    LocalDateTime.now().plusDays(12)
+                );
+                actividadRepository.save(act2);
+                logger.info("Actividad pendiente creada: {}", act2.getTitulo());
             }
         }
     }

@@ -8,7 +8,7 @@ import { Portafolio } from "./Portafolio";
 import { CursosPractica } from "./CursosPractica";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
-import { MallaCurricular } from "@/components/malla_curricular";
+import { TableEstudiantes } from "./table";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
@@ -52,7 +52,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         return <Evaluaciones onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
-        return <MallaCurricular userRut={user?.rut} />;
+        return <TableEstudiantes user={user} />;
     }
   };
 

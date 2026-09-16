@@ -12,4 +12,5 @@ import com.backend.model.Usuario;
 public interface EstudianteRepository extends JpaRepository<Estudiante, Long> {
     Optional<Estudiante> findByUsuario(Usuario usuario);
     Optional<Estudiante> findByUsuarioRut(String rut);
+    java.util.List<Estudiante> findByAsignaturaIdAsignatura(Long idAsignatura);
 }

@@ -1,4 +1,5 @@
-import { ArrowLeft, GraduationCap, UserCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, GraduationCap, UserCheck, BookOpen } from "lucide-react";
 import type { UserSession } from "@/types/auth";
 
 interface PerfilProfesorProps {
@@ -9,6 +10,24 @@ interface PerfilProfesorProps {
 export function PerfilProfesor({ user, onBack }: PerfilProfesorProps) {
   const rolDisplay = (user.roles && user.roles[0]) || user.rol || "Profesor";
   const fullName = `${user.nombre || ""} ${user.apellido || ""}`.trim().toUpperCase() || "DOCENTE";
+  const [ramo, setRamo] = useState<string>("Práctica Pedagógica");
+
+  useEffect(() => {
+    if (!user?.rut) return;
+    fetch(`http://localhost:8080/api/profesores/rut/${encodeURIComponent(user.rut)}`)
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((data) => {
+        if (data?.asignatura?.nombre) {
+          setRamo(data.asignatura.nombre);
+        } else if (data?.asignaturas && data.asignaturas.length > 0) {
+          setRamo(data.asignaturas[0].nombre);
+        }
+      })
+      .catch((err) => console.warn("No se pudo obtener la asignatura del profesor:", err));
+  }, [user?.rut]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto py-2">
@@ -104,10 +123,10 @@ export function PerfilProfesor({ user, onBack }: PerfilProfesorProps) {
 
               <div className="py-3.5 flex items-center justify-between gap-4">
                 <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  ESTADO
+                  RAMO / ASIGNATURA
                 </span>
-                <span className="text-sm font-medium text-emerald-700 font-semibold text-right">
-                  Activo
+                <span className="text-sm font-semibold text-sky-800 text-right">
+                  {ramo}
                 </span>
               </div>
             </div>
