@@ -1,0 +1,43 @@
+import { Bot, ArrowLeft } from "lucide-react";
+
+interface AsistentesIAProps {
+  onBack?: () => void;
+}
+
+export function AsistentesIA({ onBack }: AsistentesIAProps) {
+  return (
+    <div className="max-w-4xl mx-auto py-6 space-y-6">
+      {onBack && (
+        <div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-800 bg-sky-50 hover:bg-sky-100/80 border border-sky-200 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span>Volver al Inicio</span>
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-8 sm:p-12 shadow-xs flex flex-col items-center text-center">
+        <div className="size-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 mb-5 shadow-2xs">
+          <Bot className="size-8" />
+        </div>
+
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3 tracking-tight">
+          Asistentes de IA
+        </h1>
+
+        <p className="text-slate-600 max-w-lg text-sm sm:text-base leading-relaxed mb-6">
+          Herramientas inteligentes de asistencia pedagógica para apoyar el diseño de actividades didácticas, elaboración de instrumentos y orientación en el aula de matemáticas.
+        </p>
+
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">
+          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+          Módulo en desarrollo
+        </span>
+      </div>
+    </div>
+  );
+}
