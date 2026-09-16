@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { LoginForm } from "./components/login/LoginForm";
 import { InfoPanel } from "./components/login/InfoPanel";
 import { UbbLogoBadge } from "./components/login/UbbLogoBadge";
-import { HomePage } from "./components/home/Estudiante";
+import { HomePage as EstudianteHomePage } from "./components/home/Estudiante";
+import { ProfesorHomePage } from "./components/home/Profesor";
 import AdminPage from "./components/admin/page";
 import type { UserSession } from "./types/auth";
 
@@ -24,9 +25,18 @@ export default function App() {
     return <AdminPage />;
   }
 
-  // If user is authenticated, display the Home Page
+  // If user is authenticated, display the appropriate Home Page based on role
   if (currentUser) {
-    return <HomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+    const roles = currentUser.roles || [];
+    const isProfesor =
+      roles.some((r) => r.toUpperCase().includes("PROFESOR") || r.toUpperCase().includes("DOCENTE")) ||
+      (currentUser.rol && (currentUser.rol.toUpperCase().includes("PROFESOR") || currentUser.rol.toUpperCase().includes("DOCENTE")));
+
+    if (isProfesor) {
+      return <ProfesorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+    }
+
+    return <EstudianteHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
   }
 
   // Otherwise, display the Login Page with subtle background pattern and neumorphic white container

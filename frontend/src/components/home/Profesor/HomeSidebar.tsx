@@ -1,5 +1,5 @@
 import type { UserSession } from "@/types/auth";
-import type { HomeMenuKey } from "./types";
+import type { ProfesorMenuKey } from "./types";
 import {
   Sidebar,
   SidebarHeader,
@@ -18,18 +18,15 @@ import {
   Briefcase,
   CalendarDays,
   ClipboardCheck,
-  MessageSquareText,
-  Bot,
   LogOut,
 } from "lucide-react";
 import { sileo } from "sileo";
 
 interface HomeSidebarProps {
   user?: UserSession;
-  activeMenu: HomeMenuKey;
-  onSelectMenu: (menu: HomeMenuKey) => void;
+  activeMenu: ProfesorMenuKey;
+  onSelectMenu: (menu: ProfesorMenuKey) => void;
   onLogout?: () => void;
-  totalCourses?: number;
 }
 
 function AdeccaLogo() {
@@ -65,7 +62,7 @@ export function HomeSidebar({
   onSelectMenu,
   onLogout,
 }: HomeSidebarProps) {
-  const handleSelectMockup = (menu: HomeMenuKey, modulo: string) => {
+  const handleSelectMockup = (menu: ProfesorMenuKey, modulo: string) => {
     onSelectMenu(menu);
     sileo.warning({
       title: "Módulo en desarrollo",
@@ -76,31 +73,29 @@ export function HomeSidebar({
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
       <SidebarHeader className="p-4 border-b border-slate-100">
-        {/* Logo Adecca */}
         <AdeccaLogo />
       </SidebarHeader>
 
       <SidebarContent className="p-2 space-y-4">
-        {/* Menú Principal */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2">
-            Módulos
+            Gestión Docente
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* Inicio */}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={activeMenu === "inicio" || activeMenu === "malla-curricular"}
+                  isActive={activeMenu === "inicio"}
                   onClick={() => onSelectMenu("inicio")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "inicio" || activeMenu === "malla-curricular"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                    activeMenu === "inicio"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Home className="size-4.5 text-sky-600 shrink-0" />
+                    <Home className="size-4.5 text-slate-900 shrink-0" />
                     <span>Inicio</span>
                   </div>
                 </SidebarMenuButton>
@@ -110,16 +105,16 @@ export function HomeSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "portafolio"}
-                  onClick={() => handleSelectMockup("portafolio", "Portafolio")}
+                  onClick={() => handleSelectMockup("portafolio", "Portafolios")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                     activeMenu === "portafolio"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Briefcase className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Portafolio</span>
+                    <Briefcase className="size-4.5 text-slate-900 shrink-0" />
+                    <span>Portafolios</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -127,16 +122,16 @@ export function HomeSidebar({
               {/* Cursos / Práctica */}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={activeMenu === "cursos-practica" || activeMenu === "mis-cursos"}
+                  isActive={activeMenu === "cursos-practica"}
                   onClick={() => handleSelectMockup("cursos-practica", "Cursos / Práctica")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "cursos-practica" || activeMenu === "mis-cursos"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                    activeMenu === "cursos-practica"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <GraduationCap className="size-4.5 text-sky-600 shrink-0" />
+                    <GraduationCap className="size-4.5 text-slate-900 shrink-0" />
                     <span>Cursos / Práctica</span>
                   </div>
                 </SidebarMenuButton>
@@ -149,12 +144,12 @@ export function HomeSidebar({
                   onClick={() => handleSelectMockup("planificacion", "Planificación")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                     activeMenu === "planificacion"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <CalendarDays className="size-4.5 text-sky-600 shrink-0" />
+                    <CalendarDays className="size-4.5 text-slate-900 shrink-0" />
                     <span>Planificación</span>
                   </div>
                 </SidebarMenuButton>
@@ -167,49 +162,13 @@ export function HomeSidebar({
                   onClick={() => handleSelectMockup("evaluaciones", "Evaluaciones")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                     activeMenu === "evaluaciones"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <ClipboardCheck className="size-4.5 text-sky-600 shrink-0" />
+                    <ClipboardCheck className="size-4.5 text-slate-900 shrink-0" />
                     <span>Evaluaciones</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Observaciones */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "observaciones"}
-                  onClick={() => handleSelectMockup("observaciones", "Observaciones")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "observaciones"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <MessageSquareText className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Observaciones</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Asistentes de IA */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "asistentes-ia"}
-                  onClick={() => handleSelectMockup("asistentes-ia", "Asistentes de IA")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "asistentes-ia"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Bot className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Asistentes de IA</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -217,17 +176,17 @@ export function HomeSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
       <SidebarFooter className="p-3 border-t border-slate-100 bg-white">
         <button
           onClick={onLogout}
-          className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-slate-600 hover:text-rose-700 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-sm font-medium transition-colors cursor-pointer shadow-2xs group"
+          className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-slate-700 hover:text-rose-700 hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-sm font-medium transition-colors cursor-pointer shadow-2xs group"
           title="Cerrar sesión"
         >
-          <LogOut className="size-4 text-slate-500 group-hover:text-rose-600 shrink-0" />
+          <LogOut className="size-4 text-slate-900 group-hover:text-rose-600 shrink-0" />
           <span>Cerrar Sesión</span>
         </button>
       </SidebarFooter>
     </Sidebar>
   );
 }
-
