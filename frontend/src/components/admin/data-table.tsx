@@ -16,6 +16,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import type { ColumnDef } from "./columns";
+export { userColumns } from "./columns";
 
 export interface DataTablePaginationProps {
   currentPage: number;
@@ -33,7 +34,7 @@ interface DataTableProps<T> {
   sortColumn?: string | null;
   sortDirection?: "asc" | "desc" | null;
   onSort?: (columnId: string) => void;
-  onAction?: (action: string, item: T) => void;
+  onAction?: (action: string, item: T) => void | Promise<any>;
   pagination?: DataTablePaginationProps;
 }
 

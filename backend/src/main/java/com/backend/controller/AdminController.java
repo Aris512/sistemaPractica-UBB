@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -223,23 +224,29 @@ public class AdminController {
         String rolNombre = payload.get("rol") != null ? payload.get("rol").toString().trim() : "";
         Object idAsignaturaObj = payload.get("idAsignatura");
 
-        if (nombre.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El nombre es obligatorio."));
-        }
-        if (apellido.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El apellido es obligatorio."));
-        }
-
-        if (correo.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El correo electrónico es obligatorio."));
-        }
-        if (!correo.equalsIgnoreCase(usuario.getCorreo()) && usuarioRepository.existsByCorreo(correo)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Ya existe otro usuario registrado con el correo: " + correo));
+        if (payload.containsKey("nombre")) {
+            if (nombre.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El nombre es obligatorio."));
+            }
+            usuario.setNombre(nombre);
         }
 
-        usuario.setNombre(nombre);
-        usuario.setApellido(apellido);
-        usuario.setCorreo(correo);
+        if (payload.containsKey("apellido")) {
+            if (apellido.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El apellido es obligatorio."));
+            }
+            usuario.setApellido(apellido);
+        }
+
+        if (payload.containsKey("correo")) {
+            if (correo.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El correo electrónico es obligatorio."));
+            }
+            if (!correo.equalsIgnoreCase(usuario.getCorreo()) && usuarioRepository.existsByCorreo(correo)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Ya existe otro usuario registrado con el correo: " + correo));
+            }
+            usuario.setCorreo(correo);
+        }
 
         // Si se especificó una nueva contraseña, actualizarla
         if (!contrasena.isEmpty()) {
@@ -316,6 +323,45 @@ public class AdminController {
             "rut", guardado.getRut(),
             "nombre", guardado.getNombre() + " " + guardado.getApellido(),
             "correo", guardado.getCorreo(),
+            "estado", guardado.isActivo()
+        ));
+    }
+
+    @PutMapping("/usuarios/{rut}/estado")
+    public ResponseEntity<?> cambiarEstadoPut(@PathVariable String rut, @RequestBody Map<String, Object> payload) {
+        return actualizarEstadoUsuario(rut, payload);
+    }
+
+    @PatchMapping("/usuarios/{rut}/estado")
+    public ResponseEntity<?> cambiarEstadoPatch(@PathVariable String rut, @RequestBody Map<String, Object> payload) {
+        return actualizarEstadoUsuario(rut, payload);
+    }
+
+    private ResponseEntity<?> actualizarEstadoUsuario(String rut, Map<String, Object> payload) {
+        Optional<Usuario> userOpt = usuarioRepository.findByRut(rut);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Usuario usuario = userOpt.get();
+
+        boolean nuevoEstado = true;
+        if (payload.containsKey("estado")) {
+            Object estadoObj = payload.get("estado");
+            if (estadoObj instanceof Boolean) {
+                nuevoEstado = (Boolean) estadoObj;
+            } else if (estadoObj != null) {
+                String s = estadoObj.toString().trim();
+                nuevoEstado = !"false".equalsIgnoreCase(s) && !"inactivo".equalsIgnoreCase(s);
+            }
+        }
+
+        usuario.setActivo(nuevoEstado);
+        Usuario guardado = usuarioRepository.save(usuario);
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Estado actualizado con éxito",
+            "rut", guardado.getRut(),
             "estado", guardado.isActivo()
         ));
     }

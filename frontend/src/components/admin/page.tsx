@@ -50,6 +50,7 @@ export default function AdminPage() {
     error,
     refetch,
     deleteUsuario,
+    toggleUsuarioEstado,
   } = useDataTableFeatures();
 
   // Modals state
@@ -59,7 +60,7 @@ export default function AdminPage() {
 
   const nextInvoiceId = `INV${String(data.length + 1).padStart(3, "0")}`;
 
-  const handleRowAction = (action: string, item: UsuarioRow) => {
+  const handleRowAction = async (action: string, item: UsuarioRow) => {
     switch (action) {
       case "edit":
         setEditingInvoice(item);
@@ -72,6 +73,25 @@ export default function AdminPage() {
           description: `${item.nombre} (${item.rut}) fue eliminado de la tabla`,
         });
         break;
+      case "toggle-estado": {
+        const nuevoEstado = !item.estado;
+        const res = await toggleUsuarioEstado(item.rut, nuevoEstado);
+        if (res.success) {
+          sileo.success({
+            title: "Estado actualizado",
+            description: `${item.nombre} ahora está ${
+              nuevoEstado ? "Activo" : "Inactivo"
+            }`,
+          });
+        } else {
+          sileo.error({
+            title: "Error al cambiar estado",
+            description:
+              res.error || "No se pudo actualizar el estado en el servidor",
+          });
+        }
+        break;
+      }
       default:
         break;
     }

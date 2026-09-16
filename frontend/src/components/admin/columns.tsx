@@ -1,13 +1,14 @@
 import type React from "react";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import type { UsuarioRow } from "./data-table-features";
 import { rolLabel } from "./data-table-features";
 
 export interface ColumnDef<T> {
   id: string;
   header: string;
-  cell: (item: T, onAction?: (action: string, item: T) => void) => React.ReactNode;
+  cell: (item: T, onAction?: (action: string, item: T) => void | Promise<any>) => React.ReactNode;
   className?: string;
   headerClassName?: string;
   sortable?: boolean;
@@ -15,7 +16,7 @@ export interface ColumnDef<T> {
 
 interface ActionButtonsProps {
   usuario: UsuarioRow;
-  onAction?: (action: string, usuario: UsuarioRow) => void;
+  onAction?: (action: string, usuario: UsuarioRow) => void | Promise<any>;
 }
 
 function ActionButtons({ usuario, onAction }: ActionButtonsProps) {
@@ -84,7 +85,7 @@ function RolBadge({ rol }: { rol: string }) {
   );
 }
 
-function EstadoBadge({ estado }: { estado: boolean }) {
+export function EstadoBadge({ estado }: { estado: boolean }) {
   if (estado) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-xs">
@@ -98,6 +99,31 @@ function EstadoBadge({ estado }: { estado: boolean }) {
       <span className="size-1.5 rounded-full bg-rose-500" />
       Inactivo
     </span>
+  );
+}
+
+interface EstadoSwitchProps {
+  usuario: UsuarioRow;
+  onAction?: (action: string, usuario: UsuarioRow) => void | Promise<any>;
+}
+
+export function EstadoSwitch({ usuario, onAction }: EstadoSwitchProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <Switch
+        checked={usuario.estado}
+        onCheckedChange={() => onAction?.("toggle-estado", usuario)}
+        aria-label={`Cambiar estado de ${usuario.nombre}`}
+        className="cursor-pointer data-checked:bg-emerald-600 focus-visible:ring-emerald-500/30"
+      />
+      <span
+        className={`text-xs font-medium select-none transition-colors ${
+          usuario.estado ? "text-emerald-700 font-semibold" : "text-slate-400"
+        }`}
+      >
+        {usuario.estado ? "Activo" : "Inactivo"}
+      </span>
+    </div>
   );
 }
 
@@ -139,9 +165,11 @@ export const userColumns: ColumnDef<UsuarioRow>[] = [
   {
     id: "estado",
     header: "Estado",
-    headerClassName: "w-[110px]",
+    headerClassName: "w-[130px]",
     sortable: true,
-    cell: (item) => <EstadoBadge estado={item.estado} />,
+    cell: (item, onAction) => (
+      <EstadoSwitch usuario={item} onAction={onAction} />
+    ),
   },
   {
     id: "actions",
@@ -157,3 +185,4 @@ export const userColumns: ColumnDef<UsuarioRow>[] = [
 
 // Re-exportar alias antiguo para que imports existentes no rompan
 export const invoiceColumns = userColumns as unknown as ColumnDef<any>[];
+

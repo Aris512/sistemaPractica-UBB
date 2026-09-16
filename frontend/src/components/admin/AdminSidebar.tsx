@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, BookOpen, ShieldCheck, LogOut } from "lucide-react";
+import { Users, BookOpen, ShieldCheck } from "lucide-react";
 import { sileo } from "sileo";
 
 export type AdminSection = "usuarios" | "asignaturas";
@@ -24,11 +24,8 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({
   activeSection = "usuarios",
-  onSelectSection,
-  onLogout,
-  onGoHome,
+  onSelectSection
 }: AdminSidebarProps) {
-  const handleLogoutAction = onLogout || onGoHome;
 
   return (
     <Sidebar>
@@ -88,25 +85,6 @@ export function AdminSidebar({
                 >
                   <ShieldCheck className="size-4" />
                   <span>Auditoría</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Grupo de sesión ubicado al fondo del sidebar */}
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupLabel>Sesión</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Cerrar sesión"
-                  onClick={handleLogoutAction}
-                  className="cursor-pointer text-slate-600 hover:text-rose-600 hover:bg-rose-50/70"
-                >
-                  <LogOut className="size-4" />
-                  <span>Cerrar sesión</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

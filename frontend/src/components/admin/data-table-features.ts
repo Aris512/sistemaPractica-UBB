@@ -247,9 +247,67 @@ export function useDataTableFeatures(
     setPage(1);
   };
 
-  // ── Operaciones CRUD (stub para mantener la interfaz) ──
+  // ── Operaciones CRUD ──
   const deleteUsuario = (rut: string) => {
     setData((prev) => prev.filter((item) => item.rut !== rut));
+  };
+
+  const toggleUsuarioEstado = async (rut: string, nuevoEstado: boolean) => {
+    // Actualización optimista inmediata en la interfaz
+    setData((prev) =>
+      prev.map((user) =>
+        user.rut === rut ? { ...user, estado: nuevoEstado } : user
+      )
+    );
+
+    try {
+      const credentials = btoa("admin:admin123");
+      let res = await fetch(
+        `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}/estado`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Basic ${credentials}`,
+          },
+          body: JSON.stringify({ estado: nuevoEstado }),
+        }
+      );
+
+      // Si el endpoint específico da 404, fallback al endpoint principal de usuarios
+      if (res.status === 404) {
+        res = await fetch(
+          `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Basic ${credentials}`,
+            },
+            body: JSON.stringify({ estado: nuevoEstado }),
+          }
+        );
+      }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error || `Error ${res.status}`);
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error("Error al actualizar estado:", err);
+      // Revertir cambio local si ocurrió un error en la persistencia
+      setData((prev) =>
+        prev.map((user) =>
+          user.rut === rut ? { ...user, estado: !nuevoEstado } : user
+        )
+      );
+      return {
+        success: false,
+        error: err.message || "No se pudo actualizar el estado en la base de datos",
+      };
+    }
   };
 
   return {
@@ -280,6 +338,7 @@ export function useDataTableFeatures(
     error,
     refetch: fetchUsuarios,
     deleteUsuario,
+    toggleUsuarioEstado,
     // Mantener compatibilidad con modales existentes (no se usan pero evitan errores)
     statusFilter: "ALL",
     setStatusFilter: (_v: string) => {},
