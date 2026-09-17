@@ -40,6 +40,10 @@ export function usePermisosAdmin() {
     } catch (err: any) {
       console.error("Error al cargar roles:", err);
       setError("No se pudieron cargar los roles del sistema.");
+      sileo.error({
+        title: "Error al cargar roles",
+        description: "No se pudieron obtener los roles desde la base de datos.",
+      });
     } finally {
       setLoadingRoles(false);
     }
@@ -66,6 +70,10 @@ export function usePermisosAdmin() {
       } catch (err: any) {
         console.error("Error al cargar permisos del rol:", err);
         setError("No se pudieron cargar los permisos para el rol seleccionado.");
+        sileo.error({
+          title: "Error al cargar permisos",
+          description: "No se pudieron obtener los permisos del rol desde el servidor.",
+        });
       } finally {
         setLoadingPermisos(false);
       }
@@ -102,6 +110,10 @@ export function usePermisosAdmin() {
 
   const resetChanges = () => {
     setPermisos(JSON.parse(JSON.stringify(originalPermisos)));
+    sileo.info({
+      title: "Cambios descartados",
+      description: "Se restauró la configuración original de permisos.",
+    });
   };
 
   const savePermisos = async () => {

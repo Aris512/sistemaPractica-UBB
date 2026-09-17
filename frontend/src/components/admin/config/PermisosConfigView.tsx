@@ -1,16 +1,15 @@
-import { useMemo } from "react";
-import {
-  ShieldCheck,
-  Save,
-  RotateCcw,
-  RefreshCw,
-  Loader2,
-  AlertCircle,
-  Sparkles,
-  CheckCircle2,
-  UserCheck,
-} from "lucide-react";
+import { useState, useMemo } from "react";
+import { Save, RotateCcw, RefreshCw, Loader2, AlertCircle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { sileo } from "sileo";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { usePermisosAdmin } from "./usePermisosAdmin";
 import { PermisoCardGroup } from "./PermisoCardGroup";
 import type { PermisoItem } from "./types";
@@ -27,7 +26,6 @@ export function PermisosConfigView() {
   const {
     roles,
     selectedRoleId,
-    selectedRole,
     isEstudiante,
     permisos,
     loadingRoles,
@@ -43,12 +41,28 @@ export function PermisosConfigView() {
     reload,
   } = usePermisosAdmin();
 
-  // Agrupar permisos por categoría respetando el orden lógico
+  const [pendingRoleId, setPendingRoleId] = useState<number | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  // Agrupar permisos por categoría aplicando los filtros específicos por rol:
+  // 1. Rol ESTUDIANTE: se elimina "Información de Estudiantes"
+  // 2. Demás roles: se elimina "Inteligencia Artificial" (solo disponible para ESTUDIANTE)
   const gruposCategorias = useMemo(() => {
     const mapa = new Map<string, PermisoItem[]>();
 
     permisos.forEach((p) => {
       const cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
+
+      // Eliminar Información de Estudiantes para el rol ESTUDIANTE
+      if (isEstudiante && (cat === "ESTUDIANTES" || cat === "INFORMACIÓN DE ESTUDIANTES")) {
+        return;
+      }
+
+      // Eliminar Inteligencia Artificial para todos los roles que NO sean ESTUDIANTE
+      if (!isEstudiante && (cat === "INTELIGENCIA ARTIFICIAL" || cat === "IA")) {
+        return;
+      }
+
       if (!mapa.has(cat)) {
         mapa.set(cat, []);
       }
@@ -57,7 +71,6 @@ export function PermisosConfigView() {
 
     const ordenados: { categoria: string; items: PermisoItem[] }[] = [];
 
-    // Primero las categorías conocidas en orden
     CATEGORIAS_ORDEN.forEach((cat) => {
       if (mapa.has(cat)) {
         ordenados.push({ categoria: cat, items: mapa.get(cat)! });
@@ -65,13 +78,12 @@ export function PermisosConfigView() {
       }
     });
 
-    // Luego cualquier otra categoría adicional futura
     mapa.forEach((items, categoria) => {
       ordenados.push({ categoria, items });
     });
 
     return ordenados;
-  }, [permisos]);
+  }, [permisos, isEstudiante]);
 
   const getRolFriendlyName = (nombre?: string) => {
     switch (nombre?.toUpperCase()) {
@@ -90,44 +102,132 @@ export function PermisosConfigView() {
     }
   };
 
+  const handleRoleChange = (newRoleId: number) => {
+    if (newRoleId === selectedRoleId) return;
+    if (hasUnsavedChanges) {
+      setPendingRoleId(newRoleId);
+      setShowDiscardConfirm(true);
+    } else {
+      setSelectedRoleId(newRoleId);
+      const targetRol = roles.find((r) => r.idRol === newRoleId);
+      sileo.show({
+        title: "Rol seleccionado",
+        description: `Mostrando permisos para ${getRolFriendlyName(targetRol?.nombre)}.`,
+      });
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    resetChanges();
+    if (pendingRoleId !== null) {
+      setSelectedRoleId(pendingRoleId);
+      const targetRol = roles.find((r) => r.idRol === pendingRoleId);
+      sileo.info({
+        title: "Cambios descartados",
+        description: `Se descartaron los cambios y se cargó el rol ${getRolFriendlyName(targetRol?.nombre)}.`,
+      });
+    }
+    setShowDiscardConfirm(false);
+    setPendingRoleId(null);
+  };
+
+  const handleCancelDiscard = () => {
+    setShowDiscardConfirm(false);
+    setPendingRoleId(null);
+  };
+
+  const handleReload = async () => {
+    sileo.show({
+      title: "Recargando permisos",
+      description: "Consultando la base de datos...",
+    });
+    await reload();
+    sileo.success({
+      title: "Permisos actualizados",
+      description: "Se recargó la configuración desde el servidor.",
+    });
+  };
+
   return (
-    <div className="p-4 sm:p-8 max-w-5xl mx-auto space-y-6 w-full pb-20">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-8">
+      {/* ── Barra Superior Minimalista ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
+            Permisos por Rol
+          </h1>
+
+          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+
+          {/* Selector de Rol Minimalista */}
           <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-sky-100 dark:bg-sky-950 flex items-center justify-center text-sky-700 dark:text-sky-400">
-              <ShieldCheck className="size-5" />
+            <label htmlFor="role-select" className="text-xs font-medium text-slate-500">
+              Rol:
+            </label>
+            <div className="relative">
+              {loadingRoles ? (
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 py-1">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Cargando roles...</span>
+                </div>
+              ) : (
+                <>
+                  <select
+                    id="role-select"
+                    value={selectedRoleId ?? ""}
+                    onChange={(e) => handleRoleChange(Number(e.target.value))}
+                    className="appearance-none bg-white text-slate-900 font-medium text-xs border border-slate-200 rounded-lg px-3 py-1.5 pr-8 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    {roles.map((r) => (
+                      <option key={r.idRol} value={r.idRol}>
+                        {getRolFriendlyName(r.nombre)}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="size-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </>
+              )}
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              Administración de Permisos por Rol
-            </h1>
           </div>
-          <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-            Configura qué funcionalidades y módulos están disponibles para cada rol del sistema.
-            El frontend adaptará su navegación y visibilidad según los permisos activos.
-          </p>
         </div>
 
+        {/* Acciones Minimalistas */}
         <div className="flex items-center gap-2 sm:self-auto self-start">
           <Button
-            variant="outline"
+            type="button"
+            variant="ghost"
             size="sm"
-            onClick={reload}
+            onClick={handleReload}
             disabled={loadingPermisos || saving}
-            className="gap-1.5 cursor-pointer text-slate-700"
+            className="text-xs text-slate-600 hover:text-slate-900 cursor-pointer h-8 px-2.5 gap-1.5"
+            title="Recargar permisos"
           >
             <RefreshCw className={`size-3.5 ${loadingPermisos ? "animate-spin" : ""}`} />
             <span>Recargar</span>
           </Button>
 
+          {hasUnsavedChanges && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={resetChanges}
+              disabled={saving}
+              className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer h-8 px-2.5 gap-1.5"
+            >
+              <RotateCcw className="size-3.5" />
+              <span>Descartar</span>
+            </Button>
+          )}
+
           <Button
+            type="button"
             onClick={savePermisos}
             disabled={!hasUnsavedChanges || saving || loadingPermisos}
-            className={`gap-1.5 cursor-pointer shadow-xs ${
+            className={`h-8 px-4 text-xs font-medium rounded-lg cursor-pointer transition-all gap-1.5 shadow-2xs ${
               hasUnsavedChanges
-                ? "bg-sky-600 hover:bg-sky-700 text-white"
-                : "bg-slate-900 text-white"
+                ? "bg-slate-900 hover:bg-slate-800 text-white"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
             }`}
           >
             {saving ? (
@@ -140,131 +240,36 @@ export function PermisosConfigView() {
         </div>
       </div>
 
-      {/* Error banner si existe */}
+      {/* ── Alerta Minimalista de Error ── */}
       {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 flex items-center gap-3 text-sm text-rose-800">
-          <AlertCircle className="size-5 text-rose-500 shrink-0" />
-          <span>{error}</span>
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={reload}
-            className="ml-auto text-rose-600 hover:text-rose-700 hover:bg-rose-100 cursor-pointer"
+        <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="size-4 shrink-0 text-rose-500" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleReload}
+            className="underline font-medium hover:text-rose-800 cursor-pointer"
           >
             Reintentar
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Selector de Rol */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Paso 1: Selecciona un rol para configurar
-            </span>
-            <div className="flex items-center gap-2 mt-0.5">
-              <UserCheck className="size-4 text-sky-600" />
-              <span className="font-semibold text-slate-900 text-sm">
-                Rol actual seleccionado:
-              </span>
-              <span className="text-sm font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
-                {getRolFriendlyName(selectedRole?.nombre)}
-              </span>
-            </div>
-          </div>
-
-          {hasUnsavedChanges && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full animate-pulse">
-              Cambios pendientes sin guardar
-            </span>
-          )}
+      {/* ── Checklist de Funcionalidades en 2 Columnas Balanceadas ── */}
+      {loadingPermisos ? (
+        <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
+          <Loader2 className="size-6 animate-spin" />
+          <span className="text-xs">Cargando permisos...</span>
         </div>
-
-        {/* Botones de selección de Rol */}
-        {loadingRoles ? (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-            <Loader2 className="size-4 animate-spin text-slate-400" />
-            <span>Cargando roles del sistema...</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-            {roles.map((r) => {
-              const isSelected = r.idRol === selectedRoleId;
-              return (
-                <button
-                  key={r.idRol}
-                  type="button"
-                  onClick={() => {
-                    if (hasUnsavedChanges) {
-                      const confirmChange = window.confirm(
-                        "Tienes cambios sin guardar para este rol. ¿Deseas descartarlos y cambiar de rol?"
-                      );
-                      if (!confirmChange) return;
-                    }
-                    setSelectedRoleId(r.idRol);
-                  }}
-                  className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-sky-50/80 border-sky-500 shadow-xs ring-1 ring-sky-500"
-                      : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
-                  }`}
-                >
-                  <span
-                    className={`text-xs font-bold ${
-                      isSelected ? "text-sky-900" : "text-slate-800"
-                    }`}
-                  >
-                    {getRolFriendlyName(r.nombre)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
-                    {r.nombre}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Alerta especial cuando es rol ESTUDIANTE */}
-        {isEstudiante && (
-          <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5 flex items-start gap-3 text-xs text-sky-900">
-            <Sparkles className="size-4 text-sky-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <span className="font-semibold block">
-                Condición especial para estudiantes:
-              </span>
-              <p className="text-sky-800 leading-relaxed">
-                Para el rol <strong>ESTUDIANTE</strong>, puedes definir si una funcionalidad aplica a todos los semestres o si requiere que el estudiante esté cursando un semestre determinado (por ejemplo, permitir herramientas de IA a partir del 3° semestre).
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Lista de grupos de permisos por categoría */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Paso 2: Activa o desactiva las funcionalidades para {getRolFriendlyName(selectedRole?.nombre)}
-          </span>
-          <span className="text-xs text-slate-500">
-            {permisos.filter((p) => p.activo).length} de {permisos.length} permitidos
-          </span>
+      ) : gruposCategorias.length === 0 ? (
+        <div className="py-16 text-center text-slate-400 text-xs">
+          No hay permisos registrados en el catálogo.
         </div>
-
-        {loadingPermisos ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 flex flex-col items-center justify-center gap-3 text-slate-500">
-            <Loader2 className="size-8 animate-spin text-slate-400" />
-            <span className="text-sm font-medium">Cargando permisos del rol...</span>
-          </div>
-        ) : gruposCategorias.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-            <ShieldCheck className="size-10 text-slate-300 mx-auto mb-2" />
-            <p className="text-sm">No se encontraron permisos registrados en el catálogo.</p>
-          </div>
-        ) : (
-          gruposCategorias.map((grupo) => (
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 items-start">
+          {gruposCategorias.map((grupo) => (
             <PermisoCardGroup
               key={grupo.categoria}
               categoria={grupo.categoria}
@@ -273,46 +278,48 @@ export function PermisosConfigView() {
               onTogglePermiso={togglePermiso}
               onUpdateSemestres={updateSemestres}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Barra de acciones inferior */}
-      {hasUnsavedChanges && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-4 border border-slate-800 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="size-2 rounded-full bg-amber-400 animate-ping" />
-            <span>Tienes cambios pendientes en los permisos de {getRolFriendlyName(selectedRole?.nombre)}</span>
-          </div>
-          <div className="flex items-center gap-2">
+      {/* ── Modal de Confirmación de Descarte Minimalista ── */}
+      <Dialog
+        open={showDiscardConfirm}
+        onOpenChange={(open) => {
+          if (!open) handleCancelDiscard();
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-6 bg-white rounded-2xl border border-slate-200 shadow-xl space-y-4">
+          <DialogHeader className="space-y-1.5 text-left">
+            <DialogTitle className="text-base font-semibold text-slate-900 tracking-tight">
+              ¿Descartar cambios sin guardar?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 leading-relaxed">
+              Tienes modificaciones en los permisos que aún no han sido guardadas. Si cambias de rol ahora, se descartarán todos los cambios pendientes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              size="xs"
-              onClick={resetChanges}
-              disabled={saving}
-              className="text-xs text-slate-300 hover:text-white border-slate-700 bg-transparent hover:bg-slate-800 cursor-pointer"
+              size="sm"
+              onClick={handleCancelDiscard}
+              className="text-xs text-slate-600 hover:text-slate-900 h-8 px-3 cursor-pointer"
             >
-              <RotateCcw className="size-3 mr-1" />
-              Descartar
+              Cancelar
             </Button>
             <Button
               type="button"
-              size="xs"
-              onClick={savePermisos}
-              disabled={saving}
-              className="text-xs bg-sky-500 hover:bg-sky-600 text-white font-semibold cursor-pointer shadow-xs"
+              size="sm"
+              onClick={handleConfirmDiscard}
+              className="text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white h-8 px-3.5 cursor-pointer shadow-2xs"
             >
-              {saving ? (
-                <Loader2 className="size-3 animate-spin mr-1" />
-              ) : (
-                <CheckCircle2 className="size-3 mr-1" />
-              )}
-              {saving ? "Guardando..." : "Guardar ahora"}
+              Descartar y cambiar
             </Button>
-          </div>
-        </div>
-      )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

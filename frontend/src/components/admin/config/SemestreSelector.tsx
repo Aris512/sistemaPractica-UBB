@@ -1,14 +1,31 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Sparkles, Check, Layers } from "lucide-react";
-
 interface SemestreSelectorProps {
   value: string; // "ALL" o "3,4,5,6,7,8,9,10"
   onChange: (newValue: string) => void;
 }
 
 const TODOS_SEMESTRES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+function getSemestresLabel(value: string, isAll: boolean): string {
+  if (isAll) return "Todos los semestres";
+  if (!value || value === "NONE") return "Sin semestres";
+
+  const nums = value
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !isNaN(n))
+    .sort((a, b) => a - b);
+
+  if (nums.length === 0) return "Sin semestres";
+  if (nums.length === TODOS_SEMESTRES.length) return "Todos los semestres";
+
+  // Verificar si es un rango continuo (ej. 3 al 10)
+  const isConsecutive = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+  if (isConsecutive && nums.length > 2) {
+    return `${nums[0]}° al ${nums[nums.length - 1]}° semestre`;
+  }
+
+  return `Sem. ${nums.join(", ")}`;
+}
 
 export function SemestreSelector({ value, onChange }: SemestreSelectorProps) {
   const isAll = !value || value.trim().toUpperCase() === "ALL";
@@ -21,15 +38,8 @@ export function SemestreSelector({ value, onChange }: SemestreSelectorProps) {
         .map((s) => parseInt(s.trim(), 10))
         .filter((n) => !isNaN(n));
 
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleToggleAll = (checked: boolean) => {
-    if (checked) {
-      onChange("ALL");
-    } else {
-      // Por defecto sugerir del 3 al 10 como caso de uso típico de IA
-      onChange("3,4,5,6,7,8,9,10");
-    }
+  const handleToggleAll = () => {
+    onChange("ALL");
   };
 
   const handleToggleSemestre = (sem: number) => {
@@ -54,129 +64,61 @@ export function SemestreSelector({ value, onChange }: SemestreSelectorProps) {
     }
   };
 
-  const applyPreset = (presetList: number[]) => {
-    if (presetList.length === TODOS_SEMESTRES.length) {
-      onChange("ALL");
-    } else {
-      onChange(presetList.join(","));
-    }
-  };
-
   return (
-    <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Layers className="size-3.5 text-sky-600" />
-          <span className="font-medium text-slate-700 dark:text-slate-300">
-            Regla de semestres cursados:
+    <div className="pt-2 pl-7 space-y-1.5 select-none">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-medium text-slate-500">
+          Seleccionar semestres:
+        </span>
+        {!isAll && (
+          <span className="text-[11px] text-slate-400 font-normal">
+            ({getSemestresLabel(value, isAll)})
           </span>
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-              isAll
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-amber-50 text-amber-700 border-amber-200"
-            }`}
-          >
-            {isAll ? "Todos los semestres" : `Semestres: ${value}`}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={() => setIsOpen(!isOpen)}
-            className="text-xs text-sky-700 hover:text-sky-900 hover:bg-sky-50 h-7 px-2 cursor-pointer"
-          >
-            {isOpen ? "Ocultar selector" : "Personalizar semestres"}
-          </Button>
-        </div>
+        )}
       </div>
 
-      {isOpen && (
-        <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200/80 space-y-3">
-          {/* Switch Todos los Semestres */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                Habilitar para todos los semestres
-              </span>
-              <p className="text-[11px] text-muted-foreground">
-                Si está activo, cualquier estudiante cursando cualquier semestre tendrá acceso.
-              </p>
-            </div>
-            <Switch
-              checked={isAll}
-              onCheckedChange={handleToggleAll}
-              aria-label="Habilitar para todos los semestres"
-            />
+      <div className="flex items-center gap-2">
+        {/* Contenedor segmentado unificado que no se rompe */}
+        <div className="inline-flex items-center rounded-lg bg-slate-100/90 p-1 border border-slate-200/80 gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleAll}
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+              isAll
+                ? "bg-slate-900 text-white shadow-2xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+            }`}
+            title="Permitir para todos los semestres"
+          >
+            Todos
+          </button>
+
+          <div className="w-px h-4 bg-slate-300/70 mx-0.5" />
+
+          <div className="flex items-center gap-0.5">
+            {TODOS_SEMESTRES.map((sem) => {
+              const isSelected = selectedSemestres.includes(sem);
+              return (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => handleToggleSemestre(sem)}
+                  className={`size-6 rounded-md text-[11px] font-medium transition-all flex items-center justify-center cursor-pointer ${
+                    !isAll && isSelected
+                      ? "bg-slate-900 text-white shadow-2xs font-semibold"
+                      : isAll
+                      ? "bg-white text-slate-800 shadow-2xs hover:bg-slate-50"
+                      : "text-slate-400 hover:text-slate-700 hover:bg-slate-200/60"
+                  }`}
+                  title={`Semestre ${sem}`}
+                >
+                  {sem}
+                </button>
+              );
+            })}
           </div>
-
-          {/* Selector individual por semestre */}
-          {!isAll && (
-            <div className="space-y-2 pt-1 border-t border-slate-200/60">
-              <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-slate-600 font-medium">
-                <span>Selecciona los semestres que tendrán acceso:</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => applyPreset([3, 4, 5, 6, 7, 8, 9, 10])}
-                    className="px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                  >
-                    3° al 10°
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyPreset([8, 9])}
-                    className="px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                  >
-                    8° y 9° (Prácticas)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyPreset(TODOS_SEMESTRES)}
-                    className="px-1.5 py-0.5 rounded text-[10px] bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 cursor-pointer"
-                  >
-                    Todos
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 pt-1">
-                {TODOS_SEMESTRES.map((sem) => {
-                  const active = selectedSemestres.includes(sem);
-                  return (
-                    <button
-                      key={sem}
-                      type="button"
-                      onClick={() => handleToggleSemestre(sem)}
-                      className={`flex flex-col items-center justify-center py-2 px-1 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
-                        active
-                          ? "bg-sky-600 text-white border-sky-600 shadow-xs"
-                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      <span className="text-[10px] font-normal opacity-80">Sem</span>
-                      <span className="text-sm font-bold leading-none">{sem}</span>
-                      {active ? (
-                        <Check className="size-3 mt-1" />
-                      ) : (
-                        <span className="size-3 mt-1 block" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1">
-                <Sparkles className="size-3 text-amber-500 shrink-0" />
-                Los estudiantes en semestres no seleccionados tendrán esta funcionalidad oculta automáticamente.
-              </p>
-            </div>
-          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
