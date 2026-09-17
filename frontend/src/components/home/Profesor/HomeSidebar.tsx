@@ -18,6 +18,8 @@ import {
   Briefcase,
   CalendarDays,
   ClipboardCheck,
+  CalendarPlus,
+  MessageSquareCheck,
   LogOut,
 } from "lucide-react";
 import { sileo } from "sileo";
@@ -97,6 +99,42 @@ export function HomeSidebar({
                   <div className="flex items-center gap-2.5">
                     <Home className="size-4.5 text-slate-900 shrink-0" />
                     <span>Inicio</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Actividades del Curso */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "actividades"}
+                  onClick={() => onSelectMenu("actividades")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "actividades"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CalendarPlus className="size-4.5 text-slate-900 shrink-0" />
+                    <span>Actividades</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Revisión y Retroalimentación */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "revision-retroalimentacion"}
+                  onClick={() => onSelectMenu("revision-retroalimentacion")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "revision-retroalimentacion"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <MessageSquareCheck className="size-4.5 text-slate-900 shrink-0" />
+                    <span>Retroalimentación</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>

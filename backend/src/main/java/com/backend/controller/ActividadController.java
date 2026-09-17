@@ -62,6 +62,28 @@ public class ActividadController {
         }
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Actividad> actualizar(@PathVariable Long id, @RequestBody CrearActividadDTO dto) {
+        Actividad actualizada = actividadService.actualizar(id, dto);
+        if (actualizada == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(actualizada);
+    }
+
+    @PutMapping("/{id}/estado")
+    public ResponseEntity<Actividad> cambiarEstado(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        String nuevoEstado = body.get("estado");
+        if (nuevoEstado == null || (!nuevoEstado.equalsIgnoreCase("ACTIVA") && !nuevoEstado.equalsIgnoreCase("CERRADA"))) {
+            return ResponseEntity.badRequest().build();
+        }
+        Actividad actualizada = actividadService.cambiarEstado(id, nuevoEstado.toUpperCase());
+        if (actualizada == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(actualizada);
+    }
+
     @PutMapping("/{id}/cerrar")
     public ResponseEntity<Actividad> cerrar(@PathVariable Long id) {
         Actividad cerrada = actividadService.cerrar(id);

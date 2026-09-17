@@ -9,6 +9,8 @@ import { CursosPractica } from "./CursosPractica";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { TableEstudiantes } from "./table";
+import { Actividades } from "./Actividades";
+import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
@@ -42,6 +44,21 @@ export function HomePage({ user, onLogout }: HomePageProps) {
     switch (activeMenu) {
       case "perfil":
         return <PerfilProfesor user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "actividades":
+        return (
+          <Actividades
+            user={user}
+            onBack={() => setActiveMenu("inicio")}
+            onNavigateToRevision={() => setActiveMenu("revision-retroalimentacion")}
+          />
+        );
+      case "revision-retroalimentacion":
+        return (
+          <RevisionRetroalimentacion
+            user={user}
+            onBack={() => setActiveMenu("inicio")}
+          />
+        );
       case "portafolio":
         return <Portafolio onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
@@ -58,7 +75,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
 
   return (
     <SidebarProvider defaultOpen>
-      <Toaster position="top-right" theme="light" />
+      <Toaster position="top-center" theme="light" />
 
       {/* Sidebar Docente */}
       <HomeSidebar

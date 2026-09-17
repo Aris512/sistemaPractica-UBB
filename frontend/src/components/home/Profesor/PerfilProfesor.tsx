@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, GraduationCap, UserCheck, BookOpen } from "lucide-react";
+import { ArrowLeft, GraduationCap, UserCheck } from "lucide-react";
 import type { UserSession } from "@/types/auth";
 
 interface PerfilProfesorProps {

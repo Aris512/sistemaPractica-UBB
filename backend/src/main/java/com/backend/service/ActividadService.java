@@ -11,10 +11,12 @@ import com.backend.dto.CrearActividadDTO;
 import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
 import com.backend.model.Estudiante;
+import com.backend.model.Evidencia;
 import com.backend.model.Profesor;
 import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.EstudianteRepository;
+import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.ProfesorRepository;
 
 @Service
@@ -24,15 +26,18 @@ public class ActividadService {
     private final ProfesorRepository profesorRepository;
     private final AsignaturaRepository asignaturaRepository;
     private final EstudianteRepository estudianteRepository;
+    private final EvidenciaRepository evidenciaRepository;
 
     public ActividadService(ActividadRepository actividadRepository,
                             ProfesorRepository profesorRepository,
                             AsignaturaRepository asignaturaRepository,
-                            EstudianteRepository estudianteRepository) {
+                            EstudianteRepository estudianteRepository,
+                            EvidenciaRepository evidenciaRepository) {
         this.actividadRepository = actividadRepository;
         this.profesorRepository = profesorRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.estudianteRepository = estudianteRepository;
+        this.evidenciaRepository = evidenciaRepository;
     }
 
     public List<Actividad> obtenerTodas() {
@@ -84,17 +89,44 @@ public class ActividadService {
     }
 
     @Transactional
-    public Actividad cerrar(Long id) {
+    public Actividad actualizar(Long id, CrearActividadDTO dto) {
         Actividad actividad = actividadRepository.findById(id).orElse(null);
         if (actividad != null) {
-            actividad.setEstado("CERRADA");
+            if (dto.getTitulo() != null && !dto.getTitulo().trim().isEmpty()) {
+                actividad.setTitulo(dto.getTitulo().trim());
+            }
+            if (dto.getDescripcion() != null) {
+                actividad.setDescripcion(dto.getDescripcion().trim());
+            }
+            if (dto.getFechaLimite() != null) {
+                actividad.setFechaLimite(dto.getFechaLimite());
+            }
             return actividadRepository.save(actividad);
         }
         return null;
     }
 
     @Transactional
+    public Actividad cambiarEstado(Long id, String estado) {
+        Actividad actividad = actividadRepository.findById(id).orElse(null);
+        if (actividad != null) {
+            actividad.setEstado(estado);
+            return actividadRepository.save(actividad);
+        }
+        return null;
+    }
+
+    @Transactional
+    public Actividad cerrar(Long id) {
+        return cambiarEstado(id, "CERRADA");
+    }
+
+    @Transactional
     public void eliminar(Long id) {
+        List<Evidencia> evidencias = evidenciaRepository.findByActividadIdActividadOrderByFechaEntregaDesc(id);
+        if (evidencias != null && !evidencias.isEmpty()) {
+            evidenciaRepository.deleteAll(evidencias);
+        }
         actividadRepository.deleteById(id);
     }
 }
