@@ -23,7 +23,7 @@ interface TableEstudiantesProps {
 }
 
 export function TableEstudiantes({ user }: TableEstudiantesProps) {
-  const { hasPermission } = usePermissions(user);
+  const { hasPermission, loading: loadingPermissions } = usePermissions(user);
   const [data, setData] = useState<EstudianteTutorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,21 +36,6 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
 
   const tutorRut = user?.rut || "11111111-1";
-
-  if (!hasPermission("ESTUDIANTES_CONSULTAR")) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4 shadow-xs my-8">
-        <div className="size-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 mx-auto">
-          <Lock className="size-7" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-900">Acceso restringido</h2>
-        <p className="text-sm text-slate-600 leading-relaxed">
-          Tu rol no tiene autorización para consultar la lista de estudiantes asignados.
-          Si requieres acceso, solicita al administrador activar este permiso para tu rol.
-        </p>
-      </div>
-    );
-  }
 
   // Cargar estudiantes a evaluar desde el endpoint de seguimiento
   const fetchData = useCallback(async () => {
@@ -107,8 +92,10 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
   }, [tutorRut]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!loadingPermissions && hasPermission("ESTUDIANTES_CONSULTAR")) {
+      fetchData();
+    }
+  }, [fetchData, loadingPermissions, hasPermission]);
 
   // Filtrado de datos
   const filteredData = useMemo(() => {
@@ -166,6 +153,30 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
       return { column: null, direction: null };
     });
   };
+
+  if (loadingPermissions) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center max-w-2xl mx-auto space-y-3 shadow-xs my-8">
+        <RefreshCw className="size-7 animate-spin mx-auto text-sky-600" />
+        <p className="text-sm font-medium text-slate-700">Verificando permisos de acceso...</p>
+      </div>
+    );
+  }
+
+  if (!hasPermission("ESTUDIANTES_CONSULTAR")) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4 shadow-xs my-8">
+        <div className="size-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 mx-auto">
+          <Lock className="size-7" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Acceso restringido</h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Tu rol no tiene autorización para consultar la lista de estudiantes asignados.
+          Si requieres acceso, solicita al administrador activar este permiso para tu rol.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

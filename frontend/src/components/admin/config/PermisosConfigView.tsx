@@ -15,7 +15,7 @@ import { PermisoCardGroup } from "./PermisoCardGroup";
 import type { PermisoItem } from "./types";
 
 const CATEGORIAS_ORDEN = [
-  "PORTAFOLIO",
+  "SUBIR ARCHIVOS",
   "EVALUACIONES",
   "OBSERVACIONES",
   "ESTUDIANTES",
@@ -44,14 +44,42 @@ export function PermisosConfigView() {
   const [pendingRoleId, setPendingRoleId] = useState<number | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
+  // Determinar si el rol seleccionado es Profesor Colaborador o Tutor
+  const isColaboradorOTutor = useMemo(() => {
+    const currentRole = roles.find((r) => r.idRol === selectedRoleId);
+    const nombre = currentRole?.nombre?.toUpperCase() || "";
+    return nombre.includes("COLABORADOR") || nombre.includes("TUTOR");
+  }, [roles, selectedRoleId]);
+
   // Agrupar permisos por categoría aplicando los filtros específicos por rol:
-  // 1. Rol ESTUDIANTE: se elimina "Información de Estudiantes"
-  // 2. Demás roles: se elimina "Inteligencia Artificial" (solo disponible para ESTUDIANTE)
+  // 1. Eliminar sección/permiso "Portafolio" (PORTAFOLIO_CONSULTAR) de Administrar Roles
+  // 2. El permiso "Subir archivos" (PORTAFOLIO_SUBIR) se muestra en su propia categoría "SUBIR ARCHIVOS"
+  // 3. Eliminar sección "Subir Archivos" para los roles Profesor Colaborador y Tutor de Práctica
+  // 4. Rol ESTUDIANTE: se elimina "Información de Estudiantes"
+  // 5. Demás roles: se elimina "Inteligencia Artificial" (solo disponible para ESTUDIANTE)
   const gruposCategorias = useMemo(() => {
     const mapa = new Map<string, PermisoItem[]>();
 
     permisos.forEach((p) => {
-      const cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
+      // Eliminar permiso "Portafolio" / "PORTAFOLIO_CONSULTAR" de Administrar Roles
+      if (p.codigo === "PORTAFOLIO_CONSULTAR") {
+        return;
+      }
+
+      let cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
+
+      // Reubicar "Subir archivos" bajo categoría independiente "SUBIR ARCHIVOS"
+      if (p.codigo === "PORTAFOLIO_SUBIR" || cat === "PORTAFOLIO") {
+        cat = "SUBIR ARCHIVOS";
+      }
+
+      // Eliminar "Subir Archivos" para roles Profesor Colaborador y Tutor
+      if (
+        isColaboradorOTutor &&
+        (p.codigo === "PORTAFOLIO_SUBIR" || cat === "SUBIR ARCHIVOS" || cat === "SUBIR_ARCHIVOS")
+      ) {
+        return;
+      }
 
       // Eliminar Información de Estudiantes para el rol ESTUDIANTE
       if (isEstudiante && (cat === "ESTUDIANTES" || cat === "INFORMACIÓN DE ESTUDIANTES")) {
@@ -83,7 +111,7 @@ export function PermisosConfigView() {
     });
 
     return ordenados;
-  }, [permisos, isEstudiante]);
+  }, [permisos, isEstudiante, isColaboradorOTutor]);
 
   const getRolFriendlyName = (nombre?: string) => {
     switch (nombre?.toUpperCase()) {

@@ -144,7 +144,7 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Portafolio */}
-              {hasPermission("PORTAFOLIO_CONSULTAR") && (
+              {hasPermission("PORTAFOLIO_SUBIR") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "portafolio"}

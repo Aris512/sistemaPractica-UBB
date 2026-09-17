@@ -5,6 +5,7 @@ import { useSeguimientoData } from "./useSeguimientoData";
 import { TableToolbar } from "./TableToolbar";
 import { EstadoEntregaBadge, EstadoRevisionBadge } from "./TableBadges";
 import { RevisionModal } from "./RevisionModal";
+import { ModalDetalleEstudianteProfesor } from "./ModalDetalleEstudianteProfesor";
 import {
   Table as UiTable,
   TableBody,
@@ -22,7 +23,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
-import { Clock, AlertCircle, Eye, Loader2, Lock } from "lucide-react";
+import { Clock, AlertCircle, Eye, Loader2, Lock, User } from "lucide-react";
 import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -57,6 +58,7 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
   } = useSeguimientoData(user?.rut);
 
   const [selectedStudent, setSelectedStudent] = useState<EstudianteEvidenciaRow | null>(null);
+  const [studentForDetails, setStudentForDetails] = useState<EstudianteEvidenciaRow | null>(null);
 
   if (!hasPermission("ESTUDIANTES_CONSULTAR")) {
     return (
@@ -166,19 +168,31 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
                     </TableCell>
 
                     <TableCell className="text-right">
-                      {row.estadoEntrega === "ENTREGADO" ? (
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedStudent(row)}
-                          className="h-8 px-2.5 text-xs font-medium text-sky-800 bg-sky-50/70 hover:bg-sky-100 border-sky-200 cursor-pointer shadow-2xs gap-1.5"
+                          onClick={() => setStudentForDetails(row)}
+                          className="h-8 px-2.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-100 border-slate-200 cursor-pointer shadow-2xs gap-1.5"
                         >
-                          <Eye className="size-3.5 text-sky-700" />
-                          <span>{row.estadoRevision === "REVISADO" ? "Ver/Editar" : "Revisar"}</span>
+                          <User className="size-3.5 text-slate-600" />
+                          <span>Detalles</span>
                         </Button>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic px-2">Sin archivo</span>
-                      )}
+
+                        {row.estadoEntrega === "ENTREGADO" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedStudent(row)}
+                            className="h-8 px-2.5 text-xs font-medium text-sky-800 bg-sky-50/70 hover:bg-sky-100 border-sky-200 cursor-pointer shadow-2xs gap-1.5"
+                          >
+                            <Eye className="size-3.5 text-sky-700" />
+                            <span>{row.estadoRevision === "REVISADO" ? "Ver/Editar" : "Revisar"}</span>
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic px-2">Sin archivo</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -264,6 +278,15 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
             )
           );
           sileo.success({ title: "Revisión guardada", description: "Se registró la retroalimentación correctamente" });
+        }}
+      />
+
+      {/* ── Modal de Detalles del Estudiante (Ancho completo) ── */}
+      <ModalDetalleEstudianteProfesor
+        student={studentForDetails}
+        open={!!studentForDetails}
+        onOpenChange={(open) => {
+          if (!open) setStudentForDetails(null);
         }}
       />
     </div>

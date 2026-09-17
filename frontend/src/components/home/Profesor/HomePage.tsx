@@ -62,7 +62,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "portafolio":
-        if (!hasPermission("PORTAFOLIO_CONSULTAR")) {
+        if (!hasPermission("PORTAFOLIO_SUBIR")) {
           return <TableEstudiantes user={user} />;
         }
         return <Portafolio onBack={() => setActiveMenu("inicio")} />;

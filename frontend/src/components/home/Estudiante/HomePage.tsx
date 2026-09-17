@@ -48,7 +48,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "perfil":
         return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
-        if (!hasPermission("PORTAFOLIO_CONSULTAR")) {
+        if (!hasPermission("PORTAFOLIO_SUBIR")) {
           return <MallaCurricular userRut={user?.rut} />;
         }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;

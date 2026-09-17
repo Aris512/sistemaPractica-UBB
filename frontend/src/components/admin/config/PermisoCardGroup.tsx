@@ -19,6 +19,9 @@ export function PermisoCardGroup({
 }: PermisoCardGroupProps) {
   const getCategoryTitle = (cat: string) => {
     switch (cat.toUpperCase()) {
+      case "SUBIR ARCHIVOS":
+      case "SUBIR_ARCHIVOS":
+        return "Subir Archivos";
       case "PORTAFOLIO":
         return "Portafolio";
       case "EVALUACIONES":

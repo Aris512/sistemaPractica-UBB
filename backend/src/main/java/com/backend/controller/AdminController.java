@@ -136,9 +136,9 @@ public class AdminController {
                 }
             }
 
-            // Solo mostrar Centro de Práctica si es Profesor Colaborador o Tutor y no es Profesor de Asignatura
+            // Solo mostrar Centro de Práctica si es Profesor Colaborador, Tutor o Coordinador y no es Profesor de Asignatura
             boolean esColaboradorOTutor = roles.stream().anyMatch(r ->
-                r != null && (r.toUpperCase().contains("COLABORADOR") || r.toUpperCase().contains("TUTOR"))
+                r != null && (r.toUpperCase().contains("COLABORADOR") || r.toUpperCase().contains("TUTOR") || r.toUpperCase().contains("COORDINADOR"))
             ) && roles.stream().noneMatch(r -> r != null && r.toUpperCase().contains("ASIGNATURA"));
 
             if (esColaboradorOTutor) {
@@ -298,7 +298,8 @@ public class AdminController {
         }
 
         boolean esColaborador = (rolNombre.toUpperCase().contains("COLABORADOR")
-            || rolNombre.toUpperCase().contains("TUTOR"))
+            || rolNombre.toUpperCase().contains("TUTOR")
+            || rolNombre.toUpperCase().contains("COORDINADOR"))
             && !rolNombre.toUpperCase().contains("ASIGNATURA");
 
         if (esColaborador) {
@@ -466,7 +467,8 @@ public class AdminController {
 
         boolean esColaboradorEdit = (rolNombre.toUpperCase().contains("COLABORADOR")
             || rolNombre.toUpperCase().contains("TUTOR")
-            || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && (r.getNombre().toUpperCase().contains("COLABORADOR") || r.getNombre().toUpperCase().contains("TUTOR")))))
+            || rolNombre.toUpperCase().contains("COORDINADOR")
+            || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && (r.getNombre().toUpperCase().contains("COLABORADOR") || r.getNombre().toUpperCase().contains("TUTOR") || r.getNombre().toUpperCase().contains("COORDINADOR")))))
             && !rolNombre.toUpperCase().contains("ASIGNATURA");
 
         if (esColaboradorEdit) {
