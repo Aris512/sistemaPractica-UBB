@@ -88,3 +88,13 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 }
+
+/* Sileo Toasts High Priority Overlay */
+[data-sileo-viewport] {
+  z-index: 99999 !important;
+  pointer-events: none !important;
+}
+
+[data-sileo-toast] {
+  pointer-events: auto !important;
+}

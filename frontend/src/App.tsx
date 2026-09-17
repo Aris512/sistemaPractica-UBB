@@ -4,6 +4,7 @@ import { InfoPanel } from "./components/login/InfoPanel";
 import { UbbLogoBadge } from "./components/login/UbbLogoBadge";
 import { HomePage as EstudianteHomePage } from "./components/home/Estudiante";
 import { ProfesorHomePage } from "./components/home/Profesor";
+import { ProfesorCTutorHomePage } from "./components/home/ProfesorCTutor";
 import AdminPage from "./components/admin/page";
 import type { UserSession } from "./types/auth";
 
@@ -27,15 +28,30 @@ export default function App() {
 
   // If user is authenticated, display the appropriate Home Page based on role
   if (currentUser) {
-    const roles = currentUser.roles || [];
-    const isProfesor =
-      roles.some((r) => r.toUpperCase().includes("PROFESOR") || r.toUpperCase().includes("DOCENTE")) ||
-      (currentUser.rol && (currentUser.rol.toUpperCase().includes("PROFESOR") || currentUser.rol.toUpperCase().includes("DOCENTE")));
+    const allRoles = [
+      ...(currentUser.roles || []),
+      currentUser.rol || "",
+    ].map((r) => r.toUpperCase());
+
+    // 1. Profesor Colaborador o Tutor de Práctica
+    const isColaboradorOTutor = allRoles.some(
+      (r) => r.includes("COLABORADOR") || r.includes("TUTOR")
+    );
+
+    if (isColaboradorOTutor) {
+      return <ProfesorCTutorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+    }
+
+    // 2. Profesor Asignatura / Docente Titular
+    const isProfesor = allRoles.some(
+      (r) => r.includes("PROFESOR") || r.includes("DOCENTE")
+    );
 
     if (isProfesor) {
       return <ProfesorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
     }
 
+    // 3. Estudiante (por defecto)
     return <EstudianteHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
   }
 

@@ -1,5 +1,6 @@
 package com.backend.config;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -12,21 +13,31 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
+import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
+import com.backend.model.ObservacionPractica;
+import com.backend.model.Pauta;
+import com.backend.model.Practica;
 import com.backend.model.Profesor;
+import com.backend.model.ProfesorColaborador;
 import com.backend.model.Rol;
+import com.backend.model.TutorPractica;
 import com.backend.model.Usuario;
 import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
+import com.backend.repository.CentroPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.ObservacionPracticaRepository;
+import com.backend.repository.PautaRepository;
+import com.backend.repository.PracticaRepository;
+import com.backend.repository.ProfesorColaboradorRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.RolRepository;
+import com.backend.repository.TutorPracticaRepository;
 import com.backend.repository.UsuarioRepository;
 
 @Component
@@ -41,6 +52,12 @@ public class DataSeeder implements CommandLineRunner {
     private final ProfesorRepository profesorRepository;
     private final ActividadRepository actividadRepository;
     private final EvidenciaRepository evidenciaRepository;
+    private final CentroPracticaRepository centroPracticaRepository;
+    private final TutorPracticaRepository tutorPracticaRepository;
+    private final ProfesorColaboradorRepository profesorColaboradorRepository;
+    private final PracticaRepository practicaRepository;
+    private final PautaRepository pautaRepository;
+    private final ObservacionPracticaRepository observacionPracticaRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public DataSeeder(RolRepository rolRepository,
@@ -49,7 +66,13 @@ public class DataSeeder implements CommandLineRunner {
                       EstudianteRepository estudianteRepository,
                       ProfesorRepository profesorRepository,
                       ActividadRepository actividadRepository,
-                      EvidenciaRepository evidenciaRepository) {
+                      EvidenciaRepository evidenciaRepository,
+                      CentroPracticaRepository centroPracticaRepository,
+                      TutorPracticaRepository tutorPracticaRepository,
+                      ProfesorColaboradorRepository profesorColaboradorRepository,
+                      PracticaRepository practicaRepository,
+                      PautaRepository pautaRepository,
+                      ObservacionPracticaRepository observacionPracticaRepository) {
         this.rolRepository = rolRepository;
         this.usuarioRepository = usuarioRepository;
         this.asignaturaRepository = asignaturaRepository;
@@ -57,6 +80,12 @@ public class DataSeeder implements CommandLineRunner {
         this.profesorRepository = profesorRepository;
         this.actividadRepository = actividadRepository;
         this.evidenciaRepository = evidenciaRepository;
+        this.centroPracticaRepository = centroPracticaRepository;
+        this.tutorPracticaRepository = tutorPracticaRepository;
+        this.profesorColaboradorRepository = profesorColaboradorRepository;
+        this.practicaRepository = practicaRepository;
+        this.pautaRepository = pautaRepository;
+        this.observacionPracticaRepository = observacionPracticaRepository;
     }
 
     @Override
@@ -71,6 +100,9 @@ public class DataSeeder implements CommandLineRunner {
         seedUsuarios();
         seedEstudiantesYProfesores();
         seedActividadesYEvidencias();
+        seedCentrosYTutoresYPracticas();
+        seedPautas();
+        seedObservaciones();
 
         logger.info("=================================================");
         logger.info("DataSeeder finalizado con éxito.");
@@ -309,9 +341,182 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
+    private void seedCentrosYTutoresYPracticas() {
+        // Centros de práctica
+        List<CentroPracticaInfo> centros = List.of(
+            new CentroPracticaInfo("Colegio Concepción San Pedro", "Av. Los Manantiales 123, San Pedro de la Paz"),
+            new CentroPracticaInfo("Liceo Bicentenario San Nicolás", "Av. Bernardo O'Higgins 450, San Nicolás"),
+            new CentroPracticaInfo("Colegio San Agustín Concepción", "Collao 1200, Concepción"),
+            new CentroPracticaInfo("Colegio Wessex School Chillán", "Paul Harris 980, Chillán")
+        );
+
+        for (CentroPracticaInfo c : centros) {
+            if (!centroPracticaRepository.existsByNombre(c.nombre())) {
+                centroPracticaRepository.save(new CentroPractica(c.nombre(), c.direccion()));
+                logger.info("Centro de práctica registrado: {}", c.nombre());
+            }
+        }
+
+        // Tutor de Práctica
+        Optional<Usuario> usuarioTutor = usuarioRepository.findByRut("18765432-7");
+        TutorPractica tutor = null;
+        if (usuarioTutor.isPresent()) {
+            Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut("18765432-7");
+            if (tutorOpt.isEmpty()) {
+                tutor = new TutorPractica("Tutor de Práctica UBB", usuarioTutor.get());
+                tutorPracticaRepository.save(tutor);
+                logger.info("Tutor de práctica creado para RUT: 18765432-7");
+            } else {
+                tutor = tutorOpt.get();
+            }
+        }
+
+        // Profesor Colaborador
+        Optional<Usuario> usuarioColaborador = usuarioRepository.findByRut("10000013-K");
+        CentroPractica primerCentro = centroPracticaRepository.findByNombre("Colegio Concepción San Pedro").orElse(null);
+        ProfesorColaborador colaborador = null;
+        if (usuarioColaborador.isPresent() && primerCentro != null) {
+            Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut("10000013-K");
+            if (colabOpt.isEmpty()) {
+                colaborador = new ProfesorColaborador(usuarioColaborador.get(), primerCentro, "Pedagogía y Gestión de Aula");
+                profesorColaboradorRepository.save(colaborador);
+                logger.info("Profesor colaborador creado para RUT: 10000013-K");
+            } else {
+                colaborador = colabOpt.get();
+            }
+        }
+
+        // Sembrar Prácticas si no existen
+        if (practicaRepository.count() == 0 && tutor != null) {
+            List<Estudiante> estudiantes = estudianteRepository.findAll();
+            List<CentroPractica> centrosList = centroPracticaRepository.findAll();
+
+            int idx = 0;
+            for (Estudiante est : estudiantes) {
+                CentroPractica centro = centrosList.get(idx % centrosList.size());
+                Practica practica = new Practica(
+                    est,
+                    tutor,
+                    centro,
+                    est.getAsignatura(),
+                    "EN_CURSO"
+                );
+
+                if (colaborador != null) {
+                    practica.setProfesoresColaboradores(new HashSet<>(Collections.singletonList(colaborador)));
+                }
+
+                practicaRepository.save(practica);
+                logger.info("Práctica creada para estudiante {} en {}", est.getUsuario().getRut(), centro.getNombre());
+                idx++;
+            }
+        }
+    }
+
+    private void seedPautas() {
+        if (pautaRepository.count() == 0) {
+            List<Pauta> pautas = List.of(
+                new Pauta(
+                    "PAU-OBS-01",
+                    "Pauta de Observación de Desempeño Docente en Aula",
+                    "Práctica Pedagógica / Profesional",
+                    "Observación de Aula",
+                    12,
+                    "Evalúa clima de aula, diseño de actividades de aprendizaje, dominio de contenido y fomento de la participación activa de los alumnos.",
+                    "30%",
+                    "2026.1"
+                ),
+                new Pauta(
+                    "RUB-DES-02",
+                    "Rúbrica Analítica de Planificación y Gestión Curricular",
+                    "Todas las Prácticas",
+                    "Rúbrica de Desempeño",
+                    8,
+                    "Rúbrica graduada con 4 niveles (Insuficiente, Básico, Competente, Destacado) para evaluar carpetas y planificaciones didácticas.",
+                    "35%",
+                    "2026.1"
+                ),
+                new Pauta(
+                    "PAU-EVA-03",
+                    "Pauta de Evaluación Final del Profesor Colaborador",
+                    "Práctica Profesional (Semestre 9)",
+                    "Evaluación Final",
+                    15,
+                    "Informe evaluativo consolidado del desempeño integral del practicante durante su estadía completa en la institución educativa.",
+                    "35%",
+                    "2026.1"
+                ),
+                new Pauta(
+                    "RUB-INF-04",
+                    "Rúbrica de Informe de Práctica y Reflexión Pedagógica",
+                    "Práctica Pedagógica (Semestre 8)",
+                    "Rúbrica de Desempeño",
+                    10,
+                    "Criterios para calificar la profundidad reflexiva, marco teórico y análisis pedagógico de la experiencia docente en aula.",
+                    "25%",
+                    "2026.2"
+                )
+            );
+
+            pautaRepository.saveAll(pautas);
+            logger.info("Pautas y rúbricas oficiales UBB sembradas en la base de datos ({} registros).", pautas.size());
+        }
+    }
+
+    private void seedObservaciones() {
+        if (observacionPracticaRepository.count() == 0) {
+            List<ObservacionPractica> observaciones = List.of(
+                new ObservacionPractica(
+                    "Camila Ignacia Rojas",
+                    "12345678-5",
+                    "Colegio Concepción San Pedro",
+                    "15 de Septiembre, 2026",
+                    "Inicio de Clase y Activación de Conocimientos Previos",
+                    "La estudiante practicante demuestra excelente dominio del grupo, motiva la participación y utiliza recursos didácticos atractivos. Se sugiere profundizar en la síntesis al cierre.",
+                    "CONCLUIDA",
+                    "18765432-7"
+                ),
+                new ObservacionPractica(
+                    "Felipe Andrés Soto",
+                    "15432109-8",
+                    "Liceo Bicentenario San Nicolás",
+                    "12 de Septiembre, 2026",
+                    "Gestión del Clima de Aula y Trabajo Colaborativo",
+                    "Buen manejo de la dinámica grupal en mesas de trabajo. Se acordó ajustar el tiempo asignado para la entrega de guías formativas en la siguiente clase supervisada.",
+                    "SEGUIMIENTO",
+                    "18765432-7"
+                ),
+                new ObservacionPractica(
+                    "Matías Ignacio Morales",
+                    "16543210-K",
+                    "Colegio San Agustín Concepción",
+                    "08 de Septiembre, 2026",
+                    "Evaluación Formativa y Retroalimentación Inmediata",
+                    "Aplicación destacada de rúbrica formativa compartida con los alumnos. Comunicación clara, lenguaje pedagógico pertinente y constante refuerzo positivo.",
+                    "CONCLUIDA",
+                    "10000013-K"
+                ),
+                new ObservacionPractica(
+                    "Valentina Rojas",
+                    "17654321-3",
+                    "Colegio Wessex School Chillán",
+                    "04 de Septiembre, 2026",
+                    "Uso de Recursos Didácticos y Tecnológicos",
+                    "Se integraron herramientas interactivas con buena recepción del estudiantado. Continuar fortaleciendo el control de tiempos durante la fase de cierre.",
+                    "SEGUIMIENTO",
+                    "10000013-K"
+                )
+            );
+
+            observacionPracticaRepository.saveAll(observaciones);
+            logger.info("Observaciones de práctica sembradas en la base de datos ({} registros).", observaciones.size());
+        }
+    }
+
     private record RolInfo(String nombre, String descripcion) {}
     private record AsignaturaInfo(String nombre, String descripcion, String semestre) {}
     private record UsuarioInfo(String rut, String nombre, String apellido, String correo, String rol) {}
     private record EstudianteSeedInfo(String rut, String asignaturaNombre, String estado) {}
     private record ProfesorSeedInfo(String rut, String asignaturaNombre) {}
+    private record CentroPracticaInfo(String nombre, String direccion) {}
 }
