@@ -156,12 +156,19 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
           setPage(1);
         }}
         onRefresh={() => {
-          fetchData().then(() => {
-            sileo.success({
-              title: "Nómina Actualizada",
-              description: "Datos de estudiantes sincronizados desde la base de datos.",
+          fetchData()
+            .then(() => {
+              sileo.success({
+                title: "Nómina Actualizada",
+                description: "Datos de estudiantes sincronizados desde la base de datos.",
+              });
+            })
+            .catch((err) => {
+              sileo.error({
+                title: "Error de sincronización",
+                description: err?.message || "No fue posible actualizar la nómina de estudiantes.",
+              });
             });
-          });
         }}
         loading={loading}
       />

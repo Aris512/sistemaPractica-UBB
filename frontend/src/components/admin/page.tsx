@@ -66,13 +66,21 @@ export default function AdminPage() {
         setEditingInvoice(item);
         setIsEditModalOpen(true);
         break;
-      case "delete":
-        deleteUsuario(item.rut);
-        sileo.error({
-          title: "Usuario eliminado",
-          description: `${item.nombre} (${item.rut}) fue eliminado de la tabla`,
-        });
+      case "delete": {
+        const res = await deleteUsuario(item.rut);
+        if (res.success) {
+          sileo.success({
+            title: "Usuario eliminado",
+            description: `${item.nombre} (${item.rut}) fue eliminado correctamente de la base de datos.`,
+          });
+        } else {
+          sileo.error({
+            title: "Error al eliminar usuario",
+            description: res.error || "No se pudo eliminar el usuario del servidor.",
+          });
+        }
         break;
+      }
       case "toggle-estado": {
         const nuevoEstado = !item.estado;
         const res = await toggleUsuarioEstado(item.rut, nuevoEstado);

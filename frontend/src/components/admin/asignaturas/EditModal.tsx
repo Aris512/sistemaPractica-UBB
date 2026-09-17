@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sileo } from "sileo";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +69,15 @@ export function EditModal({ isOpen, onClose, asignatura, onSave }: EditModalProp
       errs.semestre = "Debe indicar el semestre académico";
     }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (Object.keys(errs).length > 0) {
+      const firstError = Object.values(errs)[0];
+      sileo.error({
+        title: "Error de validación",
+        description: firstError || "Revisa los campos de la asignatura.",
+      });
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -98,7 +107,7 @@ export function EditModal({ isOpen, onClose, asignatura, onSave }: EditModalProp
 
       if (!res.ok) {
         throw new Error(
-          json?.error || `Error ${res.status}: No se pudo actualizar la asignatura.`
+          json?.error || json?.message || `Error ${res.status}: No se pudo actualizar la asignatura.`
         );
       }
 
@@ -106,7 +115,12 @@ export function EditModal({ isOpen, onClose, asignatura, onSave }: EditModalProp
       onClose();
     } catch (err: any) {
       console.error("Error al actualizar asignatura:", err);
-      setServerError(err.message || "Error al conectar con el servidor para actualizar la asignatura.");
+      const errorMsg = err.message || "Error al conectar con el servidor para actualizar la asignatura.";
+      setServerError(errorMsg);
+      sileo.error({
+        title: "Error al modificar asignatura",
+        description: errorMsg,
+      });
     } finally {
       setSubmitting(false);
     }

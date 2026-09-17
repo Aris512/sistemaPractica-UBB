@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sileo } from "sileo";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +68,15 @@ export function CreateModal({ isOpen, onClose, onCreate }: CreateModalProps) {
       errs.semestre = "Debe indicar el semestre académico";
     }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+    if (Object.keys(errs).length > 0) {
+      const firstError = Object.values(errs)[0];
+      sileo.error({
+        title: "Error de validación",
+        description: firstError || "El nombre y semestre son obligatorios.",
+      });
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,7 +105,7 @@ export function CreateModal({ isOpen, onClose, onCreate }: CreateModalProps) {
 
       if (!res.ok) {
         throw new Error(
-          json?.error || `Error ${res.status}: No se pudo registrar la asignatura.`
+          json?.error || json?.message || `Error ${res.status}: No se pudo registrar la asignatura.`
         );
       }
 
@@ -104,7 +113,12 @@ export function CreateModal({ isOpen, onClose, onCreate }: CreateModalProps) {
       onClose();
     } catch (err: any) {
       console.error("Error al crear asignatura:", err);
-      setServerError(err.message || "Error al conectar con el servidor para registrar la asignatura.");
+      const errorMsg = err.message || "Error al conectar con el servidor para registrar la asignatura.";
+      setServerError(errorMsg);
+      sileo.error({
+        title: "Error al crear asignatura",
+        description: errorMsg,
+      });
     } finally {
       setSubmitting(false);
     }

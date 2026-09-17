@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sileo } from "sileo";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,8 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, UserPlus, BookOpen, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, UserPlus, BookOpen, Loader2 } from "lucide-react";
+import { validateRut, formatRutStandard } from "@/lib/rutUtils";
 
 export interface NewUserData {
   rut: string;
@@ -83,7 +85,6 @@ export function CreateModal({
   const [loadingAsignaturas, setLoadingAsignaturas] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
@@ -97,7 +98,6 @@ export function CreateModal({
       setRol("ESTUDIANTE");
       setEstado(true);
       setAsignaturaId("");
-      setServerError(null);
       setSubmitting(false);
       setErrors({});
 
@@ -152,11 +152,11 @@ export function CreateModal({
     e.preventDefault();
     const newErrors: Record<string, string> = {};
 
-    const cleanRut = rut.trim();
-    if (!cleanRut) {
+    const rawRut = rut.trim();
+    if (!rawRut) {
       newErrors.rut = "El RUT es obligatorio.";
-    } else if (cleanRut.length < 8) {
-      newErrors.rut = "Ingresa un RUT válido (ej. 12345678-5).";
+    } else if (!validateRut(rawRut)) {
+      newErrors.rut = "El RUT ingresado no es válido. Compruebe el formato y dígito verificador.";
     }
 
     if (!nombre.trim()) {
@@ -186,15 +186,21 @@ export function CreateModal({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      const firstError = Object.values(newErrors)[0];
+      sileo.error({
+        title: "Error de validación",
+        description: firstError || "Revisa los campos obligatorios del usuario.",
+      });
       return;
     }
+
+    const standardRut = formatRutStandard(rawRut);
 
     const selectedAsig = asignaturas.find(
       (a) => String(a.idAsignatura) === asignaturaId
     );
 
     setSubmitting(true);
-    setServerError(null);
 
     try {
       const credentials = btoa("admin:admin123");
@@ -205,7 +211,7 @@ export function CreateModal({
           Authorization: `Basic ${credentials}`,
         },
         body: JSON.stringify({
-          rut: cleanRut,
+          rut: standardRut,
           nombre: nombre.trim(),
           apellido: apellido.trim(),
           correo: correo.trim(),
@@ -221,12 +227,12 @@ export function CreateModal({
 
       if (!res.ok) {
         throw new Error(
-          json?.error || `Error ${res.status}: No se pudo guardar el usuario en la base de datos.`
+          json?.error || json?.message || `Error ${res.status}: No se pudo guardar el usuario en la base de datos.`
         );
       }
 
       onCreate?.({
-        rut: cleanRut,
+        rut: standardRut,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
         correo: correo.trim(),
@@ -240,7 +246,11 @@ export function CreateModal({
       onClose();
     } catch (err: any) {
       console.error("Error al registrar usuario en la base de datos:", err);
-      setServerError(err.message || "Error al conectar con la base de datos para guardar el usuario.");
+      const errorMsg = err.message || "Error al conectar con la base de datos para guardar el usuario.";
+      sileo.error({
+        title: "Error al crear usuario",
+        description: errorMsg,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -264,12 +274,6 @@ export function CreateModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-          {serverError && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2 animate-in fade-in duration-200">
-              <AlertCircle className="size-4 text-rose-500 shrink-0" />
-              <span>{serverError}</span>
-            </div>
-          )}
 
           <FieldGroup className="gap-3">
             {/* RUT y Rol */}

@@ -141,8 +141,8 @@ export function Actividades({ user }: ActividadesProps) {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      sileo.warning({
-        title: "Campos inválidos",
+      sileo.error({
+        title: "Campos requeridos",
         description: Object.values(newErrors)[0],
       });
       return;
@@ -169,7 +169,8 @@ export function Actividades({ user }: ActividadesProps) {
       });
 
       if (!res.ok) {
-        throw new Error("No se pudo crear la actividad en el servidor.");
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || errJson?.error || "No se pudo crear la actividad en el servidor.");
       }
 
       const nuevaActividad = await res.json();
@@ -186,11 +187,11 @@ export function Actividades({ user }: ActividadesProps) {
         title: "Tarea Creada",
         description: "La tarea ha sido asignada a todos los estudiantes del curso.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al crear actividad:", err);
       sileo.error({
-        title: "Error de creación",
-        description: "No fue posible registrar la actividad en la base de datos.",
+        title: "Error al crear tarea",
+        description: err?.message || "No fue posible registrar la actividad en la base de datos.",
       });
     } finally {
       setSubmitting(false);
@@ -293,19 +294,19 @@ export function Actividades({ user }: ActividadesProps) {
 
     if (!editTitulo.trim()) {
       setEditError("El título de la tarea es obligatorio.");
-      sileo.warning({ title: "Campo requerido", description: "El título no puede estar vacío." });
+      sileo.error({ title: "Campo requerido", description: "El título no puede estar vacío." });
       return;
     }
 
     if (!editFechaDate) {
       setEditError("Debes seleccionar una fecha límite con el calendario.");
-      sileo.warning({ title: "Campo requerido", description: "Debes seleccionar una fecha límite." });
+      sileo.error({ title: "Campo requerido", description: "Debes seleccionar una fecha límite." });
       return;
     }
 
     if (isPastDateTime(editFechaDate, editHora)) {
       setEditError("La fecha y hora límite no puede ser anterior a la actual.");
-      sileo.warning({
+      sileo.error({
         title: "Fecha no válida",
         description: "La fecha y hora límite no puede ser anterior a la actual.",
       });
@@ -326,7 +327,8 @@ export function Actividades({ user }: ActividadesProps) {
       });
 
       if (!res.ok) {
-        throw new Error("Error al guardar cambios");
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || errJson?.error || "Error al guardar cambios en el servidor");
       }
 
       const actualizada = await res.json();
@@ -339,11 +341,11 @@ export function Actividades({ user }: ActividadesProps) {
         title: "Tarea Actualizada",
         description: "Los cambios se han guardado con éxito.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al actualizar actividad:", err);
       sileo.error({
-        title: "Error al actualizar",
-        description: "No se pudieron guardar los cambios.",
+        title: "Error al actualizar tarea",
+        description: err?.message || "No se pudieron guardar los cambios.",
       });
     } finally {
       setEditingSubmitting(false);

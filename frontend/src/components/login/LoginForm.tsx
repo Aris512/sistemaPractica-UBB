@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sileo } from "sileo";
 import {
   Card,
   CardHeader,
@@ -56,17 +57,23 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setError(null);
 
     if (!rut.trim()) {
-      setError("Por favor, ingrese su RUT institucional.");
+      const msg = "Por favor, ingrese su RUT institucional.";
+      setError(msg);
+      sileo.error({ title: "Campo requerido", description: msg });
       return;
     }
 
     if (!validateRut(rut)) {
-      setError("El RUT ingresado no es válido. Compruebe el dígito verificador.");
+      const msg = "El RUT ingresado no es válido. Compruebe el dígito verificador.";
+      setError(msg);
+      sileo.error({ title: "RUT inválido", description: msg });
       return;
     }
 
     if (!password) {
-      setError("Por favor, ingrese su contraseña.");
+      const msg = "Por favor, ingrese su contraseña.";
+      setError(msg);
+      sileo.error({ title: "Campo requerido", description: msg });
       return;
     }
 
@@ -83,12 +90,16 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setError(data.message ?? "Credenciales incorrectas.");
+        const msg = data.message ?? "Credenciales incorrectas.";
+        setError(msg);
+        sileo.error({ title: "Error de autenticación", description: msg });
         return;
       }
 
       if (data.estado === false) {
-        setError("Acceso denegado: su cuenta de usuario se encuentra inactiva. Contacte al administrador.");
+        const msg = "Acceso denegado: su cuenta de usuario se encuentra inactiva. Contacte al administrador.";
+        setError(msg);
+        sileo.error({ title: "Cuenta inactiva", description: msg });
         return;
       }
 
@@ -102,7 +113,9 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         estado: data.estado !== undefined ? data.estado : true,
       });
     } catch {
-      setError("No se pudo conectar con el servidor. Verifique que el backend esté activo.");
+      const msg = "No se pudo conectar con el servidor. Verifique que el backend esté activo.";
+      setError(msg);
+      sileo.error({ title: "Error de conexión", description: msg });
     } finally {
       setLoading(false);
     }

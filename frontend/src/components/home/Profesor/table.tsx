@@ -67,7 +67,11 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
         revisionFilter={revisionFilter}
         onRevisionFilterChange={(val) => { setRevisionFilter(val); setPage(1); }}
         onClearFilters={() => { setSearchQuery(""); setEntregaFilter("ALL"); setRevisionFilter("ALL"); setPage(1); }}
-        onSync={() => refetch().finally(() => sileo.success({ title: "Sincronizado", description: "Datos actualizados desde la BD" }))}
+        onSync={() =>
+          refetch()
+            .then(() => sileo.success({ title: "Sincronizado", description: "Datos actualizados desde la BD" }))
+            .catch((err) => sileo.error({ title: "Error al sincronizar", description: err?.message || "No se pudieron actualizar los datos." }))
+        }
         loading={loading}
       />
 

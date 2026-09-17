@@ -248,8 +248,33 @@ export function useDataTableFeatures(
   };
 
   // ── Operaciones CRUD ──
-  const deleteUsuario = (rut: string) => {
-    setData((prev) => prev.filter((item) => item.rut !== rut));
+  const deleteUsuario = async (rut: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const credentials = btoa("admin:admin123");
+      const res = await fetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Basic ${credentials}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(
+          errJson?.error || errJson?.message || `Error ${res.status}: No se pudo eliminar el usuario.`
+        );
+      }
+
+      // Eliminar de la lista local únicamente si la eliminación en base de datos fue exitosa
+      setData((prev) => prev.filter((item) => item.rut !== rut));
+      return { success: true };
+    } catch (err: any) {
+      console.error("Error al eliminar usuario:", err);
+      return {
+        success: false,
+        error: err.message || "No se pudo eliminar el usuario de la base de datos.",
+      };
+    }
   };
 
   const toggleUsuarioEstado = async (rut: string, nuevoEstado: boolean) => {

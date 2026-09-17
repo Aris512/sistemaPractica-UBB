@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sileo } from "sileo";
 import {
   Dialog,
   DialogContent,
@@ -207,6 +208,11 @@ export function EditModal({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      const firstError = Object.values(newErrors)[0];
+      sileo.error({
+        title: "Error de validación",
+        description: firstError || "Revisa los campos del formulario.",
+      });
       return;
     }
 
@@ -241,7 +247,7 @@ export function EditModal({
 
       if (!res.ok) {
         throw new Error(
-          json?.error || `Error ${res.status}: No se pudieron guardar los cambios en la base de datos.`
+          json?.error || json?.message || `Error ${res.status}: No se pudieron guardar los cambios en la base de datos.`
         );
       }
 
@@ -258,7 +264,12 @@ export function EditModal({
       onClose();
     } catch (err: any) {
       console.error("Error al actualizar usuario en la base de datos:", err);
-      setServerError(err.message || "Error al conectar con la base de datos.");
+      const errorMsg = err.message || "Error al conectar con la base de datos.";
+      setServerError(errorMsg);
+      sileo.error({
+        title: "Error al modificar usuario",
+        description: errorMsg,
+      });
     } finally {
       setSubmitting(false);
     }

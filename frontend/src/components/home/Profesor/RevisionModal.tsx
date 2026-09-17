@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sileo } from "sileo";
 import type { EstudianteEvidenciaRow } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,12 +52,23 @@ export function RevisionModal({
   if (!student) return null;
 
   const handleSave = async () => {
+    let notaNum: number | null = null;
+    if (calificacion.trim()) {
+      notaNum = parseFloat(calificacion.replace(",", "."));
+      if (isNaN(notaNum) || notaNum < 1.0 || notaNum > 7.0) {
+        sileo.error({
+          title: "Calificación inválida",
+          description: "La nota debe ser un número entre 1.0 y 7.0 (ej. 5.5).",
+        });
+        return;
+      }
+    }
+
     setIsSaving(true);
-    const notaNum = calificacion ? parseFloat(calificacion.replace(",", ".")) : null;
 
     try {
       if (student.idEvidencia) {
-        await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar`, {
+        const res = await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -66,6 +78,13 @@ export function RevisionModal({
             estado: estadoRevision,
           }),
         });
+
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null);
+          throw new Error(
+            errJson?.message || errJson?.error || `Error ${res.status}: No se pudo guardar la revisión en el servidor.`
+          );
+        }
       }
 
       onSaved({
@@ -76,8 +95,12 @@ export function RevisionModal({
         fechaRevision: fechaRevision.toLocaleDateString("es-CL"),
       });
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al guardar revisión:", err);
+      sileo.error({
+        title: "Error al guardar revisión",
+        description: err?.message || "No fue posible guardar la revisión en el servidor.",
+      });
     } finally {
       setIsSaving(false);
     }
