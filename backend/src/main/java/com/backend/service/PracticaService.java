@@ -54,6 +54,11 @@ public class PracticaService {
                 if (p.getEstudiante() == null || p.getEstudiante().getUsuario() == null) continue;
 
                 Usuario u = p.getEstudiante().getUsuario();
+                // Restricción: No incluir alumnos en estado inactivo
+                if (!u.isActivo() || "inactivo".equalsIgnoreCase(u.getEstado()) || "INACTIVO".equalsIgnoreCase(p.getEstudiante().getEstado())) {
+                    continue;
+                }
+
                 String nombreEstudiante = u.getNombre() + " " + u.getApellido();
                 String asigNombre = p.getAsignatura() != null ? p.getAsignatura().getNombre() : "Práctica Profesional";
                 String centro = p.getCentroPractica() != null ? p.getCentroPractica().getNombre() : "Colegio Concepción";
@@ -81,6 +86,10 @@ public class PracticaService {
         for (Estudiante est : estudiantes) {
             if (est.getUsuario() == null) continue;
             Usuario u = est.getUsuario();
+            // Restricción: No incluir alumnos en estado inactivo
+            if (!u.isActivo() || "inactivo".equalsIgnoreCase(u.getEstado()) || "INACTIVO".equalsIgnoreCase(est.getEstado())) {
+                continue;
+            }
             String asigNombre = est.getAsignatura() != null ? est.getAsignatura().getNombre() : "Práctica Pedagógica";
             resultado.add(new EstudianteTutorDTO(
                 est.getIdEstudiante(),

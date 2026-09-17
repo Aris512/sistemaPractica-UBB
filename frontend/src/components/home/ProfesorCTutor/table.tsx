@@ -42,7 +42,14 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
-          setData(json);
+          const activos = json.filter(
+            (item: any) =>
+              item.activo !== false &&
+              item.estado?.toLowerCase() !== "inactivo" &&
+              item.estadoObservacion !== "INACTIVO" &&
+              item.estadoEvaluacion !== "INACTIVO"
+          );
+          setData(activos);
           return;
         }
       }
@@ -52,8 +59,14 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
       if (resEst.ok) {
         const estJson = await resEst.json();
         if (Array.isArray(estJson)) {
+          const activos = estJson.filter(
+            (est: any) =>
+              est.usuario?.activo !== false &&
+              est.usuario?.estado?.toLowerCase() !== "inactivo" &&
+              est.estado?.toUpperCase() !== "INACTIVO"
+          );
           setData(
-            estJson.map((est: any) => ({
+            activos.map((est: any) => ({
               idEstudiante: est.idEstudiante,
               rut: est.usuario?.rut || "—",
               nombre: est.usuario ? `${est.usuario.nombre} ${est.usuario.apellido}` : "Estudiante",

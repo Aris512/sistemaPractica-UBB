@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
@@ -23,16 +24,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.backend.model.Asignatura;
+import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
+import com.backend.model.Practica;
 import com.backend.model.Profesor;
 import com.backend.model.ProfesorColaborador;
 import com.backend.model.Rol;
 import com.backend.model.TutorPractica;
 import com.backend.model.Usuario;
 import com.backend.repository.AsignaturaRepository;
+import com.backend.repository.CentroPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.RolRepository;
@@ -62,6 +67,8 @@ public class AdminController {
     private final EvidenciaRepository evidenciaRepository;
     private final RolRepository rolRepository;
     private final AsignaturaRepository asignaturaRepository;
+    private final CentroPracticaRepository centroPracticaRepository;
+    private final PracticaRepository practicaRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public AdminController(UsuarioRepository usuarioRepository,
@@ -71,7 +78,9 @@ public class AdminController {
                            TutorPracticaRepository tutorPracticaRepository,
                            EvidenciaRepository evidenciaRepository,
                            RolRepository rolRepository,
-                           AsignaturaRepository asignaturaRepository) {
+                           AsignaturaRepository asignaturaRepository,
+                           CentroPracticaRepository centroPracticaRepository,
+                           PracticaRepository practicaRepository) {
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
@@ -80,6 +89,8 @@ public class AdminController {
         this.evidenciaRepository = evidenciaRepository;
         this.rolRepository = rolRepository;
         this.asignaturaRepository = asignaturaRepository;
+        this.centroPracticaRepository = centroPracticaRepository;
+        this.practicaRepository = practicaRepository;
     }
 
     @GetMapping
@@ -112,6 +123,9 @@ public class AdminController {
             dto.put("roles", roles);
 
             String curso = "—";
+            String centroPracticaNombre = "—";
+            Long idCentro = null;
+
             Optional<Estudiante> estudianteOpt = estudianteRepository.findByUsuario(u);
             if (estudianteOpt.isPresent() && estudianteOpt.get().getAsignatura() != null) {
                 curso = estudianteOpt.get().getAsignatura().getNombre();
@@ -121,7 +135,42 @@ public class AdminController {
                     curso = profesorOpt.get().getAsignatura().getNombre();
                 }
             }
+
+            // Solo mostrar Centro de Práctica si es Profesor Colaborador o Tutor y no es Profesor de Asignatura
+            boolean esColaboradorOTutor = roles.stream().anyMatch(r ->
+                r != null && (r.toUpperCase().contains("COLABORADOR") || r.toUpperCase().contains("TUTOR"))
+            ) && roles.stream().noneMatch(r -> r != null && r.toUpperCase().contains("ASIGNATURA"));
+
+            if (esColaboradorOTutor) {
+                Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(u.getRut());
+                if (colabOpt.isPresent() && colabOpt.get().getCentroPractica() != null) {
+                    centroPracticaNombre = colabOpt.get().getCentroPractica().getNombre();
+                    idCentro = colabOpt.get().getCentroPractica().getIdCentro();
+                } else {
+                    List<Practica> practicasTutor = practicaRepository.findByTutorPracticaUsuarioRut(u.getRut());
+                    if (practicasTutor != null && !practicasTutor.isEmpty()) {
+                        for (Practica p : practicasTutor) {
+                            if (p.getCentroPractica() != null) {
+                                centroPracticaNombre = p.getCentroPractica().getNombre();
+                                idCentro = p.getCentroPractica().getIdCentro();
+                                break;
+                            }
+                        }
+                        if ("—".equals(curso)) {
+                            for (Practica p : practicasTutor) {
+                                if (p.getAsignatura() != null) {
+                                    curso = p.getAsignatura().getNombre();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             dto.put("curso", curso);
+            dto.put("centroPractica", centroPracticaNombre);
+            dto.put("idCentro", idCentro);
             dto.put("estado", u.isActivo());
             dto.put("estadoTexto", u.getEstado());
 
@@ -132,6 +181,7 @@ public class AdminController {
     }
 
     @PostMapping("/usuarios")
+    @Transactional
     public ResponseEntity<?> crearUsuario(@RequestBody Map<String, Object> payload) {
         String rutRaw = payload.get("rut") != null ? payload.get("rut").toString().trim() : "";
         String nombre = payload.get("nombre") != null ? payload.get("nombre").toString().trim() : "";
@@ -230,6 +280,53 @@ public class AdminController {
             }
         }
 
+        // Vincular lugar de práctica (Centro de Práctica) y sincronizar con tabla practica
+        Object idCentroObj = payload.get("idCentro");
+        CentroPractica centroEncontrado = null;
+        if (idCentroObj != null && !idCentroObj.toString().trim().isEmpty()) {
+            try {
+                Long idC = Long.valueOf(idCentroObj.toString());
+                centroEncontrado = centroPracticaRepository.findById(idC).orElse(null);
+            } catch (Exception ignored) {
+            }
+        }
+        if (centroEncontrado == null && payload.get("centroPractica") != null) {
+            String cNombre = payload.get("centroPractica").toString().trim();
+            if (!cNombre.isEmpty() && !cNombre.equals("—")) {
+                centroEncontrado = centroPracticaRepository.findByNombre(cNombre).orElse(null);
+            }
+        }
+
+        boolean esColaborador = (rolNombre.toUpperCase().contains("COLABORADOR")
+            || rolNombre.toUpperCase().contains("TUTOR"))
+            && !rolNombre.toUpperCase().contains("ASIGNATURA");
+
+        if (esColaborador) {
+            try {
+                if (rolNombre.toUpperCase().contains("TUTOR")) {
+                    Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                    if (tutorOpt.isEmpty()) {
+                        tutorPracticaRepository.save(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
+                    }
+                }
+
+                Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
+                ProfesorColaborador colab;
+                if (colabOpt.isPresent()) {
+                    colab = colabOpt.get();
+                    colab.setCentroPractica(centroEncontrado);
+                    colab = profesorColaboradorRepository.save(colab);
+                } else {
+                    colab = new ProfesorColaborador(guardado, centroEncontrado, "Pedagogía");
+                    colab = profesorColaboradorRepository.save(colab);
+                }
+
+                // Sincronizar o crear en la tabla practica el id_centro_de_practica
+                sincronizarPracticasColaborador(guardado, colab, centroEncontrado, asigEncontrada);
+            } catch (Exception ignored) {
+            }
+        }
+
         return ResponseEntity.ok(Map.of(
             "message", "Usuario creado con éxito",
             "rut", guardado.getRut(),
@@ -240,6 +337,7 @@ public class AdminController {
     }
 
     @PutMapping("/usuarios/{rut}")
+    @Transactional
     public ResponseEntity<?> editarUsuario(@PathVariable String rut, @RequestBody Map<String, Object> payload) {
         Optional<Usuario> userOpt = usuarioRepository.findByRut(rut);
         if (userOpt.isEmpty()) {
@@ -347,6 +445,65 @@ public class AdminController {
             // Usuario sin asignatura
             estOpt.ifPresent(estudianteRepository::delete);
             profOpt.ifPresent(profesorRepository::delete);
+        }
+
+        // Manejar vinculación de Centro de Práctica para Profesor Colaborador en edición
+        Object editIdCentroObj = payload.get("idCentro");
+        CentroPractica editCentroEncontrado = null;
+        if (editIdCentroObj != null && !editIdCentroObj.toString().trim().isEmpty()) {
+            try {
+                Long idC = Long.valueOf(editIdCentroObj.toString());
+                editCentroEncontrado = centroPracticaRepository.findById(idC).orElse(null);
+            } catch (Exception ignored) {
+            }
+        }
+        if (editCentroEncontrado == null && payload.get("centroPractica") != null) {
+            String cNombre = payload.get("centroPractica").toString().trim();
+            if (!cNombre.isEmpty() && !cNombre.equals("—")) {
+                editCentroEncontrado = centroPracticaRepository.findByNombre(cNombre).orElse(null);
+            }
+        }
+
+        boolean esColaboradorEdit = (rolNombre.toUpperCase().contains("COLABORADOR")
+            || rolNombre.toUpperCase().contains("TUTOR")
+            || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && (r.getNombre().toUpperCase().contains("COLABORADOR") || r.getNombre().toUpperCase().contains("TUTOR")))))
+            && !rolNombre.toUpperCase().contains("ASIGNATURA");
+
+        if (esColaboradorEdit) {
+            try {
+                if (rolNombre.toUpperCase().contains("TUTOR") || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("TUTOR")))) {
+                    Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                    if (tutorOpt.isEmpty()) {
+                        tutorPracticaRepository.save(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
+                    }
+                }
+
+                Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
+                ProfesorColaborador colab;
+                if (colabOpt.isPresent()) {
+                    colab = colabOpt.get();
+                    colab.setCentroPractica(editCentroEncontrado);
+                    colab = profesorColaboradorRepository.save(colab);
+                } else {
+                    colab = new ProfesorColaborador(guardado, editCentroEncontrado, "Pedagogía");
+                    colab = profesorColaboradorRepository.save(colab);
+                }
+
+                // Sincronizar o crear en la tabla practica el id_centro_de_practica
+                sincronizarPracticasColaborador(guardado, colab, editCentroEncontrado, asigEncontrada);
+            } catch (Exception ignored) {
+            }
+        } else if (rolNombre.toUpperCase().contains("ASIGNATURA")) {
+            // Si el rol es Profesor de Asignatura, desvincular cualquier centro de práctica previo
+            try {
+                Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
+                if (colabOpt.isPresent()) {
+                    ProfesorColaborador colab = colabOpt.get();
+                    colab.setCentroPractica(null);
+                    profesorColaboradorRepository.save(colab);
+                }
+            } catch (Exception ignored) {
+            }
         }
 
         return ResponseEntity.ok(Map.of(
@@ -473,7 +630,14 @@ public class AdminController {
         // 3. Desvincular profesor colaborador si existe
         try {
             Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(usuario.getRut());
-            colabOpt.ifPresent(profesorColaboradorRepository::delete);
+            if (colabOpt.isPresent()) {
+                ProfesorColaborador colab = colabOpt.get();
+                if (colab.getPracticas() != null) {
+                    colab.getPracticas().clear();
+                    profesorColaboradorRepository.save(colab);
+                }
+                profesorColaboradorRepository.delete(colab);
+            }
         } catch (Exception ignored) {}
 
         // 4. Desvincular tutor práctica si existe
@@ -495,6 +659,108 @@ public class AdminController {
             "message", "Usuario eliminado con éxito",
             "rut", usuario.getRut()
         ));
+    }
+
+    /**
+     * Sincroniza o crea el registro en la tabla practica asociando el id_centro_de_practica
+     * y la relación bidireccional entre ProfesorColaborador y Practica.
+     */
+    private void sincronizarPracticasColaborador(Usuario usuario, ProfesorColaborador colab, CentroPractica centro, Asignatura asignatura) {
+        if (colab == null) {
+            return;
+        }
+
+        if (colab.getPracticas() == null) {
+            colab.setPracticas(new HashSet<>());
+        }
+
+        // 1. Recopilar prácticas existentes asociadas a este colaborador o tutor
+        Set<Practica> practicasAfectadas = new HashSet<>();
+        if (usuario != null && usuario.getRut() != null) {
+            List<Practica> practicasPorRut = practicaRepository.findByProfesoresColaboradoresUsuarioRut(usuario.getRut());
+            if (practicasPorRut != null) {
+                practicasAfectadas.addAll(practicasPorRut);
+            }
+            List<Practica> practicasPorTutor = practicaRepository.findByTutorPracticaUsuarioRut(usuario.getRut());
+            if (practicasPorTutor != null) {
+                practicasAfectadas.addAll(practicasPorTutor);
+            }
+        }
+        if (colab.getPracticas() != null) {
+            practicasAfectadas.addAll(colab.getPracticas());
+        }
+
+        // 2. Si se asignó una asignatura, incluir todas las prácticas de esa asignatura
+        if (asignatura != null && asignatura.getIdAsignatura() != null) {
+            List<Practica> practicasPorAsig = practicaRepository.findByAsignaturaIdAsignatura(asignatura.getIdAsignatura());
+            if (practicasPorAsig != null) {
+                practicasAfectadas.addAll(practicasPorAsig);
+            }
+        }
+
+        TutorPractica tutorUsuario = null;
+        if (usuario != null && usuario.getRut() != null) {
+            tutorUsuario = tutorPracticaRepository.findByUsuarioRut(usuario.getRut()).orElse(null);
+        }
+
+        // 3. Si no existe ninguna práctica para la asignatura / colaborador / tutor, crear una o más según corresponda
+        if (practicasAfectadas.isEmpty()) {
+            List<Estudiante> estudiantesCandidatos = new ArrayList<>();
+            if (asignatura != null && asignatura.getIdAsignatura() != null) {
+                estudiantesCandidatos = estudianteRepository.findAll().stream()
+                    .filter(e -> e.getAsignatura() != null && asignatura.getIdAsignatura().equals(e.getAsignatura().getIdAsignatura()))
+                    .filter(e -> (e.getUsuario() == null || (e.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(e.getUsuario().getEstado()))) && !"INACTIVO".equalsIgnoreCase(e.getEstado()))
+                    .collect(Collectors.toList());
+            }
+
+            TutorPractica tutorDefault = tutorUsuario != null ? tutorUsuario : tutorPracticaRepository.findAll().stream().findFirst().orElse(null);
+
+            if (!estudiantesCandidatos.isEmpty()) {
+                for (Estudiante est : estudiantesCandidatos) {
+                    Practica nueva = new Practica(est, tutorDefault, centro, asignatura, "EN_CURSO");
+                    Set<ProfesorColaborador> colabs = new HashSet<>();
+                    colabs.add(colab);
+                    nueva.setProfesoresColaboradores(colabs);
+                    nueva = practicaRepository.save(nueva);
+                    colab.getPracticas().add(nueva);
+                    practicasAfectadas.add(nueva);
+                }
+            } else if (centro != null) {
+                Estudiante primerEstudiante = estudianteRepository.findAll().stream()
+                    .filter(e -> (e.getUsuario() == null || (e.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(e.getUsuario().getEstado()))) && !"INACTIVO".equalsIgnoreCase(e.getEstado()))
+                    .findFirst().orElse(null);
+                if (primerEstudiante != null) {
+                    Practica nueva = new Practica(primerEstudiante, tutorDefault, centro, asignatura, "EN_CURSO");
+                    Set<ProfesorColaborador> colabs = new HashSet<>();
+                    colabs.add(colab);
+                    nueva.setProfesoresColaboradores(colabs);
+                    nueva = practicaRepository.save(nueva);
+                    colab.getPracticas().add(nueva);
+                    practicasAfectadas.add(nueva);
+                }
+            }
+        }
+
+        // 4. Actualizar id_centro_de_practica en la tabla practica y vincular bidireccionalmente
+        for (Practica p : practicasAfectadas) {
+            p.setCentroPractica(centro);
+            if (asignatura != null && p.getAsignatura() == null) {
+                p.setAsignatura(asignatura);
+            }
+            if (tutorUsuario != null) {
+                p.setTutorPractica(tutorUsuario);
+            }
+
+            if (p.getProfesoresColaboradores() == null) {
+                p.setProfesoresColaboradores(new HashSet<>());
+            }
+            p.getProfesoresColaboradores().add(colab);
+            colab.getPracticas().add(p);
+
+            practicaRepository.save(p);
+        }
+
+        profesorColaboradorRepository.save(colab);
     }
 }
 

@@ -7,6 +7,8 @@ export interface UsuarioRow {
   correo?: string;
   rol: string;
   curso: string;
+  centroPractica?: string;
+  idCentro?: number | null;
   estado: boolean;
 }
 
@@ -158,12 +160,14 @@ export function useDataTableFeatures(
       const json = await res.json();
 
       const rows: UsuarioRow[] = json.map(
-        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string; estado?: boolean }) => ({
+        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string; centroPractica?: string; idCentro?: number; estado?: boolean }) => ({
           rut: u.rut,
           nombre: u.nombre,
           correo: u.correo,
           rol: u.roles && u.roles.length > 0 ? u.roles[0] : "SIN ROL",
           curso: u.curso || "—",
+          centroPractica: u.centroPractica || "—",
+          idCentro: u.idCentro || null,
           estado: u.estado !== undefined ? Boolean(u.estado) : true,
         })
       );

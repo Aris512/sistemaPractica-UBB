@@ -22,7 +22,13 @@ export function useSeguimientoData(userRut?: string) {
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
-          const rows: EstudianteEvidenciaRow[] = json.map((dto: any) => ({
+          const activos = json.filter(
+            (dto: any) =>
+              dto.activo !== false &&
+              dto.estado?.toLowerCase() !== "inactivo" &&
+              dto.estadoEntrega !== "INACTIVO"
+          );
+          const rows: EstudianteEvidenciaRow[] = activos.map((dto: any) => ({
             idEstudiante: dto.idEstudiante,
             idEvidencia: dto.idEvidencia,
             idActividad: dto.idActividad,
@@ -58,8 +64,14 @@ export function useSeguimientoData(userRut?: string) {
       if (resEst.ok) {
         const estJson = await resEst.json();
         if (Array.isArray(estJson)) {
+          const activos = estJson.filter(
+            (est: any) =>
+              est.usuario?.activo !== false &&
+              est.usuario?.estado?.toLowerCase() !== "inactivo" &&
+              est.estado?.toUpperCase() !== "INACTIVO"
+          );
           setData(
-            estJson.map((est: any) => ({
+            activos.map((est: any) => ({
               idEstudiante: est.idEstudiante,
               rut: est.usuario?.rut || "—",
               nombre: est.usuario ? `${est.usuario.nombre} ${est.usuario.apellido}` : "Estudiante",

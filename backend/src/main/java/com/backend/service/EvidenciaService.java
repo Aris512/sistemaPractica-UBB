@@ -15,6 +15,7 @@ import com.backend.model.Actividad;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
 import com.backend.model.Profesor;
+import com.backend.model.Usuario;
 import com.backend.repository.ActividadRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
@@ -77,6 +78,11 @@ public class EvidenciaService {
 
         for (Estudiante est : estudiantes) {
             if (est.getUsuario() == null) continue;
+            Usuario u = est.getUsuario();
+            // Restricción: No incluir alumnos en estado inactivo
+            if (!u.isActivo() || "inactivo".equalsIgnoreCase(u.getEstado()) || "INACTIVO".equalsIgnoreCase(est.getEstado())) {
+                continue;
+            }
 
             Evidencia ev = evidenciasProfesor.stream()
                     .filter(e -> e.getEstudiante() != null && e.getEstudiante().getIdEstudiante().equals(est.getIdEstudiante()))
