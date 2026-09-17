@@ -9,6 +9,7 @@ import { AdminSidebar, type AdminSection } from "./AdminSidebar";
 import { AdminToolbar } from "./AdminToolbar";
 import { EditModal, CreateModal } from "./usuarios";
 import { AsignaturasView } from "./asignaturas";
+import { CentrosPracticaView } from "./centros_practica";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -180,7 +181,9 @@ export default function AdminPage() {
                 <span className="hidden sm:inline text-xs text-muted-foreground ml-2">
                   {activeSection === "usuarios"
                     ? "/ Gestión de Usuarios"
-                    : "/ Gestión de Asignaturas"}
+                    : activeSection === "asignaturas"
+                    ? "/ Gestión de Asignaturas"
+                    : "/ Gestión de Centros de Práctica"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -201,6 +204,8 @@ export default function AdminPage() {
           {/* Renderizado condicional según la sección activa */}
           {activeSection === "asignaturas" ? (
             <AsignaturasView />
+          ) : activeSection === "centros_practica" ? (
+            <CentrosPracticaView />
           ) : (
             /* Main Content Area - Usuarios */
             <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">

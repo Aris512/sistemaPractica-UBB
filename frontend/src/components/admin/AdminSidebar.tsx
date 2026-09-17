@@ -10,10 +10,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, BookOpen, ShieldCheck } from "lucide-react";
+import { Users, BookOpen, ShieldCheck, Building2 } from "lucide-react";
 import { sileo } from "sileo";
 
-export type AdminSection = "usuarios" | "asignaturas";
+export type AdminSection = "usuarios" | "asignaturas" | "centros_practica";
 
 interface AdminSidebarProps {
   activeSection?: AdminSection;
@@ -69,6 +69,18 @@ export function AdminSidebar({
                 >
                   <BookOpen className="size-4" />
                   <span>Asignaturas</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeSection === "centros_practica"}
+                  tooltip="Centros de Práctica"
+                  onClick={() => onSelectSection?.("centros_practica")}
+                  className="cursor-pointer"
+                >
+                  <Building2 className="size-4" />
+                  <span>Centros de Práctica</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
