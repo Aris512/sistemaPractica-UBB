@@ -14,6 +14,7 @@ import { MallaCurricular } from "@/components/malla_curricular";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomePageProps {
   user: UserSession;
@@ -23,6 +24,7 @@ interface HomePageProps {
 export function HomePage({ user, onLogout }: HomePageProps) {
   const [activeMenu, setActiveMenu] = useState<HomeMenuKey>("inicio");
   const [formattedDate, setFormattedDate] = useState("");
+  const { hasPermission } = usePermissions(user);
 
   // Formato de fecha en español en tiempo real
   useEffect(() => {
@@ -46,16 +48,28 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "perfil":
         return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
-        return <Portafolio onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("PORTAFOLIO_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":
         return <Planificacion onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
+        if (!hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
         return <Evaluaciones onBack={() => setActiveMenu("inicio")} />;
       case "observaciones":
+        if (!hasPermission("OBSERVACIONES_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
         return <Observaciones onBack={() => setActiveMenu("inicio")} />;
       case "asistentes-ia":
+        if (!hasPermission("IA_ACCESO")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
         return <AsistentesIA onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       case "malla-curricular":

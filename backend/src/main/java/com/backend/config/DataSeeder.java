@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -26,6 +27,8 @@ import com.backend.model.ProfesorColaborador;
 import com.backend.model.Rol;
 import com.backend.model.TutorPractica;
 import com.backend.model.Usuario;
+import com.backend.model.Permiso;
+import com.backend.model.RolPermiso;
 import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.CentroPracticaRepository;
@@ -33,9 +36,11 @@ import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PautaRepository;
+import com.backend.repository.PermisoRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
 import com.backend.repository.ProfesorRepository;
+import com.backend.repository.RolPermisoRepository;
 import com.backend.repository.RolRepository;
 import com.backend.repository.TutorPracticaRepository;
 import com.backend.repository.UsuarioRepository;
@@ -46,6 +51,8 @@ public class DataSeeder implements CommandLineRunner {
     private static final Logger logger = LoggerFactory.getLogger(DataSeeder.class);
 
     private final RolRepository rolRepository;
+    private final PermisoRepository permisoRepository;
+    private final RolPermisoRepository rolPermisoRepository;
     private final UsuarioRepository usuarioRepository;
     private final AsignaturaRepository asignaturaRepository;
     private final EstudianteRepository estudianteRepository;
@@ -61,6 +68,8 @@ public class DataSeeder implements CommandLineRunner {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public DataSeeder(RolRepository rolRepository,
+                      PermisoRepository permisoRepository,
+                      RolPermisoRepository rolPermisoRepository,
                       UsuarioRepository usuarioRepository,
                       AsignaturaRepository asignaturaRepository,
                       EstudianteRepository estudianteRepository,
@@ -74,6 +83,8 @@ public class DataSeeder implements CommandLineRunner {
                       PautaRepository pautaRepository,
                       ObservacionPracticaRepository observacionPracticaRepository) {
         this.rolRepository = rolRepository;
+        this.permisoRepository = permisoRepository;
+        this.rolPermisoRepository = rolPermisoRepository;
         this.usuarioRepository = usuarioRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.estudianteRepository = estudianteRepository;
@@ -96,6 +107,7 @@ public class DataSeeder implements CommandLineRunner {
         logger.info("=================================================");
 
         seedRoles();
+        seedPermisos();
         seedAsignaturas();
         seedUsuarios();
         seedEstudiantesYProfesores();
@@ -127,6 +139,106 @@ public class DataSeeder implements CommandLineRunner {
                 logger.info("Rol '{}' ya existe. Omitiendo creación.", info.nombre());
             }
         }
+    }
+
+    private void seedPermisos() {
+        List<PermisoSeedInfo> permisosIniciales = List.of(
+            new PermisoSeedInfo("PORTAFOLIO_CONSULTAR", "Consultar portafolio", "PORTAFOLIO", "Permite consultar y visualizar documentos y evidencias del portafolio"),
+            new PermisoSeedInfo("PORTAFOLIO_SUBIR", "Subir archivos", "PORTAFOLIO", "Permite cargar y subir documentos y evidencias al portafolio"),
+            new PermisoSeedInfo("EVALUACIONES_REALIZAR", "Realizar evaluaciones", "EVALUACIONES", "Permite evaluar y calificar procesos y prácticas formativas"),
+            new PermisoSeedInfo("EVALUACIONES_CONSULTAR", "Consultar evaluaciones", "EVALUACIONES", "Permite consultar y visualizar las evaluaciones registradas"),
+            new PermisoSeedInfo("OBSERVACIONES_REGISTRAR", "Registrar observaciones", "OBSERVACIONES", "Permite registrar observaciones formativas y pedagógicas"),
+            new PermisoSeedInfo("OBSERVACIONES_CONSULTAR", "Consultar observaciones", "OBSERVACIONES", "Permite consultar el historial de observaciones formativas"),
+            new PermisoSeedInfo("ESTUDIANTES_CONSULTAR", "Consultar información de otros estudiantes", "ESTUDIANTES", "Permite visualizar listas y expedientes de otros estudiantes"),
+            new PermisoSeedInfo("IA_ACCESO", "Acceso a funcionalidades de IA", "INTELIGENCIA ARTIFICIAL", "Permite acceder a los asistentes inteligentes y recomendaciones pedagógicas con IA")
+        );
+
+        for (PermisoSeedInfo info : permisosIniciales) {
+            if (!permisoRepository.existsByCodigo(info.codigo())) {
+                Permiso nuevoPermiso = new Permiso(info.codigo(), info.nombre(), info.categoria(), info.descripcion());
+                permisoRepository.save(nuevoPermiso);
+                logger.info("Permiso creado en catálogo: {} ({})", info.codigo(), info.nombre());
+            }
+        }
+
+        // Asignación de permisos por defecto para cada rol
+        seedRolPermisosPorDefecto();
+    }
+
+    private void seedRolPermisosPorDefecto() {
+        // Matriz por defecto para roles
+        Map<String, Map<String, RolPermisoDefecto>> matrizRoles = Map.of(
+            "ESTUDIANTE", Map.of(
+                "PORTAFOLIO_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "PORTAFOLIO_SUBIR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_REALIZAR", new RolPermisoDefecto(false, "ALL"),
+                "EVALUACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_REGISTRAR", new RolPermisoDefecto(false, "ALL"),
+                "OBSERVACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "ESTUDIANTES_CONSULTAR", new RolPermisoDefecto(false, "ALL"),
+                "IA_ACCESO", new RolPermisoDefecto(true, "3,4,5,6,7,8,9,10") // Habilitado desde 3er semestre
+            ),
+            "PROFESOR_ASIGNATURA", Map.of(
+                "PORTAFOLIO_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "PORTAFOLIO_SUBIR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_REALIZAR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_REGISTRAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "ESTUDIANTES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "IA_ACCESO", new RolPermisoDefecto(true, "ALL")
+            ),
+            "PROFESOR_COLABORADOR", Map.of(
+                "PORTAFOLIO_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "PORTAFOLIO_SUBIR", new RolPermisoDefecto(false, "ALL"),
+                "EVALUACIONES_REALIZAR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_REGISTRAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "ESTUDIANTES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "IA_ACCESO", new RolPermisoDefecto(false, "ALL")
+            ),
+            "TUTOR_PRACTICA", Map.of(
+                "PORTAFOLIO_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "PORTAFOLIO_SUBIR", new RolPermisoDefecto(false, "ALL"),
+                "EVALUACIONES_REALIZAR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_REGISTRAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "ESTUDIANTES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "IA_ACCESO", new RolPermisoDefecto(false, "ALL")
+            ),
+            "COORDINADOR", Map.of(
+                "PORTAFOLIO_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "PORTAFOLIO_SUBIR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_REALIZAR", new RolPermisoDefecto(true, "ALL"),
+                "EVALUACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_REGISTRAR", new RolPermisoDefecto(true, "ALL"),
+                "OBSERVACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "ESTUDIANTES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
+                "IA_ACCESO", new RolPermisoDefecto(true, "ALL")
+            )
+        );
+
+        matrizRoles.forEach((rolNombre, permisosMap) -> {
+            Optional<Rol> rolOpt = rolRepository.findByNombre(rolNombre);
+            if (rolOpt.isPresent()) {
+                Rol rol = rolOpt.get();
+                permisosMap.forEach((permCodigo, configDefecto) -> {
+                    Optional<Permiso> permisoOpt = permisoRepository.findByCodigo(permCodigo);
+                    if (permisoOpt.isPresent()) {
+                        Permiso permiso = permisoOpt.get();
+                        Optional<RolPermiso> rpExistente = rolPermisoRepository.findByRolAndPermiso(rol, permiso);
+                        if (rpExistente.isEmpty()) {
+                            RolPermiso nuevoRP = new RolPermiso(rol, permiso, configDefecto.activo(), configDefecto.semestres());
+                            rolPermisoRepository.save(nuevoRP);
+                            logger.info("Permiso '{}' asignado a rol '{}' (activo: {}, semestres: {})",
+                                    permCodigo, rolNombre, configDefecto.activo(), configDefecto.semestres());
+                        }
+                    }
+                });
+            }
+        });
     }
 
     private void seedAsignaturas() {
@@ -519,4 +631,6 @@ public class DataSeeder implements CommandLineRunner {
     private record EstudianteSeedInfo(String rut, String asignaturaNombre, String estado) {}
     private record ProfesorSeedInfo(String rut, String asignaturaNombre) {}
     private record CentroPracticaInfo(String nombre, String direccion) {}
+    private record PermisoSeedInfo(String codigo, String nombre, String categoria, String descripcion) {}
+    private record RolPermisoDefecto(boolean activo, String semestres) {}
 }

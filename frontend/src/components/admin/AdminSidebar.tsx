@@ -11,9 +11,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Users, BookOpen, ShieldCheck, Building2 } from "lucide-react";
-import { sileo } from "sileo";
 
-export type AdminSection = "usuarios" | "asignaturas" | "centros_practica";
+export type AdminSection = "usuarios" | "asignaturas" | "centros_practica" | "permisos";
 
 interface AdminSidebarProps {
   activeSection?: AdminSection;
@@ -86,17 +85,13 @@ export function AdminSidebar({
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Auditoría"
-                  onClick={() =>
-                    sileo.info({
-                      title: "Auditoría",
-                      description: "Módulo de auditoría y registros",
-                    })
-                  }
+                  isActive={activeSection === "permisos"}
+                  tooltip="Permisos por Rol"
+                  onClick={() => onSelectSection?.("permisos")}
                   className="cursor-pointer"
                 >
                   <ShieldCheck className="size-4" />
-                  <span>Auditoría</span>
+                  <span>Permisos Rol</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

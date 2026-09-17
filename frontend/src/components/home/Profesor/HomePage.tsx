@@ -14,6 +14,7 @@ import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomePageProps {
   user: UserSession;
@@ -23,6 +24,7 @@ interface HomePageProps {
 export function HomePage({ user, onLogout }: HomePageProps) {
   const [activeMenu, setActiveMenu] = useState<ProfesorMenuKey>("inicio");
   const [formattedDate, setFormattedDate] = useState("");
+  const { hasPermission } = usePermissions(user);
 
   useEffect(() => {
     try {
@@ -60,12 +62,18 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "portafolio":
+        if (!hasPermission("PORTAFOLIO_CONSULTAR")) {
+          return <TableEstudiantes user={user} />;
+        }
         return <Portafolio onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":
         return <Planificacion onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
+        if (!hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <TableEstudiantes user={user} />;
+        }
         return <Evaluaciones onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:

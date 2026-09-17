@@ -23,6 +23,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { sileo } from "sileo";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomeSidebarProps {
   user?: UserSession;
@@ -61,10 +62,13 @@ function AdeccaLogo() {
 }
 
 export function HomeSidebar({
+  user,
   activeMenu,
   onSelectMenu,
   onLogout,
 }: HomeSidebarProps) {
+  const { hasPermission } = usePermissions(user);
+
   const handleSelectMockup = (menu: HomeMenuKey, modulo: string) => {
     onSelectMenu(menu);
     sileo.warning({
@@ -107,22 +111,24 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Portafolio */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "portafolio"}
-                  onClick={() => handleSelectMockup("portafolio", "Portafolio")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "portafolio"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Briefcase className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Portafolio</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission("PORTAFOLIO_CONSULTAR") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "portafolio"}
+                    onClick={() => handleSelectMockup("portafolio", "Portafolio")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "portafolio"
+                        ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Briefcase className="size-4.5 text-sky-600 shrink-0" />
+                      <span>Portafolio</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Cursos / Práctica */}
               <SidebarMenuItem>
@@ -161,58 +167,64 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Evaluaciones */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "evaluaciones"}
-                  onClick={() => handleSelectMockup("evaluaciones", "Evaluaciones")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "evaluaciones"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ClipboardCheck className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Evaluaciones</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission("EVALUACIONES_CONSULTAR") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "evaluaciones"}
+                    onClick={() => handleSelectMockup("evaluaciones", "Evaluaciones")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "evaluaciones"
+                        ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ClipboardCheck className="size-4.5 text-sky-600 shrink-0" />
+                      <span>Evaluaciones</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Observaciones */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "observaciones"}
-                  onClick={() => handleSelectMockup("observaciones", "Observaciones")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "observaciones"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <MessageSquareText className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Observaciones</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission("OBSERVACIONES_CONSULTAR") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "observaciones"}
+                    onClick={() => handleSelectMockup("observaciones", "Observaciones")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "observaciones"
+                        ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <MessageSquareText className="size-4.5 text-sky-600 shrink-0" />
+                      <span>Observaciones</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Asistentes de IA */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "asistentes-ia"}
-                  onClick={() => handleSelectMockup("asistentes-ia", "Asistentes de IA")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "asistentes-ia"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Bot className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Asistentes de IA</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission("IA_ACCESO") && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "asistentes-ia"}
+                    onClick={() => handleSelectMockup("asistentes-ia", "Asistentes de IA")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "asistentes-ia"
+                        ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Bot className="size-4.5 text-sky-600 shrink-0" />
+                      <span>Asistentes de IA</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

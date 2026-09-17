@@ -10,6 +10,7 @@ import { AdminToolbar } from "./AdminToolbar";
 import { EditModal, CreateModal } from "./usuarios";
 import { AsignaturasView } from "./asignaturas";
 import { CentrosPracticaView } from "./centros_practica";
+import { PermisosConfigView } from "./config";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -183,7 +184,9 @@ export default function AdminPage() {
                     ? "/ Gestión de Usuarios"
                     : activeSection === "asignaturas"
                     ? "/ Gestión de Asignaturas"
-                    : "/ Gestión de Centros de Práctica"}
+                    : activeSection === "centros_practica"
+                    ? "/ Gestión de Centros de Práctica"
+                    : "/ Configuración de Permisos por Rol"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -206,6 +209,8 @@ export default function AdminPage() {
             <AsignaturasView />
           ) : activeSection === "centros_practica" ? (
             <CentrosPracticaView />
+          ) : activeSection === "permisos" ? (
+            <PermisosConfigView />
           ) : (
             /* Main Content Area - Usuarios */
             <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">
