@@ -34,6 +34,8 @@ import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.CentroPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.model.DocumentoPractica;
+import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PautaRepository;
 import com.backend.repository.PermisoRepository;
@@ -65,6 +67,7 @@ public class DataSeeder implements CommandLineRunner {
     private final PracticaRepository practicaRepository;
     private final PautaRepository pautaRepository;
     private final ObservacionPracticaRepository observacionPracticaRepository;
+    private final DocumentoPracticaRepository documentoPracticaRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public DataSeeder(RolRepository rolRepository,
@@ -81,7 +84,8 @@ public class DataSeeder implements CommandLineRunner {
                       ProfesorColaboradorRepository profesorColaboradorRepository,
                       PracticaRepository practicaRepository,
                       PautaRepository pautaRepository,
-                      ObservacionPracticaRepository observacionPracticaRepository) {
+                      ObservacionPracticaRepository observacionPracticaRepository,
+                      DocumentoPracticaRepository documentoPracticaRepository) {
         this.rolRepository = rolRepository;
         this.permisoRepository = permisoRepository;
         this.rolPermisoRepository = rolPermisoRepository;
@@ -97,6 +101,7 @@ public class DataSeeder implements CommandLineRunner {
         this.practicaRepository = practicaRepository;
         this.pautaRepository = pautaRepository;
         this.observacionPracticaRepository = observacionPracticaRepository;
+        this.documentoPracticaRepository = documentoPracticaRepository;
     }
 
     @Override
@@ -115,6 +120,7 @@ public class DataSeeder implements CommandLineRunner {
         seedCentrosYTutoresYPracticas();
         seedPautas();
         seedObservaciones();
+        seedDocumentosPractica();
 
         logger.info("=================================================");
         logger.info("DataSeeder finalizado con éxito.");
@@ -622,6 +628,94 @@ public class DataSeeder implements CommandLineRunner {
 
             observacionPracticaRepository.saveAll(observaciones);
             logger.info("Observaciones de práctica sembradas en la base de datos ({} registros).", observaciones.size());
+        }
+    }
+
+    private void seedDocumentosPractica() {
+        if (documentoPracticaRepository.count() == 0) {
+            java.nio.file.Path uploadsDir = java.nio.file.Paths.get("uploads", "documentos");
+            try {
+                if (!java.nio.file.Files.exists(uploadsDir)) {
+                    java.nio.file.Files.createDirectories(uploadsDir);
+                }
+            } catch (Exception e) {
+                logger.error("Error creando directorio uploads/documentos: {}", e.getMessage());
+            }
+
+            Optional<Usuario> usuarioEstudiante1 = usuarioRepository.findByRut("12345678-5");
+            Optional<Usuario> usuarioProfesor = usuarioRepository.findByRut("11111111-1");
+            Optional<Asignatura> asig1 = asignaturaRepository.findByNombreIgnoreCase("Práctica Pedagógica");
+
+            if (usuarioEstudiante1.isPresent() && usuarioProfesor.isPresent() && asig1.isPresent()) {
+                Usuario est1 = usuarioEstudiante1.get();
+                Usuario prof = usuarioProfesor.get();
+                Asignatura asig = asig1.get();
+
+                // 1. Doc estudiante 1 (12345678-5)
+                String fnEst1 = "Informe_Final_Practica_Pedagogica_JavierToro.pdf";
+                crearArchivoFisico(uploadsDir.resolve(fnEst1), "Informe de Práctica Pedagógica", est1.getNombre() + " " + est1.getApellido(), asig.getNombre());
+                DocumentoPractica docEst1 = new DocumentoPractica(
+                    est1, est1, asig,
+                    fnEst1,
+                    "Informe Final de Práctica Pedagógica y Autoevaluación",
+                    "ESTUDIANTE",
+                    "uploads/documentos/" + fnEst1,
+                    LocalDateTime.now().minusDays(5),
+                    "ENTREGADO",
+                    145820L
+                );
+                documentoPracticaRepository.save(docEst1);
+
+                // 2. Doc profesor para estudiante 1 (12345678-5)
+                String fnProf1 = "Pauta_Evaluacion_Final_Profesor_12345678-5.pdf";
+                crearArchivoFisico(uploadsDir.resolve(fnProf1), "Evaluación Final de Desempeño", est1.getNombre() + " " + est1.getApellido(), asig.getNombre());
+                DocumentoPractica docProf1 = new DocumentoPractica(
+                    prof, est1, asig,
+                    fnProf1,
+                    "Pauta de Evaluación Final del Profesor de Asignatura",
+                    "PROFESOR",
+                    "uploads/documentos/" + fnProf1,
+                    LocalDateTime.now().minusDays(2),
+                    "ENTREGADO",
+                    120400L
+                );
+                documentoPracticaRepository.save(docProf1);
+                logger.info("Documentos sembrados para estudiante 12345678-5 (100% Completo).");
+            }
+
+            // Estudiante 2 (15432109-8) - Camila Valenzuela (Curriculum Educacional) -> 50% En progreso
+            Optional<Usuario> usuarioEstudiante2 = usuarioRepository.findByRut("15432109-8");
+            Optional<Asignatura> asig2 = asignaturaRepository.findByNombreIgnoreCase("Curriculum Educacional");
+            if (usuarioEstudiante2.isPresent() && asig2.isPresent()) {
+                Usuario est2 = usuarioEstudiante2.get();
+                Asignatura asig = asig2.get();
+
+                String fnEst2 = "Informe_Avance_Curriculum_CamilaValenzuela.pdf";
+                crearArchivoFisico(uploadsDir.resolve(fnEst2), "Informe de Avance Curricular", est2.getNombre() + " " + est2.getApellido(), asig.getNombre());
+                DocumentoPractica docEst2 = new DocumentoPractica(
+                    est2, est2, asig,
+                    fnEst2,
+                    "Informe Diagnóstico y Planificación Didáctica",
+                    "ESTUDIANTE",
+                    "uploads/documentos/" + fnEst2,
+                    LocalDateTime.now().minusDays(3),
+                    "ENTREGADO",
+                    98400L
+                );
+                documentoPracticaRepository.save(docEst2);
+                logger.info("Documento sembrado para estudiante 15432109-8 (50% En progreso).");
+            }
+        }
+    }
+
+    private void crearArchivoFisico(java.nio.file.Path destino, String titulo, String estudiante, String asignatura) {
+        try {
+            if (!java.nio.file.Files.exists(destino)) {
+                byte[] content = com.backend.service.DocumentoPracticaService.generarPdfMock(titulo, estudiante, asignatura);
+                java.nio.file.Files.write(destino, content);
+            }
+        } catch (Exception e) {
+            logger.warn("No se pudo escribir archivo físico de prueba {}: {}", destino, e.getMessage());
         }
     }
 

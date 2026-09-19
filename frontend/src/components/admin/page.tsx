@@ -9,6 +9,7 @@ import { AdminSidebar, type AdminSection } from "./AdminSidebar";
 import { AdminToolbar } from "./AdminToolbar";
 import { EditModal, CreateModal } from "./usuarios";
 import { AsignaturasView } from "./asignaturas";
+import { DocumentosView } from "./documentos";
 import { CentrosPracticaView } from "./centros_practica";
 import { PermisosConfigView } from "./config";
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,8 @@ export default function AdminPage() {
                     ? "/ Gestión de Usuarios"
                     : activeSection === "asignaturas"
                     ? "/ Gestión de Asignaturas"
+                    : activeSection === "documentos"
+                    ? "/ Expedientes de Documentos"
                     : activeSection === "centros_practica"
                     ? "/ Gestión de Centros de Práctica"
                     : "/ Configuración de Permisos por Rol"}
@@ -207,6 +210,8 @@ export default function AdminPage() {
           {/* Renderizado condicional según la sección activa */}
           {activeSection === "asignaturas" ? (
             <AsignaturasView />
+          ) : activeSection === "documentos" ? (
+            <DocumentosView />
           ) : activeSection === "centros_practica" ? (
             <CentrosPracticaView />
           ) : activeSection === "permisos" ? (
