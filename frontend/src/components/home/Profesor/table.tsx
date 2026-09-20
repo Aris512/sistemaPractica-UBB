@@ -7,13 +7,14 @@ import { EstadoEntregaBadge, EstadoRevisionBadge } from "./TableBadges";
 import { RevisionModal } from "./RevisionModal";
 import { ModalDetalleEstudianteProfesor } from "./ModalDetalleEstudianteProfesor";
 import {
-  Table as UiTable,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  UnifiedTableContainer,
+  UnifiedTable,
+  UnifiedTableHeader,
+  UnifiedTableHead,
+  UnifiedTableBody,
+  UnifiedTableRow,
+  UnifiedTableCell,
+} from "@/components/ui/unified-table";
 import {
   Pagination,
   PaginationContent,
@@ -95,114 +96,122 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
       />
 
       {/* ── Tabla de estudiantes: Nombre | Estado entrega | Estado revision | Fecha de subida ── */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-2xs overflow-hidden flex flex-col justify-between min-h-[380px]">
-        <div className="flex-1 overflow-x-auto">
-          <UiTable>
-            <TableHeader className="bg-slate-50/75 border-b border-slate-200">
-              <TableRow>
-                {HEADERS.map((h) => (
-                  <TableHead key={h.id} className={`text-xs font-bold text-slate-700 uppercase tracking-wider py-3.5 ${h.width}`}>
-                    <button
-                      type="button"
-                      onClick={() => handleSort(h.id)}
-                      className="inline-flex items-center gap-1.5 hover:text-slate-900 cursor-pointer"
-                    >
-                      <span>{h.label}</span>
-                      <span className="text-xs text-slate-400 font-mono">
-                        {sortState.column === h.id ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
-                      </span>
-                    </button>
-                  </TableHead>
-                ))}
-                <TableHead className="text-right text-xs font-bold text-slate-700 uppercase tracking-wider py-3.5 w-[110px]">
-                  Acciones
-                </TableHead>
-              </TableRow>
-            </TableHeader>
+      <UnifiedTableContainer className="min-h-[380px]">
+        <UnifiedTable>
+          <UnifiedTableHeader>
+            <UnifiedTableRow className="hover:bg-transparent border-b border-slate-200">
+              {HEADERS.map((h) => (
+                <UnifiedTableHead key={h.id} className={h.width}>
+                  <button
+                    type="button"
+                    onClick={() => handleSort(h.id)}
+                    className="inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors cursor-pointer group font-semibold text-slate-700"
+                  >
+                    <span>{h.label}</span>
+                    <span className="text-xs text-slate-400 group-hover:text-slate-600 transition-colors">
+                      {sortState.column === h.id ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </UnifiedTableHead>
+              ))}
+              <UnifiedTableHead className="text-right w-[160px]">
+                Acciones
+              </UnifiedTableHead>
+            </UnifiedTableRow>
+          </UnifiedTableHeader>
 
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-44 text-center text-slate-500 text-sm">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2 className="size-6 text-sky-600 animate-spin" />
-                      <p className="font-medium text-slate-700">Cargando estudiantes desde la base de datos...</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : paginatedData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-44 text-center text-slate-500 text-sm">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <AlertCircle className="size-6 text-slate-400" />
-                      <p className="font-medium">No se encontraron registros en la base de datos.</p>
-                      <p className="text-xs text-slate-400">Intenta modificar los términos de búsqueda o sincronizar.</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedData.map((row) => (
-                  <TableRow key={row.rut} className="hover:bg-slate-50/80 transition-colors h-14 border-b border-slate-100 last:border-none">
-                    {/* Solo el nombre del estudiante en el atributo nombre de la tabla */}
-                    <TableCell className="font-semibold text-slate-900 text-sm py-3.5">
-                      {row.nombre}
-                    </TableCell>
-
-                    <TableCell>
-                      <EstadoEntregaBadge estado={row.estadoEntrega} />
-                    </TableCell>
-
-                    <TableCell>
-                      <EstadoRevisionBadge estado={row.estadoRevision} calificacion={row.calificacion} />
-                    </TableCell>
-
-                    <TableCell className="text-slate-600 text-xs font-mono">
-                      {row.fechaSubida ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="size-3 text-slate-400" />
-                          {row.fechaSubida}
+          <UnifiedTableBody>
+            {loading ? (
+              <UnifiedTableRow className="hover:bg-transparent">
+                <UnifiedTableCell colSpan={5} className="h-48 text-center text-slate-500 text-sm">
+                  <div className="flex flex-col items-center justify-center gap-2.5">
+                    <Loader2 className="size-6 text-sky-600 animate-spin" />
+                    <p className="font-medium text-slate-700">Cargando estudiantes desde la base de datos...</p>
+                  </div>
+                </UnifiedTableCell>
+              </UnifiedTableRow>
+            ) : paginatedData.length === 0 ? (
+              <UnifiedTableRow className="hover:bg-transparent">
+                <UnifiedTableCell colSpan={5} className="h-48 text-center text-slate-500 text-sm">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertCircle className="size-6 text-slate-400" />
+                    <p className="font-medium text-slate-700">No se encontraron registros en la base de datos.</p>
+                    <p className="text-xs text-slate-400">Intenta modificar los términos de búsqueda o sincronizar.</p>
+                  </div>
+                </UnifiedTableCell>
+              </UnifiedTableRow>
+            ) : (
+              paginatedData.map((row) => (
+                <UnifiedTableRow key={row.rut}>
+                  {/* Nombre del estudiante con avatar sutil y RUT secundario */}
+                  <UnifiedTableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="size-8 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center text-xs font-bold text-slate-700 shrink-0">
+                        {row.nombre ? row.nombre.charAt(0).toUpperCase() : "E"}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-slate-900 text-sm truncate max-w-[280px]" title={row.nombre}>
+                          {row.nombre}
                         </span>
-                      ) : (
-                        <span className="text-slate-400 italic">—</span>
-                      )}
-                    </TableCell>
+                        <span className="text-xs font-mono text-slate-500 font-normal mt-0.5">
+                          {row.rut}
+                        </span>
+                      </div>
+                    </div>
+                  </UnifiedTableCell>
 
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                  <UnifiedTableCell>
+                    <EstadoEntregaBadge estado={row.estadoEntrega} />
+                  </UnifiedTableCell>
+
+                  <UnifiedTableCell>
+                    <EstadoRevisionBadge estado={row.estadoRevision} calificacion={row.calificacion} />
+                  </UnifiedTableCell>
+
+                  <UnifiedTableCell className="text-slate-600 text-xs font-mono">
+                    {row.fechaSubida ? (
+                      <span className="inline-flex items-center gap-1.5 text-slate-600">
+                        <Clock className="size-3.5 text-slate-400 shrink-0" />
+                        {row.fechaSubida}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">—</span>
+                    )}
+                  </UnifiedTableCell>
+
+                  <UnifiedTableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setStudentForDetails(row)}
+                        className="h-8.5 px-3 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border-slate-200 cursor-pointer shadow-2xs gap-1.5"
+                      >
+                        <User className="size-3.5 text-slate-500" />
+                        <span>Detalles</span>
+                      </Button>
+
+                      {row.estadoEntrega === "ENTREGADO" && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setStudentForDetails(row)}
-                          className="h-8 px-2.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-100 border-slate-200 cursor-pointer shadow-2xs gap-1.5"
+                          onClick={() => setSelectedStudent(row)}
+                          className="h-8.5 px-3 text-xs font-medium text-sky-800 bg-sky-50/70 hover:bg-sky-100 border-sky-200 cursor-pointer shadow-2xs gap-1.5"
                         >
-                          <User className="size-3.5 text-slate-600" />
-                          <span>Detalles</span>
+                          <Eye className="size-3.5 text-sky-700" />
+                          <span>{row.estadoRevision === "REVISADO" ? "Ver/Editar" : "Revisar"}</span>
                         </Button>
+                      )}
+                    </div>
+                  </UnifiedTableCell>
+                </UnifiedTableRow>
+              ))
+            )}
+          </UnifiedTableBody>
+        </UnifiedTable>
 
-                        {row.estadoEntrega === "ENTREGADO" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedStudent(row)}
-                            className="h-8 px-2.5 text-xs font-medium text-sky-800 bg-sky-50/70 hover:bg-sky-100 border-sky-200 cursor-pointer shadow-2xs gap-1.5"
-                          >
-                            <Eye className="size-3.5 text-sky-700" />
-                            <span>{row.estadoRevision === "REVISADO" ? "Ver/Editar" : "Revisar"}</span>
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic px-2">Sin archivo</span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </UiTable>
-        </div>
-
-        {/* ── Paginación inferior ── */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-500">
+        {/* ── Paginación inferior unificada ── */}
+        <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/40 text-xs text-slate-500 gap-3">
           <div>
             Mostrando <span className="font-semibold text-slate-700">{paginatedData.length === 0 ? 0 : (page - 1) * pageSize + 1}</span> a{" "}
             <span className="font-semibold text-slate-700">{Math.min(page * pageSize, totalItems)}</span> de{" "}
@@ -215,7 +224,7 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
               <select
                 value={pageSize}
                 onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-                className="h-8 text-xs bg-white border border-slate-200 rounded px-2 text-slate-700 cursor-pointer"
+                className="h-8 text-xs bg-white border border-slate-200 rounded-md px-2 text-slate-700 cursor-pointer outline-none focus:border-sky-500"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
@@ -256,7 +265,7 @@ export function TableEstudiantes({ user }: { user?: UserSession }) {
             </Pagination>
           </div>
         </div>
-      </div>
+      </UnifiedTableContainer>
 
       {/* ── Modal de Revisión ── */}
       <RevisionModal

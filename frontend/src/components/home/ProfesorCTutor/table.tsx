@@ -6,9 +6,17 @@ import { ObservacionBadge, EvaluacionBadge } from "./TableBadges";
 import { ModalDetalleEstudiante } from "./ModalDetalleEstudiante";
 import { Button } from "@/components/ui/button";
 import {
+  UnifiedTableContainer,
+  UnifiedTable,
+  UnifiedTableHeader,
+  UnifiedTableHead,
+  UnifiedTableBody,
+  UnifiedTableRow,
+  UnifiedTableCell,
+} from "@/components/ui/unified-table";
+import {
   Users,
   GraduationCap,
-  ArrowUpDown,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -215,148 +223,157 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
         loading={loading}
       />
 
-      {/* Contenedor Principal de la Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
-        {/* Encabezado del Recuadro */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              <GraduationCap className="size-5 text-sky-700" />
-              Estudiantes Asignados a Evaluar ({filteredData.length})
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Supervisión de prácticas, bitácora de observación en aula y registro de evaluación.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium bg-white px-2.5 py-1 rounded-md border border-slate-200">
-              Rol: <strong>{user?.rol || "Profesor Colaborador / Tutor"}</strong>
-            </span>
-          </div>
+      {/* Información contextual del rol y conteo */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="size-4 text-sky-700" />
+          <h2 className="text-sm font-semibold text-slate-900">
+            Estudiantes Asignados a Evaluar ({filteredData.length})
+          </h2>
         </div>
+        <span className="text-xs text-slate-500 font-medium">
+          Rol: <strong className="text-slate-700">{user?.rol || "Profesor Colaborador / Tutor"}</strong>
+        </span>
+      </div>
 
-        {loading ? (
-          <div className="p-12 text-center text-slate-400 space-y-3">
-            <RefreshCw className="size-7 animate-spin mx-auto text-sky-600" />
-            <p className="text-sm font-medium">Cargando nómina de estudiantes...</p>
-          </div>
-        ) : paginatedData.length === 0 ? (
-          <div className="p-12 text-center space-y-3">
-            <Users className="size-8 mx-auto text-slate-300" />
-            <p className="text-sm font-semibold text-slate-700">No se encontraron estudiantes</p>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Intenta cambiar los filtros de búsqueda o el estado de observación y evaluación.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                  <th
-                    className="p-4 cursor-pointer hover:text-sky-700 transition-colors select-none"
-                    onClick={() => handleSort("nombre")}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Estudiante</span>
-                      <ArrowUpDown className="size-3 text-slate-400" />
-                    </div>
-                  </th>
+      {/* Contenedor Principal de la Tabla Unificada */}
+      <UnifiedTableContainer className="min-h-[380px]">
+        <UnifiedTable>
+          <UnifiedTableHeader>
+            <UnifiedTableRow className="hover:bg-transparent border-b border-slate-200">
+              <UnifiedTableHead className="min-w-[220px]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("nombre")}
+                  className="inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors cursor-pointer group font-semibold text-slate-700"
+                >
+                  <span>Estudiante</span>
+                  <span className="text-xs text-slate-400 group-hover:text-slate-600 transition-colors">
+                    {sortState.column === "nombre" ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
+                  </span>
+                </button>
+              </UnifiedTableHead>
 
-                  <th
-                    className="p-4 cursor-pointer hover:text-sky-700 transition-colors select-none"
-                    onClick={() => handleSort("estadoObservacion")}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Estado de Observación</span>
-                      <ArrowUpDown className="size-3 text-slate-400" />
-                    </div>
-                  </th>
+              <UnifiedTableHead className="w-[200px]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("estadoObservacion")}
+                  className="inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors cursor-pointer group font-semibold text-slate-700"
+                >
+                  <span>Estado de Observación</span>
+                  <span className="text-xs text-slate-400 group-hover:text-slate-600 transition-colors">
+                    {sortState.column === "estadoObservacion" ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
+                  </span>
+                </button>
+              </UnifiedTableHead>
 
-                  <th
-                    className="p-4 cursor-pointer hover:text-sky-700 transition-colors select-none"
-                    onClick={() => handleSort("estadoEvaluacion")}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Estado de Evaluación</span>
-                      <ArrowUpDown className="size-3 text-slate-400" />
-                    </div>
-                  </th>
+              <UnifiedTableHead className="w-[190px]">
+                <button
+                  type="button"
+                  onClick={() => handleSort("estadoEvaluacion")}
+                  className="inline-flex items-center gap-1.5 hover:text-slate-900 transition-colors cursor-pointer group font-semibold text-slate-700"
+                >
+                  <span>Estado de Evaluación</span>
+                  <span className="text-xs text-slate-400 group-hover:text-slate-600 transition-colors">
+                    {sortState.column === "estadoEvaluacion" ? (sortState.direction === "asc" ? "↑" : "↓") : "↕"}
+                  </span>
+                </button>
+              </UnifiedTableHead>
 
-                  <th className="p-4 text-right">Acción</th>
-                </tr>
-              </thead>
+              <UnifiedTableHead className="text-right w-[140px]">
+                Acción
+              </UnifiedTableHead>
+            </UnifiedTableRow>
+          </UnifiedTableHeader>
 
-              <tbody className="divide-y divide-slate-100">
-                {paginatedData.map((item) => (
-                  <tr
-                    key={item.rut}
-                    className="hover:bg-slate-50/80 transition-colors group"
-                  >
-                    {/* Columna: Estudiante (Nombre y RUT únicamente) */}
-                    <td className="p-4 align-middle">
-                      <div className="flex items-center gap-2.5">
-                        <div className="size-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700 shrink-0">
-                          {item.nombre.charAt(0)}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 text-sm leading-tight">
-                            {item.nombre}
-                          </span>
-                          <span className="text-xs font-mono text-slate-500 font-normal mt-0.5">
-                            {item.rut}
-                          </span>
-                        </div>
+          <UnifiedTableBody>
+            {loading ? (
+              <UnifiedTableRow className="hover:bg-transparent">
+                <UnifiedTableCell colSpan={4} className="h-48 text-center text-slate-500 text-sm">
+                  <div className="flex flex-col items-center justify-center gap-2.5">
+                    <RefreshCw className="size-6 text-sky-600 animate-spin" />
+                    <p className="font-medium text-slate-700">Cargando nómina de estudiantes...</p>
+                  </div>
+                </UnifiedTableCell>
+              </UnifiedTableRow>
+            ) : paginatedData.length === 0 ? (
+              <UnifiedTableRow className="hover:bg-transparent">
+                <UnifiedTableCell colSpan={4} className="h-48 text-center text-slate-500 text-sm">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Users className="size-7 text-slate-300" />
+                    <p className="font-medium text-slate-700">No se encontraron estudiantes</p>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Intenta cambiar los filtros de búsqueda o el estado de observación y evaluación.
+                    </p>
+                  </div>
+                </UnifiedTableCell>
+              </UnifiedTableRow>
+            ) : (
+              paginatedData.map((item) => (
+                <UnifiedTableRow key={item.rut}>
+                  {/* Columna: Estudiante (Nombre y RUT únicamente) */}
+                  <UnifiedTableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="size-8 rounded-full bg-slate-100 border border-slate-200/80 flex items-center justify-center text-xs font-bold text-slate-700 shrink-0">
+                        {item.nombre.charAt(0)}
                       </div>
-                    </td>
-
-                    {/* Columna: Estado de Observación */}
-                    <td className="p-4 align-middle">
-                      <div className="space-y-1">
-                        <ObservacionBadge estado={item.estadoObservacion} />
-                        {item.observacionTexto && (
-                          <p className="text-[11px] text-slate-500 line-clamp-1 italic max-w-xs">
-                            "{item.observacionTexto}"
-                          </p>
-                        )}
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-slate-900 text-sm truncate max-w-[280px]" title={item.nombre}>
+                          {item.nombre}
+                        </span>
+                        <span className="text-xs font-mono text-slate-500 font-normal mt-0.5">
+                          {item.rut}
+                        </span>
                       </div>
-                    </td>
+                    </div>
+                  </UnifiedTableCell>
 
-                    {/* Columna: Estado de Evaluación */}
-                    <td className="p-4 align-middle">
-                      <EvaluacionBadge
-                        estado={item.estadoEvaluacion}
-                        calificacion={item.calificacion}
-                      />
-                    </td>
+                  {/* Columna: Estado de Observación */}
+                  <UnifiedTableCell>
+                    <div className="space-y-1">
+                      <ObservacionBadge estado={item.estadoObservacion} />
+                      {item.observacionTexto && (
+                        <p className="text-[11px] text-slate-500 line-clamp-1 italic max-w-xs">
+                          &ldquo;{item.observacionTexto}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </UnifiedTableCell>
 
-                    {/* Columna: Acción (Ver Detalles) */}
-                    <td className="p-4 text-right align-middle">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSelectedStudent(item)}
-                        className="h-8.5 px-3 text-xs font-medium border-slate-300 text-slate-700 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-300 gap-1.5 cursor-pointer shadow-2xs"
-                      >
-                        <Eye className="size-3.5" />
-                        Ver Detalles
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  {/* Columna: Estado de Evaluación */}
+                  <UnifiedTableCell>
+                    <EvaluacionBadge
+                      estado={item.estadoEvaluacion}
+                      calificacion={item.calificacion}
+                    />
+                  </UnifiedTableCell>
 
-        {/* Paginación */}
+                  {/* Columna: Acción (Ver Detalles) */}
+                  <UnifiedTableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSelectedStudent(item)}
+                      className="h-8.5 px-3 text-xs font-medium border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Eye className="size-3.5 text-slate-500" />
+                      Ver Detalles
+                    </Button>
+                  </UnifiedTableCell>
+                </UnifiedTableRow>
+              ))
+            )}
+          </UnifiedTableBody>
+        </UnifiedTable>
+
+        {/* ── Paginación inferior unificada ── */}
         {sortedData.length > 0 && (
-          <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 bg-slate-50/30">
-            <span>
-              Mostrando <strong>{paginatedData.length}</strong> de{" "}
-              <strong>{sortedData.length}</strong> estudiantes
-            </span>
+          <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/40 text-xs text-slate-500 gap-3">
+            <div>
+              Mostrando <span className="font-semibold text-slate-700">{paginatedData.length === 0 ? 0 : (page - 1) * pageSize + 1}</span> a{" "}
+              <span className="font-semibold text-slate-700">{Math.min(page * pageSize, sortedData.length)}</span> de{" "}
+              <span className="font-semibold text-slate-700">{sortedData.length}</span> estudiantes
+            </div>
 
             <div className="flex items-center gap-1.5">
               <Button
@@ -364,7 +381,7 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
                 size="sm"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="size-8 p-0 cursor-pointer"
+                className="size-8 p-0 cursor-pointer border-slate-200 bg-white hover:bg-slate-50"
               >
                 <ChevronLeft className="size-4" />
               </Button>
@@ -378,14 +395,14 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
                 size="sm"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="size-8 p-0 cursor-pointer"
+                className="size-8 p-0 cursor-pointer border-slate-200 bg-white hover:bg-slate-50"
               >
                 <ChevronRight className="size-4" />
               </Button>
             </div>
           </div>
         )}
-      </div>
+      </UnifiedTableContainer>
 
       {/* Modal de Detalles del Estudiante */}
       {selectedStudent && (
