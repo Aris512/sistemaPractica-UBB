@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,5 +48,23 @@ public class ObservacionEvaluacionController {
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         observacionEvaluacionService.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/evaluacion/{idEvaluacion}")
+    public ResponseEntity<List<ObservacionEvaluacion>> obtenerPorEvaluacion(@PathVariable Long idEvaluacion) {
+        return ResponseEntity.ok(observacionEvaluacionService.obtenerPorEvaluacion(idEvaluacion));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody ObservacionEvaluacion observacionEvaluacion) {
+        try {
+            ObservacionEvaluacion actualizada = observacionEvaluacionService.actualizar(id, observacionEvaluacion);
+            if (actualizada == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(actualizada);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
