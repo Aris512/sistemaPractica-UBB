@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,8 +12,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -79,7 +83,11 @@ public class AdminController {
     private final AsignaturaRepository asignaturaRepository;
     private final CentroPracticaRepository centroPracticaRepository;
     private final PracticaRepository practicaRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public AdminController(UsuarioRepository usuarioRepository,
                            EstudianteRepository estudianteRepository,
@@ -90,7 +98,8 @@ public class AdminController {
                            RolRepository rolRepository,
                            AsignaturaRepository asignaturaRepository,
                            CentroPracticaRepository centroPracticaRepository,
-                           PracticaRepository practicaRepository) {
+                           PracticaRepository practicaRepository,
+                           JdbcTemplate jdbcTemplate) {
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
@@ -101,6 +110,7 @@ public class AdminController {
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
         this.practicaRepository = practicaRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @GetMapping
@@ -198,7 +208,8 @@ public class AdminController {
         String apellido = payload.get("apellido") != null ? payload.get("apellido").toString().trim() : "";
         String correo = payload.get("correo") != null ? payload.get("correo").toString().trim() : "";
         String contrasena = payload.get("contrasena") != null ? payload.get("contrasena").toString().trim() : "";
-        String rolNombre = payload.get("rol") != null ? payload.get("rol").toString().trim() : "";
+        String rolRaw = payload.get("rol") != null ? payload.get("rol").toString().trim() : "";
+        String rolNombre = normalizarNombreRol(rolRaw);
         Object idAsignaturaObj = payload.get("idAsignatura");
 
         if (rutRaw.isEmpty()) {
@@ -253,7 +264,7 @@ public class AdminController {
         Usuario nuevoUsuario = new Usuario(rut, nombre, apellido, correo, hash, estadoStr);
 
         if (!rolNombre.isEmpty()) {
-            Optional<Rol> rolOpt = rolRepository.findByNombre(rolNombre);
+            Optional<Rol> rolOpt = buscarRol(rolNombre);
             if (rolOpt.isPresent()) {
                 nuevoUsuario.setRoles(new HashSet<>(Collections.singletonList(rolOpt.get())));
             }
@@ -384,7 +395,8 @@ public class AdminController {
         String apellido = payload.get("apellido") != null ? payload.get("apellido").toString().trim() : "";
         String correo = payload.get("correo") != null ? payload.get("correo").toString().trim() : "";
         String contrasena = payload.get("contrasena") != null ? payload.get("contrasena").toString().trim() : "";
-        String rolNombre = payload.get("rol") != null ? payload.get("rol").toString().trim() : "";
+        String rolRaw = payload.get("rol") != null ? payload.get("rol").toString().trim() : "";
+        String rolNombre = normalizarNombreRol(rolRaw);
         Object idAsignaturaObj = payload.get("idAsignatura");
 
         if (payload.containsKey("nombre")) {
@@ -418,7 +430,7 @@ public class AdminController {
 
         // Actualizar rol si viene especificado
         if (!rolNombre.isEmpty()) {
-            Optional<Rol> rolOpt = rolRepository.findByNombre(rolNombre);
+            Optional<Rol> rolOpt = buscarRol(rolNombre);
             if (rolOpt.isPresent()) {
                 usuario.setRoles(new HashSet<>(Collections.singletonList(rolOpt.get())));
             }
@@ -622,125 +634,238 @@ public class AdminController {
         }
 
         Usuario usuario = userOpt.get();
+        String rutOficial = usuario.getRut();
 
-        // 1. Desvincular estudiante si existe
-        Optional<Estudiante> estOpt = estudianteRepository.findByUsuario(usuario);
-        if (estOpt.isEmpty()) {
-            estOpt = estudianteRepository.findByUsuarioRut(usuario.getRut());
+        // Conjunto de todas las variantes de RUT posibles para este usuario
+        Set<String> ruts = new LinkedHashSet<>();
+        if (rutOficial != null && !rutOficial.isBlank()) {
+            ruts.add(rutOficial.trim());
+            String cleanOficial = RutUtils.clean(rutOficial);
+            if (!cleanOficial.isEmpty()) ruts.add(cleanOficial);
+            String stdOficial = RutUtils.formatStandard(rutOficial);
+            if (!stdOficial.isEmpty()) ruts.add(stdOficial);
         }
-        if (estOpt.isPresent()) {
-            Estudiante est = estOpt.get();
-            try {
-                List<Evidencia> evidencias = evidenciaRepository.findByEstudianteUsuarioRutOrderByFechaEntregaDesc(usuario.getRut());
-                if (evidencias != null && !evidencias.isEmpty()) {
-                    evidenciaRepository.deleteAll(evidencias);
-                }
-            } catch (Exception ignored) {}
+        if (!rutDecoded.isBlank()) ruts.add(rutDecoded);
+        if (!rutStandard.isBlank()) ruts.add(rutStandard);
+        if (!rutLimpio.isBlank()) ruts.add(rutLimpio);
 
-            try {
-                if (est.getIdEstudiante() != null) {
-                    practicaRepository.desvincularEstudiantePorId(est.getIdEstudiante());
-                }
-                List<Practica> practicasEst = practicaRepository.findByEstudianteUsuarioRut(usuario.getRut());
-                if (practicasEst != null) {
-                    for (Practica p : practicasEst) {
-                        p.setEstudiante(null);
-                        practicaRepository.saveAndFlush(p);
-                    }
-                }
-            } catch (Exception ignored) {}
+        List<Object> rutParams = new ArrayList<>(ruts);
+        String inRutsClause = String.join(",", Collections.nCopies(rutParams.size(), "?"));
 
-            estudianteRepository.delete(est);
-            estudianteRepository.flush();
+        // 1. Obtener identificadores relacionados si existen
+        List<Long> idsEstudiante = jdbcTemplate.query(
+            "SELECT id_estudiante FROM estudiante WHERE rut_usuario IN (" + inRutsClause + ")",
+            (rs, rowNum) -> rs.getLong("id_estudiante"),
+            rutParams.toArray()
+        );
+
+        List<Long> idsProfesor = jdbcTemplate.query(
+            "SELECT id_profesor FROM profesor WHERE rut_usuario IN (" + inRutsClause + ")",
+            (rs, rowNum) -> rs.getLong("id_profesor"),
+            rutParams.toArray()
+        );
+
+        List<Long> idsColaborador = jdbcTemplate.query(
+            "SELECT id_colaborador FROM profesor_colaborador WHERE rut_usuario IN (" + inRutsClause + ")",
+            (rs, rowNum) -> rs.getLong("id_colaborador"),
+            rutParams.toArray()
+        );
+
+        List<Long> idsTutor = jdbcTemplate.query(
+            "SELECT id_tutor FROM tutor_practica WHERE rut_usuario IN (" + inRutsClause + ")",
+            (rs, rowNum) -> rs.getLong("id_tutor"),
+            rutParams.toArray()
+        );
+
+        // 2. DOCUMENTOS: eliminar todos los documentos asociados al usuario o estudiante
+        List<Object> doubleRutParams = new ArrayList<>(rutParams);
+        doubleRutParams.addAll(rutParams);
+        List<Long> idsDocumento = jdbcTemplate.query(
+            "SELECT id_documento FROM documento WHERE rut_usuario IN (" + inRutsClause + ") OR rut_estudiante IN (" + inRutsClause + ")",
+            (rs, rowNum) -> rs.getLong("id_documento"),
+            doubleRutParams.toArray()
+        );
+
+        if (!idsDocumento.isEmpty()) {
+            String inDocsClause = String.join(",", Collections.nCopies(idsDocumento.size(), "?"));
+            Object[] docArgs = idsDocumento.toArray();
+            jdbcTemplate.update("DELETE FROM documento_planificacion WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+            jdbcTemplate.update("UPDATE proyecto_intervencion SET id_documento = NULL WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+            jdbcTemplate.update("UPDATE entrega_evidencia SET id_documento = NULL WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+            jdbcTemplate.update("DELETE FROM documento WHERE id_documento IN (" + inDocsClause + ")", docArgs);
         }
 
-        // 2. Desvincular profesor si existe
-        Optional<Profesor> profOpt = profesorRepository.findByUsuario(usuario);
-        if (profOpt.isEmpty()) {
-            profOpt = profesorRepository.findByUsuarioRut(usuario.getRut());
+        // Eliminar directamente cualquier documento restante por RUT
+        jdbcTemplate.update(
+            "DELETE FROM documento WHERE rut_usuario IN (" + inRutsClause + ") OR rut_estudiante IN (" + inRutsClause + ")",
+            doubleRutParams.toArray()
+        );
+
+        // Eliminar de documento_practica por RUT usuario o estudiante
+        jdbcTemplate.update(
+            "DELETE FROM documento_practica WHERE rut_usuario IN (" + inRutsClause + ") OR rut_estudiante IN (" + inRutsClause + ")",
+            doubleRutParams.toArray()
+        );
+
+        // 3. ESTUDIANTE: Desvincular de práctica (conservando la práctica) y limpiar registros propios
+        if (!idsEstudiante.isEmpty()) {
+            String inEstClause = String.join(",", Collections.nCopies(idsEstudiante.size(), "?"));
+            Object[] estArgs = idsEstudiante.toArray();
+
+            // La práctica NO se elimina; únicamente se desvincula la relación del estudiante
+            jdbcTemplate.update("UPDATE practica SET id_estudiante = NULL WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            jdbcTemplate.update("UPDATE planificacion SET id_estudiante = NULL WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+
+            // Eliminar registros de entregas, evidencias y respuestas
+            jdbcTemplate.update("DELETE FROM entrega_evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            jdbcTemplate.update("DELETE FROM evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            jdbcTemplate.update("DELETE FROM respuesta_encuesta WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            jdbcTemplate.update("DELETE FROM respuesta_pregunta WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+
+            // Eliminar de estudiante
+            jdbcTemplate.update("DELETE FROM estudiante WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
         }
-        if (profOpt.isPresent()) {
-            Profesor prof = profOpt.get();
-            if (prof.getAsignaturas() != null) {
-                prof.getAsignaturas().clear();
-                profesorRepository.saveAndFlush(prof);
+        jdbcTemplate.update("DELETE FROM estudiante WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
+
+        // 4. PROFESOR: Desvincular de revisiones, asignaturas, actividades y eliminar profesor
+        if (!idsProfesor.isEmpty()) {
+            String inProfClause = String.join(",", Collections.nCopies(idsProfesor.size(), "?"));
+            Object[] profArgs = idsProfesor.toArray();
+
+            jdbcTemplate.update("UPDATE evidencia SET id_profesor_revisor = NULL WHERE id_profesor_revisor IN (" + inProfClause + ")", profArgs);
+            jdbcTemplate.update("DELETE FROM profesor_asignatura WHERE id_profesor IN (" + inProfClause + ")", profArgs);
+
+            List<Long> idsActividad = jdbcTemplate.query(
+                "SELECT id_actividad FROM actividad WHERE id_profesor IN (" + inProfClause + ")",
+                (rs, rowNum) -> rs.getLong("id_actividad"),
+                profArgs
+            );
+            if (!idsActividad.isEmpty()) {
+                String inActClause = String.join(",", Collections.nCopies(idsActividad.size(), "?"));
+                Object[] actArgs = idsActividad.toArray();
+                jdbcTemplate.update("DELETE FROM entrega_evidencia WHERE id_actividad IN (" + inActClause + ")", actArgs);
+                jdbcTemplate.update("DELETE FROM evidencia WHERE id_actividad IN (" + inActClause + ")", actArgs);
+                jdbcTemplate.update("DELETE FROM actividad WHERE id_actividad IN (" + inActClause + ")", actArgs);
             }
-            try {
-                List<Evidencia> evidenciasProf = evidenciaRepository.findByActividadProfesorUsuarioRutOrderByFechaEntregaDesc(usuario.getRut());
-                if (evidenciasProf != null) {
-                    for (Evidencia ev : evidenciasProf) {
-                        ev.setRevisadoPor(null);
-                        evidenciaRepository.saveAndFlush(ev);
-                    }
-                }
-            } catch (Exception ignored) {}
-            profesorRepository.delete(prof);
-            profesorRepository.flush();
+
+            jdbcTemplate.update("DELETE FROM profesor WHERE id_profesor IN (" + inProfClause + ")", profArgs);
         }
+        jdbcTemplate.update("DELETE FROM profesor WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 3. Desvincular profesor colaborador si existe
-        try {
-            Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(usuario.getRut());
-            if (colabOpt.isPresent()) {
-                ProfesorColaborador colab = colabOpt.get();
-                if (colab.getPracticas() != null) {
-                    colab.getPracticas().clear();
-                    profesorColaboradorRepository.saveAndFlush(colab);
-                }
-                profesorColaboradorRepository.delete(colab);
-                profesorColaboradorRepository.flush();
-            }
-        } catch (Exception ignored) {}
-
-        // 4. Desvincular tutor práctica si existe y reasignar/desvincular de sus prácticas
-        try {
-            Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(usuario.getRut());
-            if (tutorOpt.isPresent()) {
-                TutorPractica tutor = tutorOpt.get();
-                Long idTutor = tutor.getIdTutor();
-
-                // Buscar otro tutor para reasignar si es posible
-                TutorPractica otroTutor = tutorPracticaRepository.findAll().stream()
-                    .filter(t -> t.getIdTutor() != null && !t.getIdTutor().equals(idTutor))
-                    .findFirst().orElse(null);
-
-                List<Practica> practicasPorRut = practicaRepository.findByTutorPracticaUsuarioRut(usuario.getRut());
-                if (practicasPorRut != null) {
-                    for (Practica p : practicasPorRut) {
-                        p.setTutorPractica(otroTutor);
-                        practicaRepository.saveAndFlush(p);
-                    }
-                }
-                if (idTutor != null) {
-                    List<Practica> practicasPorId = practicaRepository.findByTutorPracticaIdTutor(idTutor);
-                    if (practicasPorId != null) {
-                        for (Practica p : practicasPorId) {
-                            p.setTutorPractica(otroTutor);
-                            practicaRepository.saveAndFlush(p);
-                        }
-                    }
-                    practicaRepository.desvincularTutorPorId(idTutor);
-                }
-
-                tutorPracticaRepository.delete(tutor);
-                tutorPracticaRepository.flush();
-            }
-        } catch (Exception ignored) {}
-
-        // 5. Limpiar roles de la tabla intermedia usuario_rol
-        if (usuario.getRoles() != null) {
-            usuario.getRoles().clear();
-            usuarioRepository.saveAndFlush(usuario);
+        // 5. PROFESOR COLABORADOR: Desvincular de práctica (conservando la práctica) y eliminar colaborador
+        if (!idsColaborador.isEmpty()) {
+            String inColabClause = String.join(",", Collections.nCopies(idsColaborador.size(), "?"));
+            Object[] colabArgs = idsColaborador.toArray();
+            jdbcTemplate.update("DELETE FROM profesor_colaborador_practica WHERE id_colaborador IN (" + inColabClause + ")", colabArgs);
+            jdbcTemplate.update("DELETE FROM profesor_colaborador WHERE id_colaborador IN (" + inColabClause + ")", colabArgs);
         }
+        jdbcTemplate.update("DELETE FROM profesor_colaborador WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 6. Eliminar el usuario de la base de datos
-        usuarioRepository.delete(usuario);
-        usuarioRepository.flush();
+        // 6. TUTOR PRÁCTICA: Desvincular de práctica (conservando la práctica) y eliminar tutor
+        if (!idsTutor.isEmpty()) {
+            String inTutorClause = String.join(",", Collections.nCopies(idsTutor.size(), "?"));
+            Object[] tutorArgs = idsTutor.toArray();
+            jdbcTemplate.update("UPDATE practica SET id_tutor_practica = NULL WHERE id_tutor_practica IN (" + inTutorClause + ")", tutorArgs);
+            jdbcTemplate.update("DELETE FROM tutor_practica WHERE id_tutor IN (" + inTutorClause + ")", tutorArgs);
+        }
+        jdbcTemplate.update("DELETE FROM tutor_practica WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
+
+        // 7. ROLES: Limpiar la tabla intermedia usuario_rol
+        jdbcTemplate.update("DELETE FROM usuario_rol WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
+
+        // 8. USUARIO: Eliminar definitivamente el registro en la tabla usuario
+        jdbcTemplate.update("DELETE FROM usuario WHERE rut IN (" + inRutsClause + ")", rutParams.toArray());
+
+        // Limpiar el contexto de persistencia JPA para evitar discrepancias
+        if (entityManager != null) {
+            entityManager.clear();
+        }
 
         return ResponseEntity.ok(Map.of(
             "message", "Usuario eliminado con éxito",
-            "rut", usuario.getRut()
+            "rut", rutOficial
         ));
+    }
+
+    /**
+     * Normaliza cualquier variación de nombre de rol (ej: "profesor colaborador",
+     * "Profesor Colaborador", "colaborador", etc.) a la convención canónica de la BD
+     * (ej: "PROFESOR_COLABORADOR").
+     */
+    private String normalizarNombreRol(String rolInput) {
+        if (rolInput == null) {
+            return "";
+        }
+        String limpio = rolInput.trim();
+        if (limpio.isEmpty()) {
+            return "";
+        }
+        // Quitar acentos/tildes y unificar separadores
+        String sinTildes = java.text.Normalizer.normalize(limpio, java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        String upper = sinTildes.toUpperCase().replaceAll("[_\\-\\s]+", " ").trim();
+
+        // 1. Profesor Colaborador
+        if (upper.equals("PROFESOR COLABORADOR")
+            || upper.equals("COLABORADOR")
+            || (upper.contains("COLABORADOR") && !upper.contains("ASIGNATURA"))) {
+            return "PROFESOR_COLABORADOR";
+        }
+
+        // 2. Profesor de Asignatura
+        if (upper.equals("PROFESOR ASIGNATURA")
+            || upper.equals("PROFESOR DE ASIGNATURA")
+            || (upper.contains("PROFESOR") && upper.contains("ASIGNATURA"))) {
+            return "PROFESOR_ASIGNATURA";
+        }
+
+        // 3. Tutor de Práctica
+        if (upper.equals("TUTOR PRACTICA")
+            || upper.equals("TUTOR DE PRACTICA")
+            || upper.contains("TUTOR")) {
+            return "TUTOR_PRACTICA";
+        }
+
+        // 4. Estudiante / Alumno
+        if (upper.equals("ESTUDIANTE")
+            || upper.equals("ALUMNO")
+            || upper.contains("ESTUDIANTE")
+            || upper.contains("ALUMNO")) {
+            return "ESTUDIANTE";
+        }
+
+        // 5. Coordinador
+        if (upper.equals("COORDINADOR")
+            || upper.contains("COORDINADOR")) {
+            return "COORDINADOR";
+        }
+
+        // 6. Administrador
+        if (upper.equals("ADMINISTRADOR")
+            || upper.equals("ADMIN")
+            || upper.contains("ADMIN")) {
+            return "ADMINISTRADOR";
+        }
+
+        return upper.replace(" ", "_");
+    }
+
+    private Optional<Rol> buscarRol(String rolInput) {
+        if (rolInput == null || rolInput.trim().isEmpty()) {
+            return Optional.empty();
+        }
+        String normalizado = normalizarNombreRol(rolInput);
+        Optional<Rol> rolOpt = rolRepository.findByNombre(normalizado);
+        if (rolOpt.isPresent()) {
+            return rolOpt;
+        }
+        return rolRepository.findAll().stream()
+            .filter(r -> r.getNombre() != null && (
+                r.getNombre().equalsIgnoreCase(normalizado) ||
+                r.getNombre().replace("_", " ").equalsIgnoreCase(normalizado.replace("_", " ")) ||
+                r.getNombre().equalsIgnoreCase(rolInput.trim())
+            ))
+            .findFirst();
     }
 
     /**
@@ -1018,12 +1143,13 @@ public class AdminController {
 
             totalProcesados++;
 
-            String rolDisplay = rolRaw.isEmpty() ? "SIN_ROL" : rolRaw.toUpperCase().trim();
+            String rolNormalizado = normalizarNombreRol(rolRaw);
+            String rolDisplay = rolNormalizado.isEmpty() ? (rolRaw.isEmpty() ? "SIN_ROL" : rolRaw.toUpperCase().trim()) : rolNormalizado;
             String nombreDisplay = (nombreRaw + " " + apellidoRaw).trim();
             if (nombreDisplay.isEmpty()) {
                 nombreDisplay = "Usuario";
             }
-            String usuarioLabel = nombreDisplay + " — " + rolDisplay;
+            String usuarioLabel = nombreDisplay + " — " + (rolRaw.isEmpty() ? "SIN_ROL" : rolRaw);
 
             // Validación de RUT
             if (rutRaw.isEmpty()) {
@@ -1084,11 +1210,12 @@ public class AdminController {
             }
 
             // Validación de Rol
-            Optional<Rol> rolOpt = rolRepository.findByNombre(rolDisplay);
+            Optional<Rol> rolOpt = buscarRol(rolDisplay);
             if (rolOpt.isEmpty()) {
                 omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "el rol no existe en el sistema."));
                 continue;
             }
+            rolDisplay = rolOpt.get().getNombre();
 
             // Validaciones de campos opcionales según el rol
             boolean tieneCentro = centroCol != null && !centroRaw.isEmpty() && !centroRaw.equals("—") && !centroRaw.equals("-");

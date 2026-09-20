@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, UserCheck, BookOpen, Loader2, AlertCircle, Lock, Building2 } from "lucide-react";
 import type { UsuarioRow } from "../data-table-features";
+import { normalizeRole } from "./CreateModal";
 
 export interface EditUserData {
   rut: string;
@@ -283,6 +284,8 @@ export function EditModal({
     setSubmitting(true);
     setServerError(null);
 
+    const rolNormalizado = normalizeRole(rol);
+
     try {
       const credentials = btoa("admin:admin123");
       const res = await fetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
@@ -296,7 +299,7 @@ export function EditModal({
           apellido: apellido.trim(),
           correo: correo.trim(),
           contrasena: contrasena.trim() || null,
-          rol,
+          rol: rolNormalizado,
           estado,
           idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
           asignatura: selectedAsig ? selectedAsig.nombre : null,
@@ -318,7 +321,7 @@ export function EditModal({
         nombre: nombre.trim(),
         apellido: apellido.trim(),
         correo: correo.trim(),
-        rol,
+        rol: rolNormalizado,
         asignatura: selectedAsig ? selectedAsig.nombre : "—",
         idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
         centroPractica: isProfesorColaborador && selectedCentro ? selectedCentro.nombre : "—",

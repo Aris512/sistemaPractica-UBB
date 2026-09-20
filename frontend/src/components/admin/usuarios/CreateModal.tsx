@@ -69,6 +69,42 @@ const getRolLabel = (nombre: string): string => {
     .join(" ");
 };
 
+export const normalizeRole = (r: string): string => {
+  if (!r) return "";
+  const upper = r.trim().toUpperCase().replace(/[\s\-_]+/g, " ");
+  if (
+    upper === "PROFESOR COLABORADOR" ||
+    upper === "COLABORADOR" ||
+    (upper.includes("COLABORADOR") && !upper.includes("ASIGNATURA"))
+  ) {
+    return "PROFESOR_COLABORADOR";
+  }
+  if (
+    upper === "PROFESOR ASIGNATURA" ||
+    upper === "PROFESOR DE ASIGNATURA" ||
+    (upper.includes("PROFESOR") && upper.includes("ASIGNATURA"))
+  ) {
+    return "PROFESOR_ASIGNATURA";
+  }
+  if (
+    upper === "TUTOR PRACTICA" ||
+    upper === "TUTOR DE PRACTICA" ||
+    upper.includes("TUTOR")
+  ) {
+    return "TUTOR_PRACTICA";
+  }
+  if (upper.includes("ESTUDIANTE") || upper.includes("ALUMNO")) {
+    return "ESTUDIANTE";
+  }
+  if (upper.includes("COORDINADOR")) {
+    return "COORDINADOR";
+  }
+  if (upper.includes("ADMIN")) {
+    return "ADMINISTRADOR";
+  }
+  return upper.replace(/\s+/g, "_");
+};
+
 export function CreateModal({
   isOpen,
   onClose,
@@ -252,6 +288,8 @@ export function CreateModal({
 
     setSubmitting(true);
 
+    const rolNormalizado = normalizeRole(rol);
+
     try {
       const credentials = btoa("admin:admin123");
       const res = await fetch("http://localhost:8080/admin/usuarios", {
@@ -266,7 +304,7 @@ export function CreateModal({
           apellido: apellido.trim(),
           correo: correo.trim(),
           contrasena,
-          rol,
+          rol: rolNormalizado,
           estado,
           idAsignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.idAsignatura : null,
           asignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.nombre : null,
@@ -289,7 +327,7 @@ export function CreateModal({
         apellido: apellido.trim(),
         correo: correo.trim(),
         contrasena,
-        rol,
+        rol: rolNormalizado,
         asignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.nombre : "—",
         idAsignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.idAsignatura : null,
         centroPractica: isProfesorColaborador && selectedCentro ? selectedCentro.nombre : "—",
