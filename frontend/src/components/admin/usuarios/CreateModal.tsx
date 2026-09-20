@@ -105,6 +105,11 @@ export function CreateModal({
     rol.toUpperCase().includes("TUTOR") ||
     rol.toUpperCase().includes("COORDINADOR"));
 
+  const puedeTenerAsignatura =
+    rol.toUpperCase().includes("ESTUDIANTE") ||
+    rol.toUpperCase().includes("PROFESOR") ||
+    rol.toUpperCase().includes("DOCENTE");
+
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
@@ -263,8 +268,8 @@ export function CreateModal({
           contrasena,
           rol,
           estado,
-          idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
-          asignatura: selectedAsig ? selectedAsig.nombre : null,
+          idAsignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.idAsignatura : null,
+          asignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.nombre : null,
           idCentro: isProfesorColaborador && selectedCentro ? selectedCentro.idCentro : null,
           centroPractica: isProfesorColaborador && selectedCentro ? selectedCentro.nombre : null,
         }),
@@ -285,8 +290,8 @@ export function CreateModal({
         correo: correo.trim(),
         contrasena,
         rol,
-        asignatura: selectedAsig ? selectedAsig.nombre : "—",
-        idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
+        asignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.nombre : "—",
+        idAsignatura: puedeTenerAsignatura && selectedAsig ? selectedAsig.idAsignatura : null,
         centroPractica: isProfesorColaborador && selectedCentro ? selectedCentro.nombre : "—",
         idCentro: isProfesorColaborador && selectedCentro ? selectedCentro.idCentro : null,
         estado,
@@ -380,96 +385,106 @@ export function CreateModal({
               </Field>
             </div>
 
-            {/* Asignatura y Lugar de Práctica (visible si es Profesor Colaborador) */}
-            <div className={`grid gap-3 transition-all duration-300 ${isProfesorColaborador ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
-              {/* Asignatura */}
-              <Field className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 transition-all">
-                <FieldLabel
-                  htmlFor="create-user-asignatura"
-                  className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
-                >
-                  <BookOpen className="size-3.5 text-blue-600" />
-                  Asignatura (Tabla &quot;asignatura&quot;)
-                  {loadingAsignaturas && (
-                    <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
-                  )}
-                </FieldLabel>
-                <select
-                  id="create-user-asignatura"
-                  value={asignaturaId}
-                  onChange={(e) => {
-                    setAsignaturaId(e.target.value);
-                    if (errors.asignatura) {
-                      setErrors((prev) => ({ ...prev, asignatura: undefined }));
-                    }
-                  }}
-                  disabled={loadingAsignaturas}
-                  className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <option value="">
-                    {loadingAsignaturas
-                      ? "Cargando asignaturas de la BD..."
-                      : "-- Sin Asignatura (Opcional) --"}
-                  </option>
-                  {asignaturas.map((asig) => (
-                    <option key={asig.idAsignatura} value={String(asig.idAsignatura)}>
-                      {asig.nombre} {asig.semestre ? `(Sem. ${asig.semestre})` : ""}
-                    </option>
-                  ))}
-                </select>
-                {errors.asignatura && (
-                  <FieldError className="text-rose-600 mt-1">{errors.asignatura}</FieldError>
-                )}
-                <FieldDescription className="text-slate-500 text-[11px]">
-                  Asignatura vinculada desde la base de datos.
-                </FieldDescription>
-              </Field>
-
-              {/* Lugar de Práctica (Solo para Profesor Colaborador) */}
-              {isProfesorColaborador && (
-                <Field className="p-3 bg-blue-50/40 rounded-lg border border-blue-200/70 transition-all animate-in fade-in-50 duration-200">
-                  <FieldLabel
-                    htmlFor="create-user-centro"
-                    className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
-                  >
-                    <Building2 className="size-3.5 text-blue-600" />
-                    Lugar de Práctica (Tabla &quot;centro_practica&quot;)
-                    {loadingCentros && (
-                      <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
-                    )}
-                  </FieldLabel>
-                  <select
-                    id="create-user-centro"
-                    value={centroId}
-                    onChange={(e) => {
-                      setCentroId(e.target.value);
-                      if (errors.centro) {
-                        setErrors((prev) => ({ ...prev, centro: undefined }));
-                      }
-                    }}
-                    disabled={loadingCentros}
-                    className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    <option value="">
-                      {loadingCentros
-                        ? "Cargando centros de práctica..."
-                        : "-- Selecciona Lugar de Práctica --"}
-                    </option>
-                    {centros.map((c) => (
-                      <option key={c.idCentro} value={String(c.idCentro)}>
-                        {c.nombre} {c.direccion ? `(${c.direccion})` : ""}
+            {/* Asignatura y Lugar de Práctica según el rol */}
+            {(puedeTenerAsignatura || isProfesorColaborador) && (
+              <div
+                className={`grid gap-3 transition-all duration-300 ${
+                  puedeTenerAsignatura && isProfesorColaborador
+                    ? "grid-cols-1 sm:grid-cols-2"
+                    : "grid-cols-1"
+                }`}
+              >
+                {/* Asignatura */}
+                {puedeTenerAsignatura && (
+                  <Field className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 transition-all">
+                    <FieldLabel
+                      htmlFor="create-user-asignatura"
+                      className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
+                    >
+                      <BookOpen className="size-3.5 text-blue-600" />
+                      Asignatura (Tabla &quot;asignatura&quot;)
+                      {loadingAsignaturas && (
+                        <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                      )}
+                    </FieldLabel>
+                    <select
+                      id="create-user-asignatura"
+                      value={asignaturaId}
+                      onChange={(e) => {
+                        setAsignaturaId(e.target.value);
+                        if (errors.asignatura) {
+                          setErrors((prev) => ({ ...prev, asignatura: undefined }));
+                        }
+                      }}
+                      disabled={loadingAsignaturas}
+                      className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <option value="">
+                        {loadingAsignaturas
+                          ? "Cargando asignaturas de la BD..."
+                          : "-- Sin Asignatura (Opcional) --"}
                       </option>
-                    ))}
-                  </select>
-                  {errors.centro && (
-                    <FieldError className="text-rose-600 mt-1">{errors.centro}</FieldError>
-                  )}
-                  <FieldDescription className="text-slate-500 text-[11px]">
-                    Institución o colegio asignado al profesor colaborador o tutor de práctica.
-                  </FieldDescription>
-                </Field>
-              )}
-            </div>
+                      {asignaturas.map((asig) => (
+                        <option key={asig.idAsignatura} value={String(asig.idAsignatura)}>
+                          {asig.nombre} {asig.semestre ? `(Sem. ${asig.semestre})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.asignatura && (
+                      <FieldError className="text-rose-600 mt-1">{errors.asignatura}</FieldError>
+                    )}
+                    <FieldDescription className="text-slate-500 text-[11px]">
+                      Asignatura vinculada desde la base de datos.
+                    </FieldDescription>
+                  </Field>
+                )}
+
+                {/* Lugar de Práctica (Solo para Profesor Colaborador) */}
+                {isProfesorColaborador && (
+                  <Field className="p-3 bg-blue-50/40 rounded-lg border border-blue-200/70 transition-all animate-in fade-in-50 duration-200">
+                    <FieldLabel
+                      htmlFor="create-user-centro"
+                      className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
+                    >
+                      <Building2 className="size-3.5 text-blue-600" />
+                      Lugar de Práctica (Tabla &quot;centro_practica&quot;)
+                      {loadingCentros && (
+                        <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                      )}
+                    </FieldLabel>
+                    <select
+                      id="create-user-centro"
+                      value={centroId}
+                      onChange={(e) => {
+                        setCentroId(e.target.value);
+                        if (errors.centro) {
+                          setErrors((prev) => ({ ...prev, centro: undefined }));
+                        }
+                      }}
+                      disabled={loadingCentros}
+                      className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <option value="">
+                        {loadingCentros
+                          ? "Cargando centros de práctica..."
+                          : "-- Selecciona Lugar de Práctica --"}
+                      </option>
+                      {centros.map((c) => (
+                        <option key={c.idCentro} value={String(c.idCentro)}>
+                          {c.nombre} {c.direccion ? `(${c.direccion})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.centro && (
+                      <FieldError className="text-rose-600 mt-1">{errors.centro}</FieldError>
+                    )}
+                    <FieldDescription className="text-slate-500 text-[11px]">
+                      Institución o colegio asignado al profesor colaborador o tutor de práctica.
+                    </FieldDescription>
+                  </Field>
+                )}
+              </div>
+            )}
 
             {/* Nombre y Apellido */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

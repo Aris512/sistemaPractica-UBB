@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,7 +22,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import com.backend.model.Asignatura;
 import com.backend.model.CentroPractica;
@@ -249,7 +259,36 @@ public class AdminController {
             }
         }
 
-        Usuario guardado = usuarioRepository.save(nuevoUsuario);
+        // Validar compatibilidad de rol con campos opcionales
+        boolean esColaborador = (rolNombre.toUpperCase().contains("COLABORADOR")
+            || rolNombre.toUpperCase().contains("TUTOR")
+            || rolNombre.toUpperCase().contains("COORDINADOR"))
+            && !rolNombre.toUpperCase().contains("ASIGNATURA");
+
+        Object idCentroObj = payload.get("idCentro");
+        boolean tieneCentro = (idCentroObj != null && !idCentroObj.toString().trim().isEmpty())
+            || (payload.get("centroPractica") != null && !payload.get("centroPractica").toString().trim().isEmpty() && !payload.get("centroPractica").toString().trim().equals("—"));
+
+        if (tieneCentro && !esColaborador) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "El rol " + rolNombre + " no puede tener asignado un lugar de práctica."
+            ));
+        }
+
+        boolean puedeTenerAsig = "ESTUDIANTE".equalsIgnoreCase(rolNombre)
+            || rolNombre.toUpperCase().contains("PROFESOR")
+            || rolNombre.toUpperCase().contains("DOCENTE");
+
+        boolean tieneAsig = (idAsignaturaObj != null && !idAsignaturaObj.toString().trim().isEmpty())
+            || (payload.get("asignatura") != null && !payload.get("asignatura").toString().trim().isEmpty() && !payload.get("asignatura").toString().trim().equals("—"));
+
+        if (tieneAsig && !puedeTenerAsig) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "El rol " + rolNombre + " no puede tener asignada una asignatura."
+            ));
+        }
+
+        Usuario guardado = usuarioRepository.saveAndFlush(nuevoUsuario);
 
         // Si se seleccionó una asignatura, vincular según el rol
         Asignatura asigEncontrada = null;
@@ -281,7 +320,6 @@ public class AdminController {
         }
 
         // Vincular lugar de práctica (Centro de Práctica) y sincronizar con tabla practica
-        Object idCentroObj = payload.get("idCentro");
         CentroPractica centroEncontrado = null;
         if (idCentroObj != null && !idCentroObj.toString().trim().isEmpty()) {
             try {
@@ -297,17 +335,12 @@ public class AdminController {
             }
         }
 
-        boolean esColaborador = (rolNombre.toUpperCase().contains("COLABORADOR")
-            || rolNombre.toUpperCase().contains("TUTOR")
-            || rolNombre.toUpperCase().contains("COORDINADOR"))
-            && !rolNombre.toUpperCase().contains("ASIGNATURA");
-
         if (esColaborador) {
             try {
                 if (rolNombre.toUpperCase().contains("TUTOR")) {
                     Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
                     if (tutorOpt.isEmpty()) {
-                        tutorPracticaRepository.save(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
+                        tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
                     }
                 }
 
@@ -316,10 +349,10 @@ public class AdminController {
                 if (colabOpt.isPresent()) {
                     colab = colabOpt.get();
                     colab.setCentroPractica(centroEncontrado);
-                    colab = profesorColaboradorRepository.save(colab);
+                    colab = profesorColaboradorRepository.saveAndFlush(colab);
                 } else {
                     colab = new ProfesorColaborador(guardado, centroEncontrado, "Pedagogía");
-                    colab = profesorColaboradorRepository.save(colab);
+                    colab = profesorColaboradorRepository.saveAndFlush(colab);
                 }
 
                 // Sincronizar o crear en la tabla practica el id_centro_de_practica
@@ -476,7 +509,7 @@ public class AdminController {
                 if (rolNombre.toUpperCase().contains("TUTOR") || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("TUTOR")))) {
                     Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
                     if (tutorOpt.isEmpty()) {
-                        tutorPracticaRepository.save(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
+                        tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
                     }
                 }
 
@@ -485,10 +518,10 @@ public class AdminController {
                 if (colabOpt.isPresent()) {
                     colab = colabOpt.get();
                     colab.setCentroPractica(editCentroEncontrado);
-                    colab = profesorColaboradorRepository.save(colab);
+                    colab = profesorColaboradorRepository.saveAndFlush(colab);
                 } else {
                     colab = new ProfesorColaborador(guardado, editCentroEncontrado, "Pedagogía");
-                    colab = profesorColaboradorRepository.save(colab);
+                    colab = profesorColaboradorRepository.saveAndFlush(colab);
                 }
 
                 // Sincronizar o crear en la tabla practica el id_centro_de_practica
@@ -603,7 +636,22 @@ public class AdminController {
                     evidenciaRepository.deleteAll(evidencias);
                 }
             } catch (Exception ignored) {}
+
+            try {
+                if (est.getIdEstudiante() != null) {
+                    practicaRepository.desvincularEstudiantePorId(est.getIdEstudiante());
+                }
+                List<Practica> practicasEst = practicaRepository.findByEstudianteUsuarioRut(usuario.getRut());
+                if (practicasEst != null) {
+                    for (Practica p : practicasEst) {
+                        p.setEstudiante(null);
+                        practicaRepository.saveAndFlush(p);
+                    }
+                }
+            } catch (Exception ignored) {}
+
             estudianteRepository.delete(est);
+            estudianteRepository.flush();
         }
 
         // 2. Desvincular profesor si existe
@@ -615,18 +663,19 @@ public class AdminController {
             Profesor prof = profOpt.get();
             if (prof.getAsignaturas() != null) {
                 prof.getAsignaturas().clear();
-                profesorRepository.save(prof);
+                profesorRepository.saveAndFlush(prof);
             }
             try {
                 List<Evidencia> evidenciasProf = evidenciaRepository.findByActividadProfesorUsuarioRutOrderByFechaEntregaDesc(usuario.getRut());
                 if (evidenciasProf != null) {
                     for (Evidencia ev : evidenciasProf) {
                         ev.setRevisadoPor(null);
-                        evidenciaRepository.save(ev);
+                        evidenciaRepository.saveAndFlush(ev);
                     }
                 }
             } catch (Exception ignored) {}
             profesorRepository.delete(prof);
+            profesorRepository.flush();
         }
 
         // 3. Desvincular profesor colaborador si existe
@@ -636,26 +685,57 @@ public class AdminController {
                 ProfesorColaborador colab = colabOpt.get();
                 if (colab.getPracticas() != null) {
                     colab.getPracticas().clear();
-                    profesorColaboradorRepository.save(colab);
+                    profesorColaboradorRepository.saveAndFlush(colab);
                 }
                 profesorColaboradorRepository.delete(colab);
+                profesorColaboradorRepository.flush();
             }
         } catch (Exception ignored) {}
 
-        // 4. Desvincular tutor práctica si existe
+        // 4. Desvincular tutor práctica si existe y reasignar/desvincular de sus prácticas
         try {
             Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(usuario.getRut());
-            tutorOpt.ifPresent(tutorPracticaRepository::delete);
+            if (tutorOpt.isPresent()) {
+                TutorPractica tutor = tutorOpt.get();
+                Long idTutor = tutor.getIdTutor();
+
+                // Buscar otro tutor para reasignar si es posible
+                TutorPractica otroTutor = tutorPracticaRepository.findAll().stream()
+                    .filter(t -> t.getIdTutor() != null && !t.getIdTutor().equals(idTutor))
+                    .findFirst().orElse(null);
+
+                List<Practica> practicasPorRut = practicaRepository.findByTutorPracticaUsuarioRut(usuario.getRut());
+                if (practicasPorRut != null) {
+                    for (Practica p : practicasPorRut) {
+                        p.setTutorPractica(otroTutor);
+                        practicaRepository.saveAndFlush(p);
+                    }
+                }
+                if (idTutor != null) {
+                    List<Practica> practicasPorId = practicaRepository.findByTutorPracticaIdTutor(idTutor);
+                    if (practicasPorId != null) {
+                        for (Practica p : practicasPorId) {
+                            p.setTutorPractica(otroTutor);
+                            practicaRepository.saveAndFlush(p);
+                        }
+                    }
+                    practicaRepository.desvincularTutorPorId(idTutor);
+                }
+
+                tutorPracticaRepository.delete(tutor);
+                tutorPracticaRepository.flush();
+            }
         } catch (Exception ignored) {}
 
         // 5. Limpiar roles de la tabla intermedia usuario_rol
         if (usuario.getRoles() != null) {
             usuario.getRoles().clear();
-            usuarioRepository.save(usuario);
+            usuarioRepository.saveAndFlush(usuario);
         }
 
         // 6. Eliminar el usuario de la base de datos
         usuarioRepository.delete(usuario);
+        usuarioRepository.flush();
 
         return ResponseEntity.ok(Map.of(
             "message", "Usuario eliminado con éxito",
@@ -703,6 +783,24 @@ public class AdminController {
         TutorPractica tutorUsuario = null;
         if (usuario != null && usuario.getRut() != null) {
             tutorUsuario = tutorPracticaRepository.findByUsuarioRut(usuario.getRut()).orElse(null);
+            if (tutorUsuario == null && usuario.getRoles() != null && usuario.getRoles().stream()
+                .anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("TUTOR"))) {
+                tutorUsuario = tutorPracticaRepository.saveAndFlush(
+                    new TutorPractica(usuario.getNombre() + " " + usuario.getApellido(), usuario)
+                );
+            }
+        }
+
+        TutorPractica tutorDefault = tutorUsuario;
+        if (tutorDefault == null) {
+            tutorDefault = tutorPracticaRepository.findAll().stream().findFirst().orElse(null);
+        }
+        if (tutorDefault != null && tutorDefault.getIdTutor() == null) {
+            tutorDefault = tutorPracticaRepository.saveAndFlush(tutorDefault);
+        }
+
+        if (colab.getPracticas() == null) {
+            colab.setPracticas(new HashSet<>());
         }
 
         // 3. Si no existe ninguna práctica para la asignatura / colaborador / tutor, crear una o más según corresponda
@@ -715,15 +813,13 @@ public class AdminController {
                     .collect(Collectors.toList());
             }
 
-            TutorPractica tutorDefault = tutorUsuario != null ? tutorUsuario : tutorPracticaRepository.findAll().stream().findFirst().orElse(null);
-
             if (!estudiantesCandidatos.isEmpty()) {
                 for (Estudiante est : estudiantesCandidatos) {
                     Practica nueva = new Practica(est, tutorDefault, centro, asignatura, "EN_CURSO");
                     Set<ProfesorColaborador> colabs = new HashSet<>();
                     colabs.add(colab);
                     nueva.setProfesoresColaboradores(colabs);
-                    nueva = practicaRepository.save(nueva);
+                    nueva = practicaRepository.saveAndFlush(nueva);
                     colab.getPracticas().add(nueva);
                     practicasAfectadas.add(nueva);
                 }
@@ -736,7 +832,7 @@ public class AdminController {
                     Set<ProfesorColaborador> colabs = new HashSet<>();
                     colabs.add(colab);
                     nueva.setProfesoresColaboradores(colabs);
-                    nueva = practicaRepository.save(nueva);
+                    nueva = practicaRepository.saveAndFlush(nueva);
                     colab.getPracticas().add(nueva);
                     practicasAfectadas.add(nueva);
                 }
@@ -751,6 +847,8 @@ public class AdminController {
             }
             if (tutorUsuario != null) {
                 p.setTutorPractica(tutorUsuario);
+            } else if (p.getTutorPractica() == null && tutorDefault != null) {
+                p.setTutorPractica(tutorDefault);
             }
 
             if (p.getProfesoresColaboradores() == null) {
@@ -759,11 +857,364 @@ public class AdminController {
             p.getProfesoresColaboradores().add(colab);
             colab.getPracticas().add(p);
 
-            practicaRepository.save(p);
+            practicaRepository.saveAndFlush(p);
         }
 
-        profesorColaboradorRepository.save(colab);
+        profesorColaboradorRepository.saveAndFlush(colab);
+    }
+
+    /**
+     * Endpoint para importación masiva de usuarios mediante archivo Excel (.xlsx / .xls).
+     * Valida columnas obligatorias: rut, contrasena, rol, nombre, apellido, correo.
+     * Soporta columnas opcionales: /asignatura, /lugar de practica.
+     * Deduplica por RUT y correo (tanto en BD como en el mismo archivo).
+     * Establece estado activo por defecto y encripta contraseñas con BCrypt.
+     */
+    @PostMapping(value = "/usuarios/importar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional
+    public ResponseEntity<?> importarUsuarios(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No se ha seleccionado ningún archivo."));
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Nombre de archivo no válido."));
+        }
+
+        String lowerFilename = originalFilename.toLowerCase();
+        if (!lowerFilename.endsWith(".xlsx") && !lowerFilename.endsWith(".xls")) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "Formato de archivo no válido. Solo se permiten archivos Excel (.xlsx, .xls)."
+            ));
+        }
+
+        Workbook workbook;
+        try {
+            workbook = WorkbookFactory.create(file.getInputStream());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "El archivo proporcionado no es un archivo Excel válido o no se pudo procesar."
+            ));
+        }
+
+        Sheet sheet = workbook.getSheetAt(0);
+        if (sheet == null || sheet.getPhysicalNumberOfRows() == 0) {
+            try { workbook.close(); } catch (Exception ignored) {}
+            return ResponseEntity.badRequest().body(Map.of("error", "El archivo Excel está vacío."));
+        }
+
+        DataFormatter formatter = new DataFormatter();
+
+        // 1. Localizar y validar la fila de encabezados
+        Row headerRow = null;
+        for (int r = 0; r <= sheet.getLastRowNum(); r++) {
+            Row candidate = sheet.getRow(r);
+            if (candidate != null && candidate.getPhysicalNumberOfCells() > 0) {
+                headerRow = candidate;
+                break;
+            }
+        }
+
+        if (headerRow == null) {
+            try { workbook.close(); } catch (Exception ignored) {}
+            return ResponseEntity.badRequest().body(Map.of("error", "No se encontró fila de encabezados en el archivo."));
+        }
+
+        Map<String, Integer> colMap = new HashMap<>();
+        for (int c = 0; c < headerRow.getLastCellNum(); c++) {
+            Cell cell = headerRow.getCell(c);
+            String headerVal = getCellStringValue(cell, formatter).toLowerCase();
+            if (headerVal.startsWith("/")) {
+                headerVal = headerVal.substring(1).trim();
+            }
+            if (!headerVal.isEmpty()) {
+                colMap.put(headerVal, c);
+            }
+        }
+
+        // Validar columnas obligatorias: rut, contrasena, rol, nombre, apellido, correo
+        String[] mandatory = {"rut", "contrasena", "rol", "nombre", "apellido", "correo"};
+        for (String m : mandatory) {
+            if ("contrasena".equals(m)) {
+                if (!colMap.containsKey("contrasena") && !colMap.containsKey("contraseña")) {
+                    try { workbook.close(); } catch (Exception ignored) {}
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "error", "No se puede importar el archivo. Falta la columna obligatoria: contrasena"
+                    ));
+                }
+            } else if (!colMap.containsKey(m)) {
+                try { workbook.close(); } catch (Exception ignored) {}
+                return ResponseEntity.badRequest().body(Map.of(
+                    "error", "No se puede importar el archivo. Falta la columna obligatoria: " + m
+                ));
+            }
+        }
+
+        int rutCol = colMap.get("rut");
+        int passCol = colMap.containsKey("contrasena") ? colMap.get("contrasena") : colMap.get("contraseña");
+        int rolCol = colMap.get("rol");
+        int nombreCol = colMap.get("nombre");
+        int apellidoCol = colMap.get("apellido");
+        int correoCol = colMap.get("correo");
+
+        Integer asigCol = null;
+        if (colMap.containsKey("asignatura")) {
+            asigCol = colMap.get("asignatura");
+        }
+
+        Integer centroCol = null;
+        if (colMap.containsKey("lugar de practica")) {
+            centroCol = colMap.get("lugar de practica");
+        } else if (colMap.containsKey("lugar de práctica")) {
+            centroCol = colMap.get("lugar de práctica");
+        } else if (colMap.containsKey("lugar_de_practica")) {
+            centroCol = colMap.get("lugar_de_practica");
+        } else if (colMap.containsKey("centro de practica")) {
+            centroCol = colMap.get("centro de practica");
+        }
+
+        // Conjuntos en memoria para evitar duplicados dentro del mismo lote
+        Set<String> rutsVistosEnLote = new HashSet<>();
+        Set<String> correosVistosEnLote = new HashSet<>();
+
+        // Traer usuarios existentes de la BD para chequeo rápido
+        List<Usuario> todosUsuarios = usuarioRepository.findAll();
+        Set<String> rutsEnBd = todosUsuarios.stream()
+            .map(u -> RutUtils.clean(u.getRut()))
+            .collect(Collectors.toSet());
+        Set<String> correosEnBd = todosUsuarios.stream()
+            .filter(u -> u.getCorreo() != null)
+            .map(u -> u.getCorreo().trim().toLowerCase())
+            .collect(Collectors.toSet());
+
+        int totalProcesados = 0;
+        int totalIngresados = 0;
+        List<Map<String, String>> omitidos = new ArrayList<>();
+
+        int startRow = headerRow.getRowNum() + 1;
+        int lastRow = sheet.getLastRowNum();
+
+        for (int r = startRow; r <= lastRow; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) {
+                continue;
+            }
+
+            String rutRaw = getCellStringValue(row.getCell(rutCol), formatter);
+            String passRaw = getCellStringValue(row.getCell(passCol), formatter);
+            String rolRaw = getCellStringValue(row.getCell(rolCol), formatter);
+            String nombreRaw = getCellStringValue(row.getCell(nombreCol), formatter);
+            String apellidoRaw = getCellStringValue(row.getCell(apellidoCol), formatter);
+            String correoRaw = getCellStringValue(row.getCell(correoCol), formatter);
+            String asigRaw = asigCol != null ? getCellStringValue(row.getCell(asigCol), formatter) : "";
+            String centroRaw = centroCol != null ? getCellStringValue(row.getCell(centroCol), formatter) : "";
+
+            // Si la fila está completamente vacía, se ignora
+            if (rutRaw.isEmpty() && passRaw.isEmpty() && rolRaw.isEmpty() &&
+                nombreRaw.isEmpty() && apellidoRaw.isEmpty() && correoRaw.isEmpty()) {
+                continue;
+            }
+
+            totalProcesados++;
+
+            String rolDisplay = rolRaw.isEmpty() ? "SIN_ROL" : rolRaw.toUpperCase().trim();
+            String nombreDisplay = (nombreRaw + " " + apellidoRaw).trim();
+            if (nombreDisplay.isEmpty()) {
+                nombreDisplay = "Usuario";
+            }
+            String usuarioLabel = nombreDisplay + " — " + rolDisplay;
+
+            // Validación de RUT
+            if (rutRaw.isEmpty()) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "RUT no proporcionado."));
+                continue;
+            }
+
+            if (!RutUtils.isValid(rutRaw)) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "RUT no válido."));
+                continue;
+            }
+
+            String cleanRut = RutUtils.clean(rutRaw);
+            String standardRut = RutUtils.formatStandard(rutRaw);
+
+            // Duplicado de RUT en el mismo archivo
+            if (rutsVistosEnLote.contains(cleanRut)) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "RUT ya registrado."));
+                continue;
+            }
+
+            // Duplicado de RUT en la BD
+            if (rutsEnBd.contains(cleanRut)) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "RUT ya registrado."));
+                continue;
+            }
+
+            // Validación de Correo
+            String lowerCorreo = correoRaw.toLowerCase().trim();
+            String emailRegex = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+            if (lowerCorreo.isEmpty() || !lowerCorreo.matches(emailRegex)) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "formato de correo inválido."));
+                continue;
+            }
+
+            // Duplicado de Correo en el mismo archivo
+            if (correosVistosEnLote.contains(lowerCorreo)) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "correo ya registrado."));
+                continue;
+            }
+
+            // Duplicado de Correo en la BD
+            if (correosEnBd.contains(lowerCorreo)) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "correo ya registrado."));
+                continue;
+            }
+
+            // Validación de Nombre y Apellido
+            if (nombreRaw.trim().isEmpty() || apellidoRaw.trim().isEmpty()) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "nombre y apellido son obligatorios."));
+                continue;
+            }
+
+            // Validación de Contraseña
+            if (passRaw.isEmpty() || passRaw.length() < 6) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "la contraseña debe tener al menos 6 caracteres."));
+                continue;
+            }
+
+            // Validación de Rol
+            Optional<Rol> rolOpt = rolRepository.findByNombre(rolDisplay);
+            if (rolOpt.isEmpty()) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "el rol no existe en el sistema."));
+                continue;
+            }
+
+            // Validaciones de campos opcionales según el rol
+            boolean tieneCentro = centroCol != null && !centroRaw.isEmpty() && !centroRaw.equals("—") && !centroRaw.equals("-");
+            boolean tieneAsig = asigCol != null && !asigRaw.isEmpty() && !asigRaw.equals("—") && !asigRaw.equals("-");
+
+            boolean esColaborador = (rolDisplay.contains("COLABORADOR")
+                || rolDisplay.contains("TUTOR")
+                || rolDisplay.contains("COORDINADOR"))
+                && !rolDisplay.contains("ASIGNATURA");
+
+            // 1. Un rol que no sea colaborador, tutor o coordinador no puede tener lugar de práctica (ej. ESTUDIANTE, PROFESOR_ASIGNATURA)
+            if (tieneCentro && !esColaborador) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "el rol " + rolDisplay + " no puede tener lugar de práctica."));
+                continue;
+            }
+
+            CentroPractica centroEncontrado = null;
+            if (tieneCentro) {
+                centroEncontrado = centroPracticaRepository.findByNombre(centroRaw)
+                    .or(() -> centroPracticaRepository.findAll().stream()
+                        .filter(c -> c.getNombre() != null && c.getNombre().equalsIgnoreCase(centroRaw.trim()))
+                        .findFirst())
+                    .orElse(null);
+                if (centroEncontrado == null) {
+                    omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "el lugar de práctica '" + centroRaw + "' no existe en el sistema."));
+                    continue;
+                }
+            }
+
+            // 2. Solo Estudiantes y Profesores pueden tener asignatura
+            boolean puedeTenerAsig = "ESTUDIANTE".equalsIgnoreCase(rolDisplay)
+                || rolDisplay.contains("PROFESOR")
+                || rolDisplay.contains("DOCENTE");
+
+            if (tieneAsig && !puedeTenerAsig) {
+                omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "el rol " + rolDisplay + " no puede tener asignatura asignada."));
+                continue;
+            }
+
+            Asignatura asigEncontrada = null;
+            if (tieneAsig) {
+                asigEncontrada = asignaturaRepository.findByNombreIgnoreCase(asigRaw).orElse(null);
+                if (asigEncontrada == null) {
+                    omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "la asignatura '" + asigRaw + "' no existe en el sistema."));
+                    continue;
+                }
+            }
+
+            // Todo válido: registrar en lote
+            rutsVistosEnLote.add(cleanRut);
+            correosVistosEnLote.add(lowerCorreo);
+
+            // Crear entidad Usuario con estado activo (HABILITADO)
+            String hash = passwordEncoder.encode(passRaw);
+            Usuario nuevoUsuario = new Usuario(standardRut, nombreRaw.trim(), apellidoRaw.trim(), lowerCorreo, hash, "activo");
+            nuevoUsuario.setRoles(new HashSet<>(Collections.singletonList(rolOpt.get())));
+            Usuario guardado = usuarioRepository.save(nuevoUsuario);
+
+            // Sincronizar en conjuntos locales para futuras filas del mismo lote
+            rutsEnBd.add(cleanRut);
+            correosEnBd.add(lowerCorreo);
+
+            // Vincular Asignatura opcional si aplica
+            if (asigEncontrada != null) {
+                try {
+                    if ("ESTUDIANTE".equalsIgnoreCase(rolDisplay)) {
+                        estudianteRepository.save(new Estudiante(guardado, asigEncontrada, "ACTIVO"));
+                    } else if (rolDisplay.contains("PROFESOR")) {
+                        profesorRepository.save(new Profesor(guardado, asigEncontrada));
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
+            // Vincular Lugar de Práctica opcional si aplica
+            if (esColaborador) {
+                try {
+                    if (rolDisplay.contains("TUTOR")) {
+                        Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                        if (tutorOpt.isEmpty()) {
+                            tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
+                        }
+                    }
+
+                    Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
+                    ProfesorColaborador colab;
+                    if (colabOpt.isPresent()) {
+                        colab = colabOpt.get();
+                        if (centroEncontrado != null) {
+                            colab.setCentroPractica(centroEncontrado);
+                        }
+                        colab = profesorColaboradorRepository.saveAndFlush(colab);
+                    } else {
+                        colab = new ProfesorColaborador(guardado, centroEncontrado, "Pedagogía");
+                        colab = profesorColaboradorRepository.saveAndFlush(colab);
+                    }
+
+                    if (centroEncontrado != null) {
+                        sincronizarPracticasColaborador(guardado, colab, centroEncontrado, asigEncontrada);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
+            totalIngresados++;
+        }
+
+        try {
+            workbook.close();
+        } catch (Exception ignored) {
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalProcesados", totalProcesados);
+        response.put("totalIngresados", totalIngresados);
+        response.put("totalOmitidos", omitidos.size());
+        response.put("omitidos", omitidos);
+        response.put("message", "Importación finalizada");
+
+        return ResponseEntity.ok(response);
+    }
+
+    private String getCellStringValue(Cell cell, DataFormatter formatter) {
+        if (cell == null) {
+            return "";
+        }
+        return formatter.formatCellValue(cell).trim();
     }
 }
-
-

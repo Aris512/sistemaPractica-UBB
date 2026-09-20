@@ -7,7 +7,7 @@ import {
 } from "./data-table-features";
 import { AdminSidebar, type AdminSection } from "./AdminSidebar";
 import { AdminToolbar } from "./AdminToolbar";
-import { EditModal, CreateModal } from "./usuarios";
+import { EditModal, CreateModal, ImportModal } from "./usuarios";
 import { AsignaturasView } from "./asignaturas";
 import { DocumentosView } from "./documentos";
 import { CentrosPracticaView } from "./centros_practica";
@@ -20,7 +20,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { RefreshCw, Loader2, AlertCircle, UserPlus, LogOut } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle, UserPlus, LogOut, FileSpreadsheet } from "lucide-react";
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
 
@@ -60,6 +60,7 @@ export default function AdminPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const nextInvoiceId = `INV${String(data.length + 1).padStart(3, "0")}`;
 
@@ -244,6 +245,14 @@ export default function AdminPage() {
                     Recargar
                   </Button>
                   <Button
+                    variant="outline"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="gap-1.5 cursor-pointer border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs"
+                  >
+                    <FileSpreadsheet className="size-4 text-emerald-600" />
+                    Importar Excel
+                  </Button>
+                  <Button
                     onClick={() => setIsCreateModalOpen(true)}
                     className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-xs cursor-pointer"
                   >
@@ -333,6 +342,13 @@ export default function AdminPage() {
                 onClose={() => setIsCreateModalOpen(false)}
                 suggestedId={nextInvoiceId}
                 onCreate={handleCreateUser}
+              />
+
+              {/* Import Modal */}
+              <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImportSuccess={() => refetch()}
               />
             </div>
           )}

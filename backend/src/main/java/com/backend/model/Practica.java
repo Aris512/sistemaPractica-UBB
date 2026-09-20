@@ -2,8 +2,12 @@ package com.backend.model;
 
 import java.util.Set;
 
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,10 +29,12 @@ public class Practica {
 
     @ManyToOne
     @JoinColumn(name = "id_estudiante")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private Estudiante estudiante;
 
-    @ManyToOne
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "id_tutor_practica")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private TutorPractica tutorPractica;
 
     @ManyToOne
