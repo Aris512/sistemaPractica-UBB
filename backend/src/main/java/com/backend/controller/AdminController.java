@@ -40,7 +40,6 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import com.backend.model.Asignatura;
 import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
-import com.backend.model.Evidencia;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
 import com.backend.model.ProfesorColaborador;
@@ -78,7 +77,7 @@ public class AdminController {
     private final ProfesorRepository profesorRepository;
     private final ProfesorColaboradorRepository profesorColaboradorRepository;
     private final TutorPracticaRepository tutorPracticaRepository;
-    private final EvidenciaRepository evidenciaRepository;
+
     private final RolRepository rolRepository;
     private final AsignaturaRepository asignaturaRepository;
     private final CentroPracticaRepository centroPracticaRepository;
@@ -105,7 +104,6 @@ public class AdminController {
         this.profesorRepository = profesorRepository;
         this.profesorColaboradorRepository = profesorColaboradorRepository;
         this.tutorPracticaRepository = tutorPracticaRepository;
-        this.evidenciaRepository = evidenciaRepository;
         this.rolRepository = rolRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;

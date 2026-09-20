@@ -3,3 +3,5 @@ export * as Profesor from "./Profesor";
 export { HomePage as EstudianteHomePage } from "./Estudiante";
 export { ProfesorHomePage } from "./Profesor";
 export { ProfesorCTutorHomePage } from "./ProfesorCTutor";
+export { CoordinadorHomePage } from "./Coordinador";
+

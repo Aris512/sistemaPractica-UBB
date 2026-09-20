@@ -6,6 +6,7 @@ import { UbbLogoBadge } from "./components/login/UbbLogoBadge";
 import { HomePage as EstudianteHomePage } from "./components/home/Estudiante";
 import { ProfesorHomePage } from "./components/home/Profesor";
 import { ProfesorCTutorHomePage } from "./components/home/ProfesorCTutor";
+import { CoordinadorHomePage } from "./components/home/Coordinador";
 import AdminPage from "./components/admin/page";
 import type { UserSession } from "./types/auth";
 
@@ -35,7 +36,13 @@ export default function App() {
         currentUser.rol || "",
       ].map((r) => r.toUpperCase());
 
-      // 1. Profesor Colaborador o Tutor de Práctica
+      // 1. Coordinador de Práctica
+      const isCoordinador = allRoles.some((r) => r.includes("COORDINADOR"));
+      if (isCoordinador) {
+        return <CoordinadorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+      }
+
+      // 2. Profesor Colaborador o Tutor de Práctica
       const isColaboradorOTutor = allRoles.some(
         (r) => r.includes("COLABORADOR") || r.includes("TUTOR")
       );
