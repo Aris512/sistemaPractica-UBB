@@ -180,4 +180,4 @@ npm run preview         # Previsualizar compilación de producción
 7. No almacenar contraseñas o credenciales reales en el repositorio.
 8. Probar las funcionalidades antes de considerarlas terminadas.
 9. Documentar cambios importantes.
-10. No eliminar configuraciones existentes sin verificar sus dependencias.
+10. No eliminar configuraciones existentes sin verificar sus dependencias..
