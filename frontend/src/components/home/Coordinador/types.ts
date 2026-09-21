@@ -3,6 +3,8 @@ export type CoordinadorMenuKey =
   | "asociar"
   | "centros-practica"
   | "evaluaciones"
+  | "documentos-practica"
+  | "portafolio"
   | "perfil";
 
 export interface EstudiantePractica {

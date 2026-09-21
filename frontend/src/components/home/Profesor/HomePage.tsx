@@ -65,10 +65,10 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "documentos-practica":
         return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
-        if (!hasPermission("PORTAFOLIO_SUBIR")) {
+        if (!hasPermission("PORTAFOLIO_CONSULTAR") && !hasPermission("PORTAFOLIO_SUBIR")) {
           return <TableEstudiantes user={user} />;
         }
-        return <Portafolio onBack={() => setActiveMenu("inicio")} />;
+        return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":

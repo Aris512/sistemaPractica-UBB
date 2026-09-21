@@ -9,7 +9,6 @@ import {
   Layers,
   Trash2,
   Download,
-  Clock,
   BookOpen,
   RefreshCw,
   FolderOpen,
@@ -161,9 +160,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
 
   const handleDeleteArchivo = async (idDocumento: number, nombre: string) => {
     if (!selectedPlan) return;
-    if (!window.confirm(`¿Estás seguro de que deseas eliminar el archivo "${nombre}"?`)) {
-      return;
-    }
 
     try {
       const res = await fetch(`/api/planificaciones/${selectedPlan.idPlanificacion}/archivos/${idDocumento}`, {

@@ -164,11 +164,11 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Portafolio */}
-              {hasPermission("PORTAFOLIO_SUBIR") && (
+              {(hasPermission("PORTAFOLIO_CONSULTAR") || hasPermission("PORTAFOLIO_SUBIR")) && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "portafolio"}
-                    onClick={() => handleSelectMockup("portafolio", "Portafolios")}
+                    onClick={() => onSelectMenu("portafolio")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "portafolio"
                         ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"

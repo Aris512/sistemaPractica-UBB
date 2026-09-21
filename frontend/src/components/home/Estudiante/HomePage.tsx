@@ -10,6 +10,7 @@ import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { Observaciones } from "./Observaciones";
 import { AsistentesIA } from "./AsistentesIA";
+import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { MallaCurricular } from "@/components/malla_curricular";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
@@ -48,10 +49,12 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "perfil":
         return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
-        if (!hasPermission("PORTAFOLIO_SUBIR")) {
+        if (!hasPermission("PORTAFOLIO_SUBIR") && !hasPermission("PORTAFOLIO_CONSULTAR")) {
           return <MallaCurricular userRut={user?.rut} />;
         }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "documentos-practica":
+        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":

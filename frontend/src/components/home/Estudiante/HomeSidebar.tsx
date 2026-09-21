@@ -19,6 +19,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   MessageSquareText,
+  FolderGit2,
   Bot,
   LogOut,
 } from "lucide-react";
@@ -111,11 +112,11 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Portafolio */}
-              {hasPermission("PORTAFOLIO_SUBIR") && (
+              {(hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR")) && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "portafolio"}
-                    onClick={() => handleSelectMockup("portafolio", "Portafolio")}
+                    onClick={() => onSelectMenu("portafolio")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "portafolio"
                         ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
@@ -129,6 +130,24 @@ export function HomeSidebar({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+
+              {/* Documentos de Práctica */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "documentos-practica"}
+                  onClick={() => onSelectMenu("documentos-practica")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "documentos-practica"
+                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FolderGit2 className="size-4.5 text-sky-600 shrink-0" />
+                    <span>Documentos de Práctica</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
               {/* Cursos / Práctica */}
               <SidebarMenuItem>

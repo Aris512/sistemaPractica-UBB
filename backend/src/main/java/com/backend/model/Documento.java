@@ -36,6 +36,12 @@ public class Documento {
     @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
+    @Column(name = "tamanio_bytes")
+    private Long tamanioBytes;
+
+    @Column(name = "rut_estudiante")
+    private String rutEstudiante;
+
     @ManyToMany
     @JoinTable(
         name = "documento_planificacion",
@@ -109,5 +115,21 @@ public class Documento {
 
     public void setPlanificaciones(Set<Planificacion> planificaciones) {
         this.planificaciones = planificaciones;
+    }
+
+    public Long getTamanioBytes() {
+        return tamanioBytes;
+    }
+
+    public void setTamanioBytes(Long tamanioBytes) {
+        this.tamanioBytes = tamanioBytes;
+    }
+
+    public String getRutEstudiante() {
+        return rutEstudiante;
+    }
+
+    public void setRutEstudiante(String rutEstudiante) {
+        this.rutEstudiante = rutEstudiante;
     }
 }

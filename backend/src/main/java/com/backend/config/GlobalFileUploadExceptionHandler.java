@@ -13,7 +13,7 @@ public class GlobalFileUploadExceptionHandler {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, String>> handleMaxSizeException(MaxUploadSizeExceededException exc) {
-        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE)
                 .body(Map.of(
                     "error", "El archivo supera el tamaño máximo permitido de 20 MB.",
                     "codigo", "FILE_SIZE_LIMIT_EXCEEDED"

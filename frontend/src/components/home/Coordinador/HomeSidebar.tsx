@@ -17,6 +17,8 @@ import {
   UserPlus,
   Building2,
   ClipboardCheck,
+  FolderGit2,
+  Briefcase,
   LogOut,
 } from "lucide-react";
 
@@ -135,6 +137,38 @@ export function HomeSidebar({
                 >
                   <ClipboardCheck className="size-4 mr-2" />
                   <span>Evaluaciones</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Documentos de Práctica */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "documentos-practica"}
+                  onClick={() => onSelectMenu("documentos-practica")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "documentos-practica"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <FolderGit2 className="size-4 mr-2" />
+                  <span>Documentos de Práctica</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Portafolios */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "portafolio"}
+                  onClick={() => onSelectMenu("portafolio")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "portafolio"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <Briefcase className="size-4 mr-2" />
+                  <span>Portafolios</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

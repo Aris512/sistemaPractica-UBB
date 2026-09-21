@@ -8,6 +8,8 @@ import { AsociarPracticaView } from "./AsociarPracticaView";
 import { CentrosPracticaView } from "@/components/admin/centros_practica";
 import { EvaluacionesView } from "@/components/admin/Evaluaciones";
 import { PerfilProfesor } from "@/components/home/Profesor/PerfilProfesor";
+import { Portafolio } from "@/components/home/Profesor/Portafolio";
+import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
@@ -60,6 +62,10 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
         return <CentrosPracticaView />;
       case "evaluaciones":
         return <EvaluacionesView onBack={() => setActiveMenu("inicio")} />;
+      case "documentos-practica":
+        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "portafolio":
+        return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
         return <EstudiantesPracticaList onGoToAsociar={handleGoToAsociar} />;
