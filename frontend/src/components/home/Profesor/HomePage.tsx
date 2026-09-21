@@ -11,6 +11,7 @@ import { Evaluaciones } from "./Evaluaciones";
 import { TableEstudiantes } from "./table";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
+import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
@@ -61,6 +62,8 @@ export function HomePage({ user, onLogout }: HomePageProps) {
             onBack={() => setActiveMenu("inicio")}
           />
         );
+      case "documentos-practica":
+        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
         if (!hasPermission("PORTAFOLIO_SUBIR")) {
           return <TableEstudiantes user={user} />;

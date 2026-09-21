@@ -2,6 +2,7 @@ export type ProfesorMenuKey =
   | "inicio"
   | "actividades"
   | "revision-retroalimentacion"
+  | "documentos-practica"
   | "portafolio"
   | "cursos-practica"
   | "planificacion"
@@ -9,6 +10,7 @@ export type ProfesorMenuKey =
   | "observaciones"
   | "asistentes-ia"
   | "perfil";
+
 
 export interface EstudianteEvidenciaRow {
   idEstudiante: number | string;

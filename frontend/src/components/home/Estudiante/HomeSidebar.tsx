@@ -21,6 +21,7 @@ import {
   MessageSquareText,
   Bot,
   LogOut,
+  FolderGit2,
 } from "lucide-react";
 import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -148,11 +149,29 @@ export function HomeSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
+              {/* Documentos de Práctica (Módulo 2) */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "documentos-practica"}
+                  onClick={() => onSelectMenu("documentos-practica")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "documentos-practica"
+                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FolderGit2 className="size-4.5 text-sky-600 shrink-0" />
+                    <span>Documentos de Práctica</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {/* Planificación */}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "planificacion"}
-                  onClick={() => handleSelectMockup("planificacion", "Planificación")}
+                  onClick={() => onSelectMenu("planificacion")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                     activeMenu === "planificacion"
                       ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
@@ -165,6 +184,7 @@ export function HomeSidebar({
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
 
               {/* Evaluaciones */}
               {hasPermission("EVALUACIONES_CONSULTAR") && (
