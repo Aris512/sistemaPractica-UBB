@@ -8,8 +8,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Normalizer;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
@@ -48,17 +48,24 @@ public class DocumentoPracticaService {
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
     private final UsuarioRepository usuarioRepository;
+    private final com.backend.repository.AsignaturaRepository asignaturaRepository;
+    private final FileStorageService fileStorageService;
 
     public DocumentoPracticaService(DocumentoPracticaRepository documentoPracticaRepository,
                                    EstudianteRepository estudianteRepository,
                                    ProfesorRepository profesorRepository,
-                                   UsuarioRepository usuarioRepository) {
+                                   UsuarioRepository usuarioRepository,
+                                   com.backend.repository.AsignaturaRepository asignaturaRepository,
+                                   FileStorageService fileStorageService) {
         this.documentoPracticaRepository = documentoPracticaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
         this.usuarioRepository = usuarioRepository;
+        this.asignaturaRepository = asignaturaRepository;
+        this.fileStorageService = fileStorageService;
         initUploadsDirectory();
     }
+
 
     private void initUploadsDirectory() {
         try {
@@ -302,7 +309,130 @@ public class DocumentoPracticaService {
         return documentoPracticaRepository.findById(id).orElse(null);
     }
 
+    @Transactional
+    public DocumentoPractica subirDocumentoEstudiante(String rutEstudianteRaw, org.springframework.web.multipart.MultipartFile file, String nombreDocumento) {
+        String rut = RutUtils.clean(rutEstudianteRaw);
+        Usuario usuarioEstudiante = usuarioRepository.findAll().stream()
+            .filter(u -> RutUtils.clean(u.getRut()).equalsIgnoreCase(rut))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado con RUT: " + rutEstudianteRaw));
+
+        Estudiante est = estudianteRepository.findByUsuarioRut(usuarioEstudiante.getRut()).orElse(null);
+        Asignatura asig = est != null ? est.getAsignatura() : null;
+        if (asig == null) {
+            asig = asignaturaRepository.findAll().stream().findFirst().orElse(null);
+        }
+
+        FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+            file,
+            "documentos",
+            List.of(".pdf", ".docx", ".doc", ".zip", ".pptx", ".xlsx")
+        );
+
+        Optional<DocumentoPractica> existenteOpt = (asig != null)
+            ? documentoPracticaRepository.findByEstudianteRutAndAsignaturaIdAsignaturaAndTipoDocumento(usuarioEstudiante.getRut(), asig.getIdAsignatura(), "ESTUDIANTE")
+            : documentoPracticaRepository.findByEstudianteRutAndTipoDocumento(usuarioEstudiante.getRut(), "ESTUDIANTE");
+
+        DocumentoPractica doc;
+        if (existenteOpt.isPresent()) {
+            doc = existenteOpt.get();
+            fileStorageService.deleteFile(doc.getUbicacion());
+            doc.setNombreArchivo(stored.originalFilename());
+            doc.setNombreDocumento(nombreDocumento != null && !nombreDocumento.isBlank() ? nombreDocumento : "Informe de Práctica (Estudiante)");
+            doc.setUbicacion(stored.relativePath());
+            doc.setFechaCarga(LocalDateTime.now());
+            doc.setEstado("ENTREGADO");
+            doc.setTamanioBytes(stored.sizeBytes());
+        } else {
+            doc = new DocumentoPractica(
+                usuarioEstudiante,
+                usuarioEstudiante,
+                asig,
+                stored.originalFilename(),
+                nombreDocumento != null && !nombreDocumento.isBlank() ? nombreDocumento : "Informe de Práctica (Estudiante)",
+                "ESTUDIANTE",
+                stored.relativePath(),
+                LocalDateTime.now(),
+                "ENTREGADO",
+                stored.sizeBytes()
+            );
+        }
+
+        return documentoPracticaRepository.save(doc);
+    }
+
+    @Transactional
+    public DocumentoPractica subirDocumentoProfesor(String rutProfesorRaw, String rutEstudianteRaw, Long idAsignatura, org.springframework.web.multipart.MultipartFile file, String nombreDocumento) {
+        String rutProf = RutUtils.clean(rutProfesorRaw);
+        String rutEst = RutUtils.clean(rutEstudianteRaw);
+
+        Usuario usuarioProfesor = usuarioRepository.findAll().stream()
+            .filter(u -> RutUtils.clean(u.getRut()).equalsIgnoreCase(rutProf))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Profesor no encontrado con RUT: " + rutProfesorRaw));
+
+        Usuario usuarioEstudiante = usuarioRepository.findAll().stream()
+            .filter(u -> RutUtils.clean(u.getRut()).equalsIgnoreCase(rutEst))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado con RUT: " + rutEstudianteRaw));
+
+        Asignatura asig = idAsignatura != null ? asignaturaRepository.findById(idAsignatura).orElse(null) : null;
+        if (asig == null) {
+            Estudiante est = estudianteRepository.findByUsuarioRut(usuarioEstudiante.getRut()).orElse(null);
+            asig = est != null ? est.getAsignatura() : asignaturaRepository.findAll().stream().findFirst().orElse(null);
+        }
+
+        FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+            file,
+            "documentos",
+            List.of(".pdf", ".docx", ".doc", ".zip", ".xlsx")
+        );
+
+        Optional<DocumentoPractica> existenteOpt = (asig != null)
+            ? documentoPracticaRepository.findByEstudianteRutAndAsignaturaIdAsignaturaAndTipoDocumento(usuarioEstudiante.getRut(), asig.getIdAsignatura(), "PROFESOR")
+            : documentoPracticaRepository.findByEstudianteRutAndTipoDocumento(usuarioEstudiante.getRut(), "PROFESOR");
+
+        DocumentoPractica doc;
+        if (existenteOpt.isPresent()) {
+            doc = existenteOpt.get();
+            fileStorageService.deleteFile(doc.getUbicacion());
+            doc.setUsuario(usuarioProfesor);
+            doc.setNombreArchivo(stored.originalFilename());
+            doc.setNombreDocumento(nombreDocumento != null && !nombreDocumento.isBlank() ? nombreDocumento : "Evaluación Final de Desempeño (Profesor)");
+            doc.setUbicacion(stored.relativePath());
+            doc.setFechaCarga(LocalDateTime.now());
+            doc.setEstado("ENTREGADO");
+            doc.setTamanioBytes(stored.sizeBytes());
+        } else {
+            doc = new DocumentoPractica(
+                usuarioProfesor,
+                usuarioEstudiante,
+                asig,
+                stored.originalFilename(),
+                nombreDocumento != null && !nombreDocumento.isBlank() ? nombreDocumento : "Evaluación Final de Desempeño (Profesor)",
+                "PROFESOR",
+                stored.relativePath(),
+                LocalDateTime.now(),
+                "ENTREGADO",
+                stored.sizeBytes()
+            );
+        }
+
+        return documentoPracticaRepository.save(doc);
+    }
+
     public Resource obtenerRecursoArchivo(DocumentoPractica doc) throws IOException {
+        try {
+            if (doc.getUbicacion() != null && !doc.getUbicacion().isBlank()) {
+                Resource res = fileStorageService.loadFileAsResource(doc.getUbicacion());
+                if (res != null && res.exists() && res.isReadable()) {
+                    return res;
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("FileStorageService no pudo resolver {}, intentando resolver por ruta heredada", doc.getUbicacion());
+        }
+
         Path path = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
         if (path != null && Files.exists(path)) {
             return new FileSystemResource(path.toFile());
@@ -316,6 +446,7 @@ public class DocumentoPracticaService {
         );
         return new ByteArrayResource(pdfMock);
     }
+
 
     @Transactional(readOnly = true)
     public void escribirZipEstudiante(String rutRaw, OutputStream out) throws IOException {

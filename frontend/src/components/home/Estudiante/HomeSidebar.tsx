@@ -150,9 +150,10 @@ export function HomeSidebar({
 
               {/* Planificación */}
               <SidebarMenuItem>
+
                 <SidebarMenuButton
                   isActive={activeMenu === "planificacion"}
-                  onClick={() => handleSelectMockup("planificacion", "Planificación")}
+                  onClick={() => onSelectMenu("planificacion")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                     activeMenu === "planificacion"
                       ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
@@ -165,6 +166,7 @@ export function HomeSidebar({
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
 
               {/* Evaluaciones */}
               {hasPermission("EVALUACIONES_CONSULTAR") && (

@@ -55,7 +55,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "cursos-practica":
         return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":
-        return <Planificacion onBack={() => setActiveMenu("inicio")} />;
+        return <Planificacion user={user} onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
         if (!hasPermission("EVALUACIONES_CONSULTAR")) {
           return <MallaCurricular userRut={user?.rut} />;

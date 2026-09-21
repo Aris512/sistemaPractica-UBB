@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   CalendarPlus,
   MessageSquareCheck,
+  FolderGit2,
   LogOut,
 } from "lucide-react";
 import { sileo } from "sileo";
@@ -139,6 +140,25 @@ export function HomeSidebar({
                   <div className="flex items-center gap-2.5">
                     <MessageSquareCheck className="size-4.5 text-slate-900 shrink-0" />
                     <span>Retroalimentación</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Documentos de Práctica (Módulo 2) */}
+              <SidebarMenuItem>
+
+                <SidebarMenuButton
+                  isActive={activeMenu === "documentos-practica"}
+                  onClick={() => onSelectMenu("documentos-practica")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "documentos-practica"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FolderGit2 className="size-4.5 text-slate-900 shrink-0" />
+                    <span>Documentos de Práctica</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
