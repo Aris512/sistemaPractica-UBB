@@ -18,6 +18,7 @@ import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
 import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
+import com.backend.model.Evaluacion;
 import com.backend.model.Evidencia;
 import com.backend.model.ObservacionPractica;
 import com.backend.model.Pauta;
@@ -33,6 +34,7 @@ import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.CentroPracticaRepository;
 import com.backend.repository.EstudianteRepository;
+import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.model.DocumentoPractica;
 import com.backend.repository.DocumentoPracticaRepository;
@@ -60,6 +62,7 @@ public class DataSeeder implements CommandLineRunner {
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
     private final ActividadRepository actividadRepository;
+    private final EvaluacionRepository evaluacionRepository;
     private final EvidenciaRepository evidenciaRepository;
     private final CentroPracticaRepository centroPracticaRepository;
     private final TutorPracticaRepository tutorPracticaRepository;
@@ -78,6 +81,7 @@ public class DataSeeder implements CommandLineRunner {
                       EstudianteRepository estudianteRepository,
                       ProfesorRepository profesorRepository,
                       ActividadRepository actividadRepository,
+                      EvaluacionRepository evaluacionRepository,
                       EvidenciaRepository evidenciaRepository,
                       CentroPracticaRepository centroPracticaRepository,
                       TutorPracticaRepository tutorPracticaRepository,
@@ -94,6 +98,7 @@ public class DataSeeder implements CommandLineRunner {
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
         this.actividadRepository = actividadRepository;
+        this.evaluacionRepository = evaluacionRepository;
         this.evidenciaRepository = evidenciaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
         this.tutorPracticaRepository = tutorPracticaRepository;
@@ -121,6 +126,7 @@ public class DataSeeder implements CommandLineRunner {
         seedPautas();
         seedObservaciones();
         seedDocumentosPractica();
+        seedEvaluaciones();
 
         logger.info("=================================================");
         logger.info("DataSeeder finalizado con éxito.");
@@ -717,6 +723,68 @@ public class DataSeeder implements CommandLineRunner {
         } catch (Exception e) {
             logger.warn("No se pudo escribir archivo físico de prueba {}: {}", destino, e.getMessage());
         }
+    }
+
+    /**
+     * Nuevo (módulo Pedro) — crea evaluaciones de prueba asociadas a las prácticas existentes.
+     * Usa el nuevo constructor con idEvaluador, tipoEvaluador y fechaLimite.
+     */
+    private void seedEvaluaciones() {
+        if (evaluacionRepository.count() > 0) {
+            logger.info("Evaluaciones ya existen. Omitiendo seedEvaluaciones.");
+            return;
+        }
+
+        List<Practica> practicas = practicaRepository.findAll();
+        if (practicas.isEmpty()) {
+            logger.warn("No hay prácticas para asociar evaluaciones. Omitiendo seedEvaluaciones.");
+            return;
+        }
+
+        // Usamos el índice del usuario como referencia para idEvaluador (el modelo Evaluacion
+        // almacena idEvaluador como Long; aquí guardamos el hashCode del RUT como referencia)
+        Optional<Usuario> profesorOpt = usuarioRepository.findByRut("11111111-1");
+        Optional<Usuario> colaboradorOpt = usuarioRepository.findByRut("10000013-K");
+
+        for (int i = 0; i < practicas.size(); i++) {
+            Practica practica = practicas.get(i);
+
+            // Evaluación del profesor de asignatura
+            if (profesorOpt.isPresent()) {
+                Usuario prof = profesorOpt.get();
+                Long idRef = (long) Math.abs(prof.getRut().hashCode());
+                Evaluacion evalProfesor = new Evaluacion(
+                    practica,
+                    idRef,
+                    "PROFESOR_ASIGNATURA",
+                    "Evaluación de Desempeño Docente",
+                    1.0,
+                    7.0,
+                    LocalDateTime.now().plusDays(30)
+                );
+                evaluacionRepository.save(evalProfesor);
+                logger.info("Evaluación de profesor creada para práctica id: {}", practica.getIdPractica());
+            }
+
+            // Evaluación del colaborador (solo para las primeras 2 prácticas)
+            if (colaboradorOpt.isPresent() && i < 2) {
+                Usuario colab = colaboradorOpt.get();
+                Long idRef = (long) Math.abs(colab.getRut().hashCode());
+                Evaluacion evalColaborador = new Evaluacion(
+                    practica,
+                    idRef,
+                    "PROFESOR_COLABORADOR",
+                    "Evaluación de Práctica en Terreno",
+                    1.0,
+                    7.0,
+                    LocalDateTime.now().plusDays(15)
+                );
+                evaluacionRepository.save(evalColaborador);
+                logger.info("Evaluación de colaborador creada para práctica id: {}", practica.getIdPractica());
+            }
+        }
+
+        logger.info("seedEvaluaciones completado.");
     }
 
     private record RolInfo(String nombre, String descripcion) {}

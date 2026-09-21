@@ -10,9 +10,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, BookOpen, ShieldCheck, Building2, FolderArchive } from "lucide-react";
+import { Users, BookOpen, ShieldCheck, Building2, FolderArchive, ClipboardCheck } from "lucide-react";
 
-export type AdminSection = "usuarios" | "asignaturas" | "centros_practica" | "permisos" | "documentos";
+export type AdminSection = "usuarios" | "asignaturas" | "centros_practica" | "permisos" | "documentos" | "evaluaciones";
 
 interface AdminSidebarProps {
   activeSection?: AdminSection;
@@ -104,6 +104,18 @@ export function AdminSidebar({
                 >
                   <ShieldCheck className="size-4" />
                   <span>Permisos Rol</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeSection === "evaluaciones"}
+                  tooltip="Evaluaciones"
+                  onClick={() => onSelectSection?.("evaluaciones")}
+                  className="cursor-pointer"
+                >
+                  <ClipboardCheck className="size-4" />
+                  <span>Evaluaciones</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

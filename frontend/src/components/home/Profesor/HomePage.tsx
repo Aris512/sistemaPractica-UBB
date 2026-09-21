@@ -74,7 +74,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         if (!hasPermission("EVALUACIONES_CONSULTAR")) {
           return <TableEstudiantes user={user} />;
         }
-        return <Evaluaciones onBack={() => setActiveMenu("inicio")} />;
+        return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
         return <TableEstudiantes user={user} />;

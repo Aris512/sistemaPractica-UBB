@@ -12,6 +12,7 @@ import { AsignaturasView } from "./asignaturas";
 import { DocumentosView } from "./documentos";
 import { CentrosPracticaView } from "./centros_practica";
 import { PermisosConfigView } from "./config";
+import { EvaluacionesView } from "./Evaluaciones";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -190,6 +191,8 @@ export default function AdminPage() {
                     ? "/ Expedientes de Documentos"
                     : activeSection === "centros_practica"
                     ? "/ Gestión de Centros de Práctica"
+                    : activeSection === "evaluaciones"
+                    ? "/ Evaluaciones"
                     : "/ Configuración de Permisos por Rol"}
                 </span>
               </div>
@@ -217,6 +220,10 @@ export default function AdminPage() {
             <CentrosPracticaView />
           ) : activeSection === "permisos" ? (
             <PermisosConfigView />
+          ) : activeSection === "evaluaciones" ? (
+            <div className="p-4 sm:p-8 max-w-5xl mx-auto w-full">
+              <EvaluacionesView />
+            </div>
           ) : (
             /* Main Content Area - Usuarios */
             <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">
