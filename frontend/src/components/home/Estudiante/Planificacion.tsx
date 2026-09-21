@@ -54,47 +54,47 @@ const CATEGORIAS: {
   colorText: string;
   badgeBg: string;
 }[] = [
-  {
-    key: "GUIA",
-    label: "Guías Didácticas",
-    descripcion: "Guías de aprendizaje, actividades prácticas y talleres para la clase.",
-    extensiones: [".pdf", ".docx", ".doc", ".odt"],
-    icon: FileText,
-    colorBg: "bg-sky-50",
-    colorText: "text-sky-700",
-    badgeBg: "bg-sky-100 text-sky-800 border-sky-200",
-  },
-  {
-    key: "RECURSO",
-    label: "Recursos y Materiales",
-    descripcion: "Imágenes, lecturas complementarias, audios o paquetes comprimidos.",
-    extensiones: [".pdf", ".png", ".jpg", ".jpeg", ".zip", ".rar", ".docx"],
-    icon: Layers,
-    colorBg: "bg-indigo-50",
-    colorText: "text-indigo-700",
-    badgeBg: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  },
-  {
-    key: "POWERPOINT",
-    label: "Presentaciones PowerPoint",
-    descripcion: "Diapositivas y presentaciones estructuradas para el desarrollo de la sesión.",
-    extensiones: [".pptx", ".ppt", ".pdf"],
-    icon: Presentation,
-    colorBg: "bg-amber-50",
-    colorText: "text-amber-700",
-    badgeBg: "bg-amber-100 text-amber-800 border-amber-200",
-  },
-  {
-    key: "PAUTA_EVALUACION",
-    label: "Pautas de Evaluación",
-    descripcion: "Rúbricas analíticas, listas de cotejo o escalas de apreciación.",
-    extensiones: [".pdf", ".docx", ".xlsx", ".xls"],
-    icon: FileSpreadsheet,
-    colorBg: "bg-emerald-50",
-    colorText: "text-emerald-700",
-    badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  },
-];
+    {
+      key: "GUIA",
+      label: "Guías Didácticas",
+      descripcion: "Guías de aprendizaje, actividades prácticas y talleres para la clase.",
+      extensiones: [".pdf", ".docx", ".doc", ".odt"],
+      icon: FileText,
+      colorBg: "bg-sky-50",
+      colorText: "text-sky-700",
+      badgeBg: "bg-sky-100 text-sky-800 border-sky-200",
+    },
+    {
+      key: "RECURSO",
+      label: "Recursos y Materiales",
+      descripcion: "Imágenes, lecturas complementarias, audios o paquetes comprimidos.",
+      extensiones: [".pdf", ".png", ".jpg", ".jpeg", ".zip", ".rar", ".docx"],
+      icon: Layers,
+      colorBg: "bg-indigo-50",
+      colorText: "text-indigo-700",
+      badgeBg: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    },
+    {
+      key: "POWERPOINT",
+      label: "Presentaciones PowerPoint",
+      descripcion: "Diapositivas y presentaciones estructuradas para el desarrollo de la sesión.",
+      extensiones: [".pptx", ".ppt", ".pdf"],
+      icon: Presentation,
+      colorBg: "bg-amber-50",
+      colorText: "text-amber-700",
+      badgeBg: "bg-amber-100 text-amber-800 border-amber-200",
+    },
+    {
+      key: "PAUTA_EVALUACION",
+      label: "Pautas de Evaluación",
+      descripcion: "Rúbricas analíticas, listas de cotejo o escalas de apreciación.",
+      extensiones: [".pdf", ".docx", ".xlsx", ".xls"],
+      icon: FileSpreadsheet,
+      colorBg: "bg-emerald-50",
+      colorText: "text-emerald-700",
+      badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    },
+  ];
 
 export function Planificacion({ user, onBack }: PlanificacionProps) {
   const [planificaciones, setPlanificaciones] = useState<PlanificacionItem[]>([]);
@@ -219,9 +219,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                   Planificación Didáctica Multi-Archivo
                 </h1>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 uppercase tracking-wide">
-                  Módulo 2
-                </span>
               </div>
               <p className="text-slate-600 text-xs sm:text-sm mt-1">
                 Adjunta en conjunto todos los recursos pedagógicos de tu planificación: guías didácticas, presentaciones PowerPoint, pautas y materiales complementarios.
@@ -251,11 +248,10 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
               <button
                 key={plan.idPlanificacion}
                 onClick={() => handleSelectPlan(plan)}
-                className={`px-4 py-2.5 rounded-xl text-left border transition-all shrink-0 cursor-pointer ${
-                  isSelected
-                    ? "bg-sky-600 border-sky-600 text-white font-bold shadow-xs"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                }`}
+                className={`px-4 py-2.5 rounded-xl text-left border transition-all shrink-0 cursor-pointer ${isSelected
+                  ? "bg-sky-600 border-sky-600 text-white font-bold shadow-xs"
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
               >
                 <p className="text-xs truncate max-w-[200px]">{plan.titulo}</p>
                 <p className={`text-[10px] ${isSelected ? "text-sky-100" : "text-slate-400"}`}>
@@ -288,10 +284,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
             {selectedPlan.objetivo || "Diseño y estructura de la sesión de práctica pedagógica."}
           </p>
           <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-            <span className="flex items-center gap-1.5">
-              <Clock className="size-3.5" />
-              <span>Creada el {selectedPlan.fechaCreacion ? new Date(selectedPlan.fechaCreacion).toLocaleDateString("es-CL") : "recientemente"}</span>
-            </span>
             <span>{archivos.length} archivos adjuntos en total</span>
           </div>
         </div>

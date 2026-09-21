@@ -218,7 +218,7 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  Módulo 2 — Gestión de Documentos y Archivos
+                  Gestión de Documentos y Archivos
                 </h1>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 uppercase tracking-wide">
                   Práctica Docente
@@ -265,11 +265,10 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
                 <button
                   key={est.rut}
                   onClick={() => handleStudentSelect(est.rut)}
-                  className={`px-3.5 py-2 rounded-xl text-left transition-all shrink-0 cursor-pointer border ${
-                    isSelected
+                  className={`px-3.5 py-2 rounded-xl text-left transition-all shrink-0 cursor-pointer border ${isSelected
                       ? "bg-sky-50/90 border-sky-300 text-sky-950 font-bold shadow-2xs"
                       : "bg-slate-50/80 border-slate-200 hover:bg-slate-100/80 text-slate-700"
-                  }`}
+                    }`}
                 >
                   <p className="text-xs truncate max-w-[170px]">{est.nombre}</p>
                   <p className="text-[10px] text-slate-500 font-normal">RUT: {est.rut}</p>
@@ -320,31 +319,28 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
             return (
               <div
                 key={idx}
-                className={`bg-white rounded-2xl border p-6 shadow-xs flex flex-col justify-between transition-all ${
-                  isEntregado
+                className={`bg-white rounded-2xl border p-6 shadow-xs flex flex-col justify-between transition-all ${isEntregado
                     ? "border-slate-200 hover:border-slate-300"
                     : "border-amber-200/80 bg-amber-50/20"
-                }`}
+                  }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2.5">
                       <div
-                        className={`size-10 rounded-xl flex items-center justify-center font-bold ${
-                          isEstudianteDoc
+                        className={`size-10 rounded-xl flex items-center justify-center font-bold ${isEstudianteDoc
                             ? "bg-sky-100 text-sky-700"
                             : "bg-emerald-100 text-emerald-700"
-                        }`}
+                          }`}
                       >
                         <FileText className="size-5" />
                       </div>
                       <div>
                         <span
-                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                            isEstudianteDoc
+                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${isEstudianteDoc
                               ? "bg-sky-50 text-sky-700 border border-sky-200"
                               : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          }`}
+                            }`}
                         >
                           {isEstudianteDoc ? "Entrega Estudiante" : "Evaluación Profesor"}
                         </span>
@@ -355,11 +351,10 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
                     </div>
 
                     <span
-                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                        isEntregado
+                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${isEntregado
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                           : "bg-amber-50 text-amber-700 border border-amber-200"
-                      }`}
+                        }`}
                     >
                       {isEntregado ? (
                         <>

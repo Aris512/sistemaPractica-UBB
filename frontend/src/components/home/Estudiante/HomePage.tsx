@@ -11,7 +11,6 @@ import { Evaluaciones } from "./Evaluaciones";
 import { Observaciones } from "./Observaciones";
 import { AsistentesIA } from "./AsistentesIA";
 import { MallaCurricular } from "@/components/malla_curricular";
-import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
@@ -53,8 +52,6 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           return <MallaCurricular userRut={user?.rut} />;
         }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
-      case "documentos-practica":
-        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":
