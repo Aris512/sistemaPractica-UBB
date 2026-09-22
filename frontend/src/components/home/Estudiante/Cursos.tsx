@@ -30,7 +30,7 @@ export function CursosPractica({ onBack }: CursosPracticaProps) {
         </h1>
 
         <p className="text-slate-600 max-w-lg text-sm sm:text-base leading-relaxed mb-6">
-          Gestión y visualización de asignaturas vinculadas, centros de práctica profesional asignados, horarios y seguimiento de actividades formativas en terreno.
+          Gestión y visualización de asignaturas vinculadas, se mostraran las tareas pendientes .
         </p>
 
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/80">

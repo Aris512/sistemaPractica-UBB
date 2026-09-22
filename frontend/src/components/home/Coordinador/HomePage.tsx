@@ -20,9 +20,21 @@ interface CoordinadorHomePageProps {
 }
 
 export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps) {
-  const [activeMenu, setActiveMenu] = useState<CoordinadorMenuKey>("inicio");
+  const [activeMenu, setActiveMenu] = useState<CoordinadorMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_coordinador");
+      if (saved) return saved as CoordinadorMenuKey;
+    } catch {}
+    return "inicio";
+  });
   const [formattedDate, setFormattedDate] = useState("");
   const [preselectedEstudiante, setPreselectedEstudiante] = useState<EstudiantePractica | null>(null);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_coordinador", activeMenu);
+    } catch {}
+  }, [activeMenu]);
 
   useEffect(() => {
     try {

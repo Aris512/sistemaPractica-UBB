@@ -23,9 +23,21 @@ interface HomePageProps {
 }
 
 export function HomePage({ user, onLogout }: HomePageProps) {
-  const [activeMenu, setActiveMenu] = useState<ProfesorMenuKey>("inicio");
+  const [activeMenu, setActiveMenu] = useState<ProfesorMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_profesor");
+      if (saved) return saved as ProfesorMenuKey;
+    } catch {}
+    return "inicio";
+  });
   const [formattedDate, setFormattedDate] = useState("");
   const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_profesor", activeMenu);
+    } catch {}
+  }, [activeMenu]);
 
   useEffect(() => {
     try {

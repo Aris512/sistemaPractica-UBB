@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Toaster } from "sileo";
 import { LoginForm } from "./components/login/LoginForm";
 import { InfoPanel } from "./components/login/InfoPanel";
@@ -9,9 +9,14 @@ import { ProfesorCTutorHomePage } from "./components/home/ProfesorCTutor";
 import { CoordinadorHomePage } from "./components/home/Coordinador";
 import AdminPage from "./components/admin/page";
 import type { UserSession } from "./types/auth";
+import {
+  getStoredUserSession,
+  setStoredUserSession,
+  clearStoredUserSession,
+} from "./lib/authSession";
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredUserSession);
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
 
   useEffect(() => {
@@ -21,6 +26,41 @@ export default function App() {
 
     window.addEventListener("popstate", handleLocationChange);
     return () => window.removeEventListener("popstate", handleLocationChange);
+  }, []);
+
+  // Sincronizar estado de sesión entre pestañas del navegador
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "ubb_user_session") {
+        if (!e.newValue) {
+          setCurrentUser(null);
+        } else {
+          try {
+            const parsed = JSON.parse(e.newValue);
+            if (parsed && typeof parsed === "object" && parsed.rut) {
+              setCurrentUser(parsed);
+            } else {
+              setCurrentUser(null);
+            }
+          } catch {
+            setCurrentUser(null);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  const handleLoginSuccess = useCallback((user: UserSession) => {
+    setStoredUserSession(user);
+    setCurrentUser(user);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    clearStoredUserSession();
+    setCurrentUser(null);
   }, []);
 
   const renderContent = () => {
@@ -39,7 +79,7 @@ export default function App() {
       // 1. Coordinador de Práctica
       const isCoordinador = allRoles.some((r) => r.includes("COORDINADOR"));
       if (isCoordinador) {
-        return <CoordinadorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+        return <CoordinadorHomePage user={currentUser} onLogout={handleLogout} />;
       }
 
       // 2. Profesor Colaborador o Tutor de Práctica
@@ -48,7 +88,7 @@ export default function App() {
       );
 
       if (isColaboradorOTutor) {
-        return <ProfesorCTutorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+        return <ProfesorCTutorHomePage user={currentUser} onLogout={handleLogout} />;
       }
 
       // 2. Profesor Asignatura / Docente Titular
@@ -57,11 +97,11 @@ export default function App() {
       );
 
       if (isProfesor) {
-        return <ProfesorHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+        return <ProfesorHomePage user={currentUser} onLogout={handleLogout} />;
       }
 
       // 3. Estudiante (por defecto)
-      return <EstudianteHomePage user={currentUser} onLogout={() => setCurrentUser(null)} />;
+      return <EstudianteHomePage user={currentUser} onLogout={handleLogout} />;
     }
 
     // Otherwise, display the Login Page with subtle background pattern and neumorphic white container
@@ -93,7 +133,7 @@ export default function App() {
             {/* Left Column: LoginForm (5 cols) */}
             <div className="lg:col-span-5 w-full flex justify-center">
               <div className="w-full max-w-md">
-                <LoginForm onLoginSuccess={(user) => setCurrentUser(user)} />
+                <LoginForm onLoginSuccess={handleLoginSuccess} />
               </div>
             </div>
 

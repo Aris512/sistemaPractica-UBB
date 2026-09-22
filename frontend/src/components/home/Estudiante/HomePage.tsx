@@ -5,7 +5,7 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { PerfilUsuario } from "./PerfilUsuario";
 import { Portafolio } from "./Portafolio";
-import { CursosPractica } from "./CursosPractica";
+import { CursosPractica } from "./Cursos";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { Observaciones } from "./Observaciones";
@@ -23,9 +23,21 @@ interface HomePageProps {
 }
 
 export function HomePage({ user, onLogout }: HomePageProps) {
-  const [activeMenu, setActiveMenu] = useState<HomeMenuKey>("inicio");
+  const [activeMenu, setActiveMenu] = useState<HomeMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_estudiante");
+      if (saved) return saved as HomeMenuKey;
+    } catch {}
+    return "inicio";
+  });
   const [formattedDate, setFormattedDate] = useState("");
   const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_estudiante", activeMenu);
+    } catch {}
+  }, [activeMenu]);
 
   // Formato de fecha en español en tiempo real
   useEffect(() => {

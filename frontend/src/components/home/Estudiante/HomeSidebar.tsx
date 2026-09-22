@@ -16,10 +16,8 @@ import {
   Home,
   GraduationCap,
   Briefcase,
-  CalendarDays,
   ClipboardCheck,
   MessageSquareText,
-  FolderGit2,
   Bot,
   LogOut,
 } from "lucide-react";
@@ -131,25 +129,8 @@ export function HomeSidebar({
                 </SidebarMenuItem>
               )}
 
-              {/* Documentos de Práctica */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "documentos-practica"}
-                  onClick={() => onSelectMenu("documentos-practica")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "documentos-practica"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <FolderGit2 className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Documentos de Práctica</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
 
-              {/* Cursos / Práctica */}
+              {/* Cursos */}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "cursos-practica" || activeMenu === "mis-cursos"}
@@ -162,26 +143,7 @@ export function HomeSidebar({
                 >
                   <div className="flex items-center gap-2.5">
                     <GraduationCap className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Cursos / Práctica</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Planificación */}
-              <SidebarMenuItem>
-
-                <SidebarMenuButton
-                  isActive={activeMenu === "planificacion"}
-                  onClick={() => onSelectMenu("planificacion")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "planificacion"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <CalendarDays className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Planificación</span>
+                    <span>Cursos</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
