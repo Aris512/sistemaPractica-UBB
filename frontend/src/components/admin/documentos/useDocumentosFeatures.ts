@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { getAdminAuthHeader } from "@/lib/adminAuth";
 import type {
   EstudianteDocumentoRow,
   EstudianteDetalleDocumentos,
@@ -85,9 +86,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
   const [detailLoading, setDetailLoading] = useState(false);
 
   const getAuthHeader = () => {
-    return {
-      Authorization: `Basic ${btoa("admin:admin123")}`,
-    };
+    return getAdminAuthHeader();
   };
 
   // Cargar estudiantes con su progreso desde el backend

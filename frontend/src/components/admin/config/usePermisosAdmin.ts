@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getAdminAuthHeader } from "@/lib/adminAuth";
 import { sileo } from "sileo";
 import type { PermisoItem, RolOption } from "./types";
 
@@ -13,9 +14,8 @@ export function usePermisosAdmin() {
   const [error, setError] = useState<string | null>(null);
 
   const getAdminHeaders = useCallback(() => {
-    const credentials = btoa("admin:admin123");
     return {
-      Authorization: `Basic ${credentials}`,
+      ...getAdminAuthHeader(),
       "Content-Type": "application/json",
     };
   }, []);

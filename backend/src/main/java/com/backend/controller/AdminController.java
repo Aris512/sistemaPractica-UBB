@@ -64,7 +64,7 @@ import com.backend.util.RutUtils;
  *
  * Flujo de autenticación:
  * - Sin credenciales o erróneas -> Spring Security responde automáticamente 401 Unauthorized + WWW-Authenticate: Basic
- * - Credenciales correctas (admin / admin123) -> Este endpoint responde 200 OK
+ * - Credenciales correctas (configuradas en .env) -> Este endpoint responde 200 OK
  *   y el middleware de Vite entrega el bundle React con el componente AdminPage (page.tsx).
  */
 @RestController
@@ -112,10 +112,13 @@ public class AdminController {
     }
 
     @GetMapping
-    public ResponseEntity<Map<String, Object>> checkAdminAuth() {
+    public ResponseEntity<Map<String, Object>> checkAdminAuth(org.springframework.security.core.Authentication authentication) {
+        String username = (authentication != null && authentication.getName() != null)
+            ? authentication.getName()
+            : "admin";
         return ResponseEntity.ok(Map.of(
             "status", "authenticated",
-            "user", "admin",
+            "user", username,
             "role", "ROLE_ADMIN"
         ));
     }

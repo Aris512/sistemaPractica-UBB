@@ -1,5 +1,6 @@
 package com.backend.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -17,6 +18,12 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    @Value("${admin.basic.username:admin}")
+    private String adminUsername;
+
+    @Value("${admin.basic.password:admin123}")
+    private String adminPassword;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -54,8 +61,8 @@ public class SecurityConfig {
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
         UserDetails admin = User.builder()
-            .username("admin")
-            .password(passwordEncoder.encode("admin123"))
+            .username(adminUsername)
+            .password(passwordEncoder.encode(adminPassword))
             .roles("ADMIN")
             .build();
 

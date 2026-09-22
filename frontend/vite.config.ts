@@ -13,7 +13,7 @@ import http from "node:http"
  * 2. Si no ha proporcionado credenciales o son incorrectas:
  *    -> Spring Boot devuelve 401 + WWW-Authenticate: Basic realm="Admin Area"
  *    -> El plugin retransmite el 401 al navegador -> Salta el POP-UP nativo.
- * 3. Si el usuario ingresa credenciales correctas (admin / admin123):
+ * 3. Si el usuario ingresa credenciales correctas (configuradas en .env):
  *    -> Spring Boot devuelve 200 OK
  *    -> El plugin invoca next() -> Vite sirve el HTML de la aplicación React
  *    -> React monta App.tsx, detecta la ruta "/admin" y carga AdminPage (page.tsx).
@@ -38,8 +38,14 @@ function adminAuthPlugin(): Plugin {
         if (fullUrl.includes("logout=1") || fullUrl.includes("reauth=1")) {
           res.statusCode = 401
           res.setHeader("WWW-Authenticate", 'Basic realm="Admin Area"')
-          res.setHeader("Content-Type", "text/plain; charset=utf-8")
-          res.end("401 Unauthorized: Sesión administrativa cerrada")
+          res.setHeader(
+            "Set-Cookie",
+            "admin_auth=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax"
+          )
+          res.setHeader("Content-Type", "text/html; charset=utf-8")
+          res.end(
+            "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Sesión Cerrada</title></head><body style='font-family:sans-serif;padding:40px;text-align:center;'><h2>Sesión administrativa cerrada</h2><p>Has salido del panel de administración.</p><p><a href='/'>Ir a Inicio</a> | <a href='/admin'>Volver a Ingresar</a></p></body></html>"
+          )
           return
         }
 
@@ -65,14 +71,24 @@ function adminAuthPlugin(): Plugin {
               "WWW-Authenticate",
               authRes.headers["www-authenticate"] || 'Basic realm="Admin Area"'
             )
+            res.setHeader(
+              "Set-Cookie",
+              "admin_auth=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax"
+            )
             res.setHeader("Content-Type", "text/plain; charset=utf-8")
             res.end("401 Unauthorized: Ingrese credenciales de administrador")
             return
           }
 
           if (authRes.statusCode && authRes.statusCode >= 200 && authRes.statusCode < 300) {
-            // Credenciales válidas -> Llamar a next() para que Vite sirva la SPA normalmente
-            // React inicializa, detecta /admin y renderiza src/components/admin/page.tsx
+            // Credenciales válidas -> Establecer cookie de sesión para los componentes de React
+            if (authHeader) {
+              res.setHeader(
+                "Set-Cookie",
+                `admin_auth=${encodeURIComponent(authHeader)}; Path=/; SameSite=Lax`
+              )
+            }
+            // Vite sirve la SPA normalmente
             return next()
           }
 

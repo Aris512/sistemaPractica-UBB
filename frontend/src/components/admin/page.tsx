@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { clearAdminAuth } from "@/lib/adminAuth";
 import { DataTable } from "./data-table";
 import { userColumns } from "./columns";
 import {
@@ -27,6 +28,17 @@ import "sileo/styles.css";
 
 export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<AdminSection>("usuarios");
+
+  useEffect(() => {
+    // Sincronizar cookie de sesión de administración a sessionStorage
+    const match = document.cookie.match(/(?:^|; )admin_auth=([^;]*)/);
+    if (match && match[1]) {
+      const decoded = decodeURIComponent(match[1]);
+      if (decoded) {
+        sessionStorage.setItem("admin_auth_header", decoded);
+      }
+    }
+  }, []);
 
   const {
     data,
@@ -156,6 +168,11 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
+    clearAdminAuth();
+    window.location.href = "/admin?logout=1";
+  };
+
+  const handleGoHome = () => {
     window.history.pushState({}, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate"));
   };
@@ -167,7 +184,7 @@ export default function AdminPage() {
           activeSection={activeSection}
           onSelectSection={(sec) => setActiveSection(sec)}
           onLogout={handleLogout}
-          onGoHome={handleLogout}
+          onGoHome={handleGoHome}
         />
 
         <SidebarInset className="bg-slate-50 min-h-screen">

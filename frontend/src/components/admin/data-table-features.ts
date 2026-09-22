@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { adminFetch } from "@/lib/adminAuth";
 
 // ── Tipo principal para la tabla de usuarios ──
 export interface UsuarioRow {
@@ -149,12 +150,7 @@ export function useDataTableFeatures(
     setLoading(true);
     setError(null);
     try {
-      const credentials = btoa("admin:admin123");
-      const res = await fetch("http://localhost:8080/admin/usuarios", {
-        headers: {
-          Authorization: `Basic ${credentials}`,
-        },
-      });
+      const res = await adminFetch("http://localhost:8080/admin/usuarios");
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
       const json = await res.json();
@@ -254,12 +250,8 @@ export function useDataTableFeatures(
   // ── Operaciones CRUD ──
   const deleteUsuario = async (rut: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const credentials = btoa("admin:admin123");
-      const res = await fetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
+      const res = await adminFetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Basic ${credentials}`,
-        },
       });
 
       if (!res.ok) {
@@ -290,14 +282,12 @@ export function useDataTableFeatures(
     );
 
     try {
-      const credentials = btoa("admin:admin123");
-      let res = await fetch(
+      let res = await adminFetch(
         `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}/estado`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Basic ${credentials}`,
           },
           body: JSON.stringify({ estado: nuevoEstado }),
         }
@@ -305,13 +295,12 @@ export function useDataTableFeatures(
 
       // Si el endpoint específico da 404, fallback al endpoint principal de usuarios
       if (res.status === 404) {
-        res = await fetch(
+        res = await adminFetch(
           `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`,
           {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Basic ${credentials}`,
             },
             body: JSON.stringify({ estado: nuevoEstado }),
           }

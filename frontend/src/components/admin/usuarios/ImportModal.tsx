@@ -1,4 +1,5 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from "react";
+import { adminFetch } from "@/lib/adminAuth";
 import { sileo } from "sileo";
 import {
   Dialog,
@@ -159,12 +160,8 @@ export function ImportModal({ isOpen, onClose, onImportSuccess }: ImportModalPro
     formData.append("file", selectedFile);
 
     try {
-      const credentials = btoa("admin:admin123");
-      const res = await fetch("http://localhost:8080/admin/usuarios/importar", {
+      const res = await adminFetch("http://localhost:8080/admin/usuarios/importar", {
         method: "POST",
-        headers: {
-          Authorization: `Basic ${credentials}`,
-        },
         body: formData,
       });
 

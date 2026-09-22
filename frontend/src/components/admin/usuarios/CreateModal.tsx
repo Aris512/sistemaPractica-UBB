@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { adminFetch } from "@/lib/adminAuth";
 import { sileo } from "sileo";
 import {
   Dialog,
@@ -291,12 +292,10 @@ export function CreateModal({
     const rolNormalizado = normalizeRole(rol);
 
     try {
-      const credentials = btoa("admin:admin123");
-      const res = await fetch("http://localhost:8080/admin/usuarios", {
+      const res = await adminFetch("http://localhost:8080/admin/usuarios", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Basic ${credentials}`,
         },
         body: JSON.stringify({
           rut: standardRut,
