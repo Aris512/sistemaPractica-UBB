@@ -121,12 +121,21 @@ export function usePermisosAdmin() {
     setSaving(true);
     try {
       const payload = {
-        permisos: permisos.map((p) => ({
-          idPermiso: p.idPermiso,
-          codigo: p.codigo,
-          activo: p.activo,
-          semestresPermitidos: p.semestresPermitidos,
-        })),
+        permisos: permisos.map((p) => {
+          const isRestrictedForEstudiante =
+            isEstudiante &&
+            (p.codigo === "EVALUACIONES_REALIZAR" ||
+              p.codigo === "OBSERVACIONES_REGISTRAR" ||
+              p.nombre?.toLowerCase().includes("realizar evaluaciones") ||
+              p.nombre?.toLowerCase().includes("registrar observaciones"));
+
+          return {
+            idPermiso: p.idPermiso,
+            codigo: p.codigo,
+            activo: isRestrictedForEstudiante ? false : p.activo,
+            semestresPermitidos: p.semestresPermitidos,
+          };
+        }),
       };
 
       let res = await fetch(`http://localhost:8080/admin/permisos/roles/${selectedRoleId}`, {

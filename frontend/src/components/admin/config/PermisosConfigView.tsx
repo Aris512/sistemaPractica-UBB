@@ -86,6 +86,17 @@ export function PermisosConfigView() {
         return;
       }
 
+      // Eliminar Realizar Evaluaciones y Registrar Observaciones para el rol ESTUDIANTE
+      if (
+        isEstudiante &&
+        (p.codigo === "EVALUACIONES_REALIZAR" ||
+          p.codigo === "OBSERVACIONES_REGISTRAR" ||
+          p.nombre?.toLowerCase().includes("realizar evaluaciones") ||
+          p.nombre?.toLowerCase().includes("registrar observaciones"))
+      ) {
+        return;
+      }
+
       // Eliminar Inteligencia Artificial para todos los roles que NO sean ESTUDIANTE
       if (!isEstudiante && (cat === "INTELIGENCIA ARTIFICIAL" || cat === "IA")) {
         return;

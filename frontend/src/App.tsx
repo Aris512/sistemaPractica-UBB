@@ -4,6 +4,7 @@ import { LoginForm } from "./components/login/LoginForm";
 import { InfoPanel } from "./components/login/InfoPanel";
 import { UbbLogoBadge } from "./components/login/UbbLogoBadge";
 import { HomePage as EstudianteHomePage } from "./components/home/Estudiante";
+import { PracticaEstudianteHomePage } from "./components/home/PracticaEstudiante";
 import { ProfesorHomePage } from "./components/home/Profesor";
 import { ProfesorCTutorHomePage } from "./components/home/ProfesorCTutor";
 import { CoordinadorHomePage } from "./components/home/Coordinador";
@@ -14,6 +15,101 @@ import {
   setStoredUserSession,
   clearStoredUserSession,
 } from "./lib/authSession";
+
+function EstudianteRouter({
+  user,
+  onLogout,
+}: {
+  user: UserSession;
+  onLogout: () => void;
+}) {
+  const [esPractica, setEsPractica] = useState<boolean | null>(() => {
+    try {
+      const cached = sessionStorage.getItem(`ubb_es_practica_${user.rut}`);
+      if (cached !== null) return cached === "true";
+    } catch {}
+    return null;
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function verificarSemestre() {
+      try {
+        const res = await fetch(`/api/estudiantes/rut/${encodeURIComponent(user.rut)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const sem = String(data?.asignatura?.semestre || "");
+          const nom = (data?.asignatura?.nombre || "").toLowerCase();
+          const idAsig = data?.idAsignatura || data?.asignatura?.idAsignatura;
+          const esDePractica =
+            sem.includes("8") ||
+            sem.includes("9") ||
+            idAsig === 5 ||
+            idAsig === 6 ||
+            nom.includes("práctica") ||
+            nom.includes("practica");
+
+          if (mounted) {
+            setEsPractica(esDePractica);
+            try {
+              sessionStorage.setItem(`ubb_es_practica_${user.rut}`, String(esDePractica));
+            } catch {}
+          }
+          return;
+        }
+      } catch {}
+
+      try {
+        const listRes = await fetch("/api/estudiantes");
+        if (listRes.ok) {
+          const list = await listRes.json();
+          const clean = user.rut.replace(/[.-]/g, "").toUpperCase().trim();
+          const found = list.find((e: any) => {
+            const r = (e.usuario?.rut || e.rutUsuario || "").replace(/[.-]/g, "").toUpperCase().trim();
+            return r === clean;
+          });
+          if (found) {
+            const sem = String(found?.asignatura?.semestre || "");
+            const nom = (found?.asignatura?.nombre || "").toLowerCase();
+            const idAsig = found?.idAsignatura || found?.asignatura?.idAsignatura;
+            const esDePractica =
+              sem.includes("8") ||
+              sem.includes("9") ||
+              idAsig === 5 ||
+              idAsig === 6 ||
+              nom.includes("práctica") ||
+              nom.includes("practica");
+
+            if (mounted) {
+              setEsPractica(esDePractica);
+              try {
+                sessionStorage.setItem(`ubb_es_practica_${user.rut}`, String(esDePractica));
+              } catch {}
+            }
+            return;
+          }
+        }
+      } catch {}
+
+      if (mounted) {
+        setEsPractica(false);
+      }
+    }
+
+    verificarSemestre();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user.rut]);
+
+  if (esPractica === true) {
+    return <PracticaEstudianteHomePage user={user} onLogout={onLogout} />;
+  }
+
+  return <EstudianteHomePage user={user} onLogout={onLogout} />;
+}
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserSession | null>(getStoredUserSession);
@@ -100,8 +196,8 @@ export default function App() {
         return <ProfesorHomePage user={currentUser} onLogout={handleLogout} />;
       }
 
-      // 3. Estudiante (por defecto)
-      return <EstudianteHomePage user={currentUser} onLogout={handleLogout} />;
+      // 3. Estudiante (detecta automáticamente si es 8.° o 9.° semestre para PracticaEstudiante)
+      return <EstudianteRouter user={currentUser} onLogout={handleLogout} />;
     }
 
     // Otherwise, display the Login Page with subtle background pattern and neumorphic white container

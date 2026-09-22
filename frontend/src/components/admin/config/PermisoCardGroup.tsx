@@ -38,6 +38,27 @@ export function PermisoCardGroup({
     }
   };
 
+  // Filtrar permisos excluidos para el rol estudiante: no debe tener la opción de realizar evaluaciones ni registrar observaciones
+  const permisosAMostrar = permisos.filter((permiso) => {
+    if (isEstudiante) {
+      const codigo = permiso.codigo?.toUpperCase() || "";
+      const nombre = permiso.nombre?.toLowerCase() || "";
+      if (
+        codigo === "EVALUACIONES_REALIZAR" ||
+        codigo === "OBSERVACIONES_REGISTRAR" ||
+        nombre.includes("realizar evaluaciones") ||
+        nombre.includes("registrar observaciones")
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (permisosAMostrar.length === 0) {
+    return null;
+  }
+
   return (
     <div className="space-y-2">
       {/* Título limpio de la funcionalidad / módulo */}
@@ -47,7 +68,7 @@ export function PermisoCardGroup({
 
       {/* Checklist de funcionalidades */}
       <div className="space-y-0.5">
-        {permisos.map((permiso) => (
+        {permisosAMostrar.map((permiso) => (
           <div key={permiso.idPermiso} className="py-0.5">
             <label className="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-md hover:bg-slate-100/70 transition-colors cursor-pointer select-none group">
               <div
