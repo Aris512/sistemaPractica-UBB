@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup } from "@/components/ui/field";
 import { formatRut, formatRutStandard, validateRut, cleanRut } from "@/lib/rutUtils";
+import { verificarEstudianteEsPractica, setStoredEsPractica } from "@/lib/authSession";
 import type { UserSession } from "@/types/auth";
 
 interface LoginFormProps {
@@ -103,14 +104,29 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         return;
       }
 
+      const userRut = data.rut || standardRut;
+      const roles: string[] = data.roles || [];
+      const isStudent = roles.some((r) => r.toUpperCase().includes("ESTUDIANTE"));
+      let esPractica: boolean | undefined = undefined;
+
+      if (isStudent) {
+        try {
+          esPractica = await verificarEstudianteEsPractica(userRut);
+          setStoredEsPractica(userRut, esPractica);
+        } catch {
+          // El router lo verificará como fallback
+        }
+      }
+
       onLoginSuccess({
-        rut: data.rut || standardRut,
-        idUsuario: data.rut || standardRut,
+        rut: userRut,
+        idUsuario: userRut,
         nombre: data.nombre,
         apellido: data.apellido,
         correo: data.correo,
         roles: data.roles,
         estado: data.estado !== undefined ? data.estado : true,
+        esPractica: isStudent ? esPractica : undefined,
       });
     } catch {
       const msg = "No se pudo conectar con el servidor. Verifique que el backend esté activo.";

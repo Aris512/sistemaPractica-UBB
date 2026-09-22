@@ -14,6 +14,9 @@ import {
   getStoredUserSession,
   setStoredUserSession,
   clearStoredUserSession,
+  getStoredEsPractica,
+  setStoredEsPractica,
+  verificarEstudianteEsPractica,
 } from "./lib/authSession";
 
 function EstudianteRouter({
@@ -24,85 +27,46 @@ function EstudianteRouter({
   onLogout: () => void;
 }) {
   const [esPractica, setEsPractica] = useState<boolean | null>(() => {
-    try {
-      const cached = sessionStorage.getItem(`ubb_es_practica_${user.rut}`);
-      if (cached !== null) return cached === "true";
-    } catch {}
-    return null;
+    if (typeof user.esPractica === "boolean") {
+      return user.esPractica;
+    }
+    return getStoredEsPractica(user.rut);
   });
 
   useEffect(() => {
     let mounted = true;
 
-    async function verificarSemestre() {
-      try {
-        const res = await fetch(`/api/estudiantes/rut/${encodeURIComponent(user.rut)}`);
-        if (res.ok) {
-          const data = await res.json();
-          const sem = String(data?.asignatura?.semestre || "");
-          const nom = (data?.asignatura?.nombre || "").toLowerCase();
-          const idAsig = data?.idAsignatura || data?.asignatura?.idAsignatura;
-          const esDePractica =
-            sem.includes("8") ||
-            sem.includes("9") ||
-            idAsig === 5 ||
-            idAsig === 6 ||
-            nom.includes("práctica") ||
-            nom.includes("practica");
-
-          if (mounted) {
-            setEsPractica(esDePractica);
-            try {
-              sessionStorage.setItem(`ubb_es_practica_${user.rut}`, String(esDePractica));
-            } catch {}
-          }
-          return;
+    // Solo consultar al servidor si aún no está determinado
+    if (esPractica === null) {
+      verificarEstudianteEsPractica(user.rut).then((resultado) => {
+        if (mounted) {
+          setEsPractica(resultado);
+          setStoredEsPractica(user.rut, resultado);
         }
-      } catch {}
-
-      try {
-        const listRes = await fetch("/api/estudiantes");
-        if (listRes.ok) {
-          const list = await listRes.json();
-          const clean = user.rut.replace(/[.-]/g, "").toUpperCase().trim();
-          const found = list.find((e: any) => {
-            const r = (e.usuario?.rut || e.rutUsuario || "").replace(/[.-]/g, "").toUpperCase().trim();
-            return r === clean;
-          });
-          if (found) {
-            const sem = String(found?.asignatura?.semestre || "");
-            const nom = (found?.asignatura?.nombre || "").toLowerCase();
-            const idAsig = found?.idAsignatura || found?.asignatura?.idAsignatura;
-            const esDePractica =
-              sem.includes("8") ||
-              sem.includes("9") ||
-              idAsig === 5 ||
-              idAsig === 6 ||
-              nom.includes("práctica") ||
-              nom.includes("practica");
-
-            if (mounted) {
-              setEsPractica(esDePractica);
-              try {
-                sessionStorage.setItem(`ubb_es_practica_${user.rut}`, String(esDePractica));
-              } catch {}
-            }
-            return;
-          }
-        }
-      } catch {}
-
-      if (mounted) {
-        setEsPractica(false);
-      }
+      });
     }
-
-    verificarSemestre();
 
     return () => {
       mounted = false;
     };
-  }, [user.rut]);
+  }, [user.rut, esPractica]);
+
+  // Si está determinando el semestre (solo ocurre si esPractica === null),
+  // se muestra un loader limpio y estético sin parpadeo de la vista errónea
+  if (esPractica === null) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full border-3 border-slate-200 border-t-sky-600 animate-spin" />
+          </div>
+          <p className="text-sm font-medium text-slate-600 animate-pulse">
+            Accediendo al entorno de estudiante...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (esPractica === true) {
     return <PracticaEstudianteHomePage user={user} onLogout={onLogout} />;
