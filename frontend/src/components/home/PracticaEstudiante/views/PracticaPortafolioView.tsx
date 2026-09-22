@@ -2,12 +2,10 @@ import { useState } from "react";
 import type { UserSession } from "@/types/auth";
 import type { DatosPracticaEstudiante, PracticaMenuKey } from "../types";
 import {
-  Briefcase,
   FileText,
   Image as ImageIcon,
   Download,
   Upload,
-  Clock,
   FolderOpen,
 } from "lucide-react";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
@@ -28,10 +26,6 @@ export function PracticaPortafolioView({
 }: PracticaPortafolioViewProps) {
   const [modalSubidaAbierto, setModalSubidaAbierto] = useState(false);
 
-  const horasPct = Math.min(
-    100,
-    Math.round((datos.horasRealizadas / datos.horasTotales) * 100)
-  );
 
   const evidencias = datos.documentos.filter((d) => d.categoria === "Evidencias");
   const otrosDocs = datos.documentos.filter((d) => d.categoria !== "Evidencias");
@@ -109,52 +103,7 @@ export function PracticaPortafolioView({
           </div>
         </div>
 
-        {/* Ficha de datos clave (Facts) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-          <div className="border-l-3 border-sky-400 pl-3 py-0.5">
-            <dt className="text-xs text-slate-400 font-medium">RUT / Identificador</dt>
-            <dd className="text-sm font-bold text-slate-800 m-0">{user.rut}</dd>
-          </div>
-          <div className="border-l-3 border-sky-400 pl-3 py-0.5">
-            <dt className="text-xs text-slate-400 font-medium">Correo Institucional</dt>
-            <dd className="text-sm font-bold text-slate-800 m-0 truncate">{user.correo}</dd>
-          </div>
-          <div className="border-l-3 border-sky-400 pl-3 py-0.5">
-            <dt className="text-xs text-slate-400 font-medium">Centro de Práctica</dt>
-            <dd className="text-sm font-bold text-slate-800 m-0">{datos.centroPractica}</dd>
-          </div>
-          <div className="border-l-3 border-indigo-400 pl-3 py-0.5">
-            <dt className="text-xs text-slate-400 font-medium">Tutora de Práctica</dt>
-            <dd className="text-sm font-bold text-slate-800 m-0">{datos.tutorNombre}</dd>
-          </div>
-          <div className="border-l-3 border-indigo-400 pl-3 py-0.5">
-            <dt className="text-xs text-slate-400 font-medium">Profesor de Asignatura</dt>
-            <dd className="text-sm font-bold text-slate-800 m-0">{datos.profesorAsignatura}</dd>
-          </div>
-          <div className="border-l-3 border-indigo-400 pl-3 py-0.5">
-            <dt className="text-xs text-slate-400 font-medium">Profesor Colaborador</dt>
-            <dd className="text-sm font-bold text-slate-800 m-0">{datos.profesorColaborador}</dd>
-          </div>
-        </div>
 
-        {/* Barra de Horas de Práctica */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between text-xs font-semibold mb-2">
-            <span className="text-slate-600 flex items-center gap-1.5">
-              <Clock className="size-3.5 text-sky-600" />
-              <span>Horas de Práctica Acumuladas</span>
-            </span>
-            <span className="text-slate-900 font-bold">
-              {datos.horasRealizadas} de {datos.horasTotales} horas ({horasPct}%)
-            </span>
-          </div>
-          <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-sky-600 to-indigo-600 rounded-full transition-all duration-500"
-              style={{ width: `${horasPct}%` }}
-            />
-          </div>
-        </div>
       </div>
 
       {/* 2. Barra de Anclas Rápidas */}
@@ -309,87 +258,7 @@ export function PracticaPortafolioView({
         )}
       </div>
 
-      {/* 5. Sección: Evaluaciones y Calificaciones (#p-eva) */}
-      <div id="p-eva" className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Briefcase className="size-4.5 text-emerald-600" />
-              <span>Resumen de Evaluaciones</span>
-            </h2>
-            <p className="text-xs text-slate-500">
-              Calificaciones otorgadas por profesores y tutores de práctica
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate("evaluaciones")}
-            className="text-xs font-bold text-sky-700 hover:underline cursor-pointer"
-          >
-            Ver detalle completo
-          </button>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {datos.evaluaciones.map((ev) => (
-            <div key={ev.id} className="py-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">
-                  {ev.titulo}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {ev.evaluador} · {ev.fecha}
-                </p>
-              </div>
-
-              {ev.nota ? (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
-                  Nota: {ev.nota}
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/70">
-                  Pendiente
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 6. Sección: Observaciones Recientes (#p-obs) */}
-      <div id="p-obs" className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              Observaciones Recientes de Visita
-            </h2>
-            <p className="text-xs text-slate-500">
-              Retroalimentaciones pedagógicas y notas de campo
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onNavigate("evaluaciones")}
-            className="text-xs font-bold text-sky-700 hover:underline cursor-pointer"
-          >
-            Ver todas
-          </button>
-        </div>
-
-        <div className="space-y-3">
-          {datos.observacionesGenerales.slice(0, 2).map((obs) => (
-            <div key={obs.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-slate-900">{obs.autor}</span>
-                <span className="text-slate-400">{obs.rol} · {obs.fecha}</span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                {obs.texto}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
+      
     </div>
   );
 }

@@ -19,7 +19,6 @@ import {
   ClipboardCheck,
   Users,
   LogOut,
-  GraduationCap,
 } from "lucide-react";
 
 interface PracticaSidebarProps {
@@ -63,8 +62,6 @@ export function PracticaSidebar({
   activeMenu,
   onSelectMenu,
   onLogout,
-  semestre = 8,
-  asignaturaNombre = "Práctica Pedagógica",
 }: PracticaSidebarProps) {
   const menuItems: {
     key: PracticaMenuKey;
@@ -85,25 +82,7 @@ export function PracticaSidebar({
       </SidebarHeader>
 
       <SidebarContent className="p-2 space-y-3">
-        {/* Banner de Semestre del Estudiante */}
-        <div className="mx-2 mt-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-100/90 flex items-center gap-2.5 shadow-2xs">
-          <div className="size-8 rounded-lg bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <GraduationCap className="size-4.5" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-sky-950 truncate">
-                {semestre}.º Semestre
-              </span>
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-600/10 text-sky-700">
-                {semestre === 9 ? "Terminal" : "Avanzado"}
-              </span>
-            </div>
-            <span className="text-[10.5px] font-medium text-slate-500 truncate" title={asignaturaNombre}>
-              {asignaturaNombre}
-            </span>
-          </div>
-        </div>
+        
 
         {/* Menú de Navegación */}
         <SidebarGroup>

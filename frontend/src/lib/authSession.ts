@@ -10,16 +10,18 @@ const ROLE_MENU_KEYS = [
 ] as const;
 
 /**
- * Obtiene la sesión del usuario persistida en localStorage.
+ * Obtiene la sesión del usuario persistida en sessionStorage.
+ * Cada pestaña del navegador mantiene su propia sesión independiente,
+ * lo que permite tener diferentes perfiles abiertos simultáneamente.
  * Retorna null si no hay sesión o si el formato es inválido.
  */
 export function getStoredUserSession(): UserSession | null {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (typeof window === "undefined" || !window.sessionStorage) {
     return null;
   }
 
   try {
-    const raw = window.localStorage.getItem(USER_SESSION_KEY);
+    const raw = window.sessionStorage.getItem(USER_SESSION_KEY);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
@@ -27,9 +29,9 @@ export function getStoredUserSession(): UserSession | null {
       return parsed as UserSession;
     }
   } catch (error) {
-    console.warn("No se pudo leer la sesión del usuario en almacenamiento local:", error);
+    console.warn("No se pudo leer la sesión del usuario en almacenamiento de sesión:", error);
     try {
-      window.localStorage.removeItem(USER_SESSION_KEY);
+      window.sessionStorage.removeItem(USER_SESSION_KEY);
     } catch {
       // Ignorar errores al limpiar datos corruptos
     }
@@ -39,15 +41,16 @@ export function getStoredUserSession(): UserSession | null {
 }
 
 /**
- * Guarda la sesión del usuario en localStorage para persistir tras refrescar la página.
+ * Guarda la sesión del usuario en sessionStorage para persistir tras refrescar la página.
+ * Al usar sessionStorage, cada pestaña tiene su propia sesión aislada.
  */
 export function setStoredUserSession(user: UserSession): void {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (typeof window === "undefined" || !window.sessionStorage) {
     return;
   }
 
   try {
-    window.localStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
+    window.sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(user));
   } catch (error) {
     console.error("No se pudo guardar la sesión del usuario:", error);
   }
@@ -62,10 +65,8 @@ export function clearStoredUserSession(): void {
   }
 
   try {
-    if (window.localStorage) {
-      window.localStorage.removeItem(USER_SESSION_KEY);
-    }
     if (window.sessionStorage) {
+      window.sessionStorage.removeItem(USER_SESSION_KEY);
       for (const key of ROLE_MENU_KEYS) {
         window.sessionStorage.removeItem(key);
       }

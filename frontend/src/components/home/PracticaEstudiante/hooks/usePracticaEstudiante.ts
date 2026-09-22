@@ -314,12 +314,15 @@ export function usePracticaEstudiante(user: UserSession) {
         }
       );
 
-      // 9. Equipo de práctica
-      const centroNombre = practicaEncontrada?.centroPractica?.nombre || "Colegio Concepción San Pedro";
-      const centroDir = practicaEncontrada?.centroPractica?.direccion || "Av. Los Aromos 1420, Concepción";
-      const tutorNom = practicaEncontrada?.tutorPractica?.nombre || "Marcela Núñez Morales";
-      const tutorMail = practicaEncontrada?.tutorPractica?.usuario?.correo || "marcela.nunez@colegioconcepcion.cl";
+      // 9. Equipo de práctica — datos reales de BD o null si no existen
+      const centroNombre = practicaEncontrada?.centroPractica?.nombre || null;
+      const centroDir = practicaEncontrada?.centroPractica?.direccion || null;
+      const tutorNom = practicaEncontrada?.tutorPractica?.nombre || null;
+      const tutorMail = practicaEncontrada?.tutorPractica?.usuario?.correo || null;
+      const asignaturaDb = practicaEncontrada?.asignatura || null;
+      const estadoAprobacionDb = practicaEncontrada?.estadoAprobacion || null;
 
+      // Construir equipo solo con miembros que realmente existen en la BD
       const equipo: PersonaEquipo[] = [
         {
           nombre: `${user.nombre} ${user.apellido || ""}`.trim(),
@@ -327,35 +330,55 @@ export function usePracticaEstudiante(user: UserSession) {
           correo: user.correo,
           lugar: "Campus Concepción - Chillán",
         },
-        {
+      ];
+
+      // Agregar tutor solo si existe en la BD
+      if (tutorNom) {
+        equipo.push({
           nombre: tutorNom,
           rol: "Tutora de Práctica en Centro Educativo",
-          correo: tutorMail,
-          lugar: centroNombre,
+          correo: tutorMail || "No registrado",
+          lugar: centroNombre || "Centro de práctica",
           esTutor: true,
-        },
-        {
-          nombre: "Andrés Paredes Silva",
-          rol: "Profesor Guía de Asignatura",
-          correo: "andres.paredes@ubiobio.cl",
-          lugar: "Facultad de Educación UBB",
-          esProfesor: true,
-        },
-        {
-          nombre: "Luis Contreras Muñoz",
-          rol: "Profesor Colaborador de Campo",
-          correo: "luis.contreras@ubiobio.cl",
-          lugar: "Facultad de Educación UBB",
-          esProfesor: true,
-        },
-        {
-          nombre: "Patricia Vera Alarcón",
-          rol: "Coordinadora General de Prácticas",
-          correo: "patricia.vera@ubiobio.cl",
-          lugar: "Dirección de Escuela de Pedagogía UBB",
-          esCoordinador: true,
-        },
-      ];
+        });
+      }
+
+      // Agregar profesores colaboradores (sin duplicar al estudiante ni miembros ya agregados)
+      if (practicaEncontrada) {
+        try {
+          const profColabRes = await fetch(`/api/profesores-colaboradores`);
+          if (profColabRes.ok) {
+            const profColabs = await profColabRes.json();
+            if (Array.isArray(profColabs)) {
+              const correosExistentes = new Set(
+                equipo.map((m) => (m.correo || "").toLowerCase().trim())
+              );
+
+              profColabs.forEach((pc: any) => {
+                const pcUsuario = pc.usuario;
+                if (!pcUsuario) return;
+
+                const correoPC = (pcUsuario.correo || "").toLowerCase().trim();
+
+                // Saltar si ya está en el equipo (ej. el propio estudiante)
+                if (correoPC && correosExistentes.has(correoPC)) return;
+
+                const nombre = `${pcUsuario.nombre || ""} ${pcUsuario.apellido || ""}`.trim() || pc.especialidad || "Profesor Colaborador";
+
+                equipo.push({
+                  nombre,
+                  rol: "Profesor Colaborador de Campo",
+                  correo: pcUsuario.correo || "No registrado",
+                  lugar: pc.centroPractica?.nombre || "Facultad de Educación UBB",
+                  esProfesor: true,
+                });
+
+                correosExistentes.add(correoPC);
+              });
+            }
+          }
+        } catch {}
+      }
 
       // 10. Tareas y pendientes
       const pendientes: ItemPendiente[] = [
@@ -411,7 +434,7 @@ export function usePracticaEstudiante(user: UserSession) {
         {
           id: "inscripcion",
           titulo: "Inscripción",
-          subtitulo: "Completada en sistema",
+          subtitulo: "Completada",
           estado: "done" as const,
           completada: true,
           actual: false,
@@ -419,7 +442,7 @@ export function usePracticaEstudiante(user: UserSession) {
         {
           id: "inicio",
           titulo: "Inicio",
-          subtitulo: "Inducción y asignación de centro",
+          subtitulo: "Completada",
           estado: "done" as const,
           completada: true,
           actual: false,
@@ -427,7 +450,7 @@ export function usePracticaEstudiante(user: UserSession) {
         {
           id: "seguimiento",
           titulo: "Seguimiento",
-          subtitulo: esNoveno ? "En curso · 160 de 300 h" : "En curso · 128 de 250 h",
+          subtitulo: esNoveno ? "En curso · 160 de 300 h" : "En curso · 128 de 300 h",
           estado: "cur" as const,
           completada: false,
           actual: true,
@@ -435,7 +458,7 @@ export function usePracticaEstudiante(user: UserSession) {
         {
           id: "evaluacion-final",
           titulo: "Evaluación final",
-          subtitulo: "Cierre semestral y defensa",
+          subtitulo: "Desde el 9 nov",
           estado: "pending" as const,
           completada: false,
           actual: false,
@@ -444,22 +467,22 @@ export function usePracticaEstudiante(user: UserSession) {
 
       setDatos({
         semestre,
-        asignaturaNombre,
+        asignaturaNombre: asignaturaDb?.nombre || asignaturaNombre,
         codigoAsignatura,
-        centroPractica: centroNombre,
-        direccionCentro: centroDir,
+        centroPractica: centroNombre || "",
+        direccionCentro: centroDir || "",
         periodo: "2026 - 2 (Segundo Semestre)",
         horasRealizadas: esNoveno ? 160 : 128,
         horasTotales: esNoveno ? 300 : 250,
-        estadoAprobacion: practicaEncontrada?.estadoAprobacion || "EN_CURSO",
-        tutorNombre: tutorNom,
-        tutorCorreo: tutorMail,
-        profesorAsignatura: "Andrés Paredes Silva",
-        profesorAsignaturaCorreo: "andres.paredes@ubiobio.cl",
-        profesorColaborador: "Luis Contreras Muñoz",
-        profesorColaboradorCorreo: "luis.contreras@ubiobio.cl",
-        coordinador: "Patricia Vera Alarcón",
-        coordinadorCorreo: "patricia.vera@ubiobio.cl",
+        estadoAprobacion: estadoAprobacionDb || "",
+        tutorNombre: tutorNom || "",
+        tutorCorreo: tutorMail || "",
+        profesorAsignatura: "",
+        profesorAsignaturaCorreo: "",
+        profesorColaborador: "",
+        profesorColaboradorCorreo: "",
+        coordinador: "",
+        coordinadorCorreo: "",
         etapas,
         pendientes,
         equipo,

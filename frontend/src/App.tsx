@@ -124,30 +124,8 @@ export default function App() {
     return () => window.removeEventListener("popstate", handleLocationChange);
   }, []);
 
-  // Sincronizar estado de sesión entre pestañas del navegador
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "ubb_user_session") {
-        if (!e.newValue) {
-          setCurrentUser(null);
-        } else {
-          try {
-            const parsed = JSON.parse(e.newValue);
-            if (parsed && typeof parsed === "object" && parsed.rut) {
-              setCurrentUser(parsed);
-            } else {
-              setCurrentUser(null);
-            }
-          } catch {
-            setCurrentUser(null);
-          }
-        }
-      }
-    };
 
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+
 
   const handleLoginSuccess = useCallback((user: UserSession) => {
     setStoredUserSession(user);
