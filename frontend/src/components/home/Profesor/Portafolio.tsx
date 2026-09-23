@@ -432,7 +432,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                     <AttachmentTitle>{doc.nombre}</AttachmentTitle>
                     <AttachmentDescription>
                       {doc.tipo && <span className="capitalize">{doc.tipo}</span>}
-                      {doc.fechaSubida && <span> • {formatearFecha(doc.fechaSubida)}</span>}
+                      {doc.fechaCarga && <span> • {formatearFecha(doc.fechaCarga)}</span>}
                     </AttachmentDescription>
                   </AttachmentContent>
                   <AttachmentActions className="gap-1 shrink-0 ml-2">
