@@ -42,6 +42,10 @@ public class Documento {
     @Column(name = "rut_estudiante")
     private String rutEstudiante;
 
+    @ManyToOne
+    @JoinColumn(name = "id_asignatura")
+    private Asignatura asignatura;
+
     @ManyToMany
     @JoinTable(
         name = "documento_planificacion",
@@ -131,5 +135,13 @@ public class Documento {
 
     public void setRutEstudiante(String rutEstudiante) {
         this.rutEstudiante = rutEstudiante;
+    }
+
+    public Asignatura getAsignatura() {
+        return asignatura;
+    }
+
+    public void setAsignatura(Asignatura asignatura) {
+        this.asignatura = asignatura;
     }
 }

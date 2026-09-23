@@ -347,15 +347,18 @@ public class AdminController {
             }
         }
 
-        if (esColaborador) {
+        if (rolNombre.toUpperCase().contains("TUTOR")) {
             try {
-                if (rolNombre.toUpperCase().contains("TUTOR")) {
-                    Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
-                    if (tutorOpt.isEmpty()) {
-                        tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
-                    }
+                Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                if (tutorOpt.isEmpty()) {
+                    tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
                 }
+            } catch (Exception ignored) {
+            }
+        }
 
+        if (rolNombre.toUpperCase().contains("COLABORADOR")) {
+            try {
                 Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
                 ProfesorColaborador colab;
                 if (colabOpt.isPresent()) {
@@ -511,21 +514,30 @@ public class AdminController {
             }
         }
 
-        boolean esColaboradorEdit = (rolNombre.toUpperCase().contains("COLABORADOR")
-            || rolNombre.toUpperCase().contains("TUTOR")
-            || rolNombre.toUpperCase().contains("COORDINADOR")
-            || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && (r.getNombre().toUpperCase().contains("COLABORADOR") || r.getNombre().toUpperCase().contains("TUTOR") || r.getNombre().toUpperCase().contains("COORDINADOR")))))
-            && !rolNombre.toUpperCase().contains("ASIGNATURA");
+        boolean rolEsTutor = (rolNombre.toUpperCase().contains("TUTOR") 
+            || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("TUTOR"))));
 
-        if (esColaboradorEdit) {
+        boolean rolEsColaborador = (rolNombre.toUpperCase().contains("COLABORADOR") 
+            || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("COLABORADOR"))));
+
+        if (rolEsTutor) {
             try {
-                if (rolNombre.toUpperCase().contains("TUTOR") || (guardado.getRoles() != null && guardado.getRoles().stream().anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("TUTOR")))) {
-                    Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
-                    if (tutorOpt.isEmpty()) {
-                        tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
-                    }
+                Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                if (tutorOpt.isEmpty()) {
+                    tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
                 }
+            } catch (Exception ignored) {
+            }
+        } else {
+            try {
+                Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                tutorOpt.ifPresent(tutorPracticaRepository::delete);
+            } catch (Exception ignored) {
+            }
+        }
 
+        if (rolEsColaborador) {
+            try {
                 Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
                 ProfesorColaborador colab;
                 if (colabOpt.isPresent()) {
@@ -541,14 +553,23 @@ public class AdminController {
                 sincronizarPracticasColaborador(guardado, colab, editCentroEncontrado, asigEncontrada);
             } catch (Exception ignored) {
             }
-        } else if (rolNombre.toUpperCase().contains("ASIGNATURA")) {
-            // Si el rol es Profesor de Asignatura, desvincular cualquier centro de práctica previo
+        } else {
+            // Si el usuario no tiene rol de Profesor Colaborador (por ejemplo, es ESTUDIANTE),
+            // limpiar cualquier registro previo en profesor_colaborador y sus prácticas
             try {
                 Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
                 if (colabOpt.isPresent()) {
                     ProfesorColaborador colab = colabOpt.get();
-                    colab.setCentroPractica(null);
-                    profesorColaboradorRepository.save(colab);
+                    if (colab.getPracticas() != null) {
+                        for (Practica p : colab.getPracticas()) {
+                            if (p.getProfesoresColaboradores() != null) {
+                                p.getProfesoresColaboradores().remove(colab);
+                                practicaRepository.save(p);
+                            }
+                        }
+                        colab.getPracticas().clear();
+                    }
+                    profesorColaboradorRepository.delete(colab);
                 }
             } catch (Exception ignored) {
             }
@@ -1292,15 +1313,18 @@ public class AdminController {
             }
 
             // Vincular Lugar de Práctica opcional si aplica
-            if (esColaborador) {
+            if (rolDisplay.contains("TUTOR")) {
                 try {
-                    if (rolDisplay.contains("TUTOR")) {
-                        Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
-                        if (tutorOpt.isEmpty()) {
-                            tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
-                        }
+                    Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findByUsuarioRut(guardado.getRut());
+                    if (tutorOpt.isEmpty()) {
+                        tutorPracticaRepository.saveAndFlush(new TutorPractica(guardado.getNombre() + " " + guardado.getApellido(), guardado));
                     }
+                } catch (Exception ignored) {
+                }
+            }
 
+            if (rolDisplay.contains("COLABORADOR")) {
+                try {
                     Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findByUsuarioRut(guardado.getRut());
                     ProfesorColaborador colab;
                     if (colabOpt.isPresent()) {

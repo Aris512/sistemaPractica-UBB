@@ -5,7 +5,6 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "./Portafolio";
-import { CursosPractica } from "./CursosPractica";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { TableEstudiantes } from "./table";
@@ -31,6 +30,8 @@ export function HomePage({ user, onLogout }: HomePageProps) {
     return "inicio";
   });
   const [formattedDate, setFormattedDate] = useState("");
+  const [esProfesorOctavoONoveno, setEsProfesorOctavoONoveno] = useState<boolean>(false);
+  const [cargandoProfesor, setCargandoProfesor] = useState<boolean>(true);
   const { hasPermission } = usePermissions(user);
 
   useEffect(() => {
@@ -38,6 +39,47 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       sessionStorage.setItem("ubb_active_menu_profesor", activeMenu);
     } catch {}
   }, [activeMenu]);
+
+  useEffect(() => {
+    if (!user?.rut) {
+      setCargandoProfesor(false);
+      return;
+    }
+    fetch(`/api/profesores/rut/${encodeURIComponent(user.rut)}`)
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((profesorData) => {
+        if (!profesorData) {
+          setEsProfesorOctavoONoveno(false);
+          return;
+        }
+        const listaAsignaturas: any[] = [];
+        if (Array.isArray(profesorData.asignaturas)) {
+          listaAsignaturas.push(...profesorData.asignaturas);
+        }
+        if (
+          profesorData.asignatura &&
+          !listaAsignaturas.some((a) => a.idAsignatura === profesorData.asignatura.idAsignatura)
+        ) {
+          listaAsignaturas.push(profesorData.asignatura);
+        }
+
+        const tieneOctavoONoveno = listaAsignaturas.some((asig) => {
+          const sem = String(asig.semestre ?? "").trim();
+          return sem === "8" || sem === "9";
+        });
+        setEsProfesorOctavoONoveno(tieneOctavoONoveno);
+      })
+      .catch((err) => {
+        console.error("Error al cargar datos del profesor:", err);
+        setEsProfesorOctavoONoveno(false);
+      })
+      .finally(() => {
+        setCargandoProfesor(false);
+      });
+  }, [user?.rut]);
 
   useEffect(() => {
     try {
@@ -68,6 +110,9 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "revision-retroalimentacion":
+        if (!cargandoProfesor && !esProfesorOctavoONoveno) {
+          return <TableEstudiantes user={user} />;
+        }
         return (
           <RevisionRetroalimentacion
             user={user}
@@ -75,6 +120,9 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "documentos-practica":
+        if (!cargandoProfesor && !esProfesorOctavoONoveno) {
+          return <TableEstudiantes user={user} />;
+        }
         return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
         if (!hasPermission("PORTAFOLIO_CONSULTAR") && !hasPermission("PORTAFOLIO_SUBIR")) {
@@ -82,11 +130,14 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
-        return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
+        return <TableEstudiantes user={user} />;
       case "planificacion":
+        if (!cargandoProfesor && !esProfesorOctavoONoveno) {
+          return <TableEstudiantes user={user} />;
+        }
         return <Planificacion onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
-        if (!hasPermission("EVALUACIONES_CONSULTAR")) {
+        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
           return <TableEstudiantes user={user} />;
         }
         return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
@@ -106,6 +157,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         activeMenu={activeMenu}
         onSelectMenu={setActiveMenu}
         onLogout={onLogout}
+        esProfesorOctavoONoveno={esProfesorOctavoONoveno}
       />
 
       {/* Área principal */}

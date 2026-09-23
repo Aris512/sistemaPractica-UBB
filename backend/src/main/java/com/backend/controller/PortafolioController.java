@@ -48,10 +48,12 @@ public class PortafolioController {
 
     /**
      * Lista estudiantes con portafolios para supervisión de docentes o coordinadores.
+     * Opcionalmente filtrado por idAsignatura.
      */
     @GetMapping("/estudiantes")
-    public ResponseEntity<List<Map<String, Object>>> obtenerEstudiantesSupervision() {
-        return ResponseEntity.ok(portafolioService.obtenerEstudiantesConPortafolio());
+    public ResponseEntity<List<Map<String, Object>>> obtenerEstudiantesSupervision(
+            @RequestParam(value = "idAsignatura", required = false) Long idAsignatura) {
+        return ResponseEntity.ok(portafolioService.obtenerEstudiantesConPortafolio(idAsignatura));
     }
 
     /**
@@ -63,10 +65,11 @@ public class PortafolioController {
             @RequestParam("rutEstudiante") String rutEstudiante,
             @RequestParam(value = "tipo", defaultValue = "EVIDENCIA") String tipo,
             @RequestParam(value = "rutUsuarioSubio", required = false) String rutUsuarioSubio,
-            @RequestParam(value = "descripcion", required = false) String descripcion) {
+            @RequestParam(value = "descripcion", required = false) String descripcion,
+            @RequestParam(value = "idAsignatura", required = false) Long idAsignatura) {
         try {
             PortafolioItemDTO guardado = portafolioService.subirDocumentoPortafolio(
-                file, rutEstudiante, tipo, rutUsuarioSubio, descripcion
+                file, rutEstudiante, tipo, rutUsuarioSubio, descripcion, idAsignatura
             );
             return ResponseEntity.ok(guardado);
         } catch (IllegalArgumentException e) {

@@ -51,12 +51,20 @@ export function PermisosConfigView() {
     return nombre.includes("COLABORADOR") || nombre.includes("TUTOR");
   }, [roles, selectedRoleId]);
 
+  // Determinar si el rol seleccionado es Profesor de Asignatura
+  const isProfesorAsignatura = useMemo(() => {
+    const currentRole = roles.find((r) => r.idRol === selectedRoleId);
+    const nombre = currentRole?.nombre?.toUpperCase() || "";
+    return nombre === "PROFESOR_ASIGNATURA" || nombre.includes("ASIGNATURA");
+  }, [roles, selectedRoleId]);
+
   // Agrupar permisos por categoría aplicando los filtros específicos por rol:
   // 1. Eliminar sección/permiso "Portafolio" (PORTAFOLIO_CONSULTAR) de Administrar Roles
   // 2. El permiso "Subir archivos" (PORTAFOLIO_SUBIR) se muestra en su propia categoría "SUBIR ARCHIVOS"
   // 3. Eliminar sección "Subir Archivos" para los roles Profesor Colaborador y Tutor de Práctica
-  // 4. Rol ESTUDIANTE: se elimina "Información de Estudiantes"
-  // 5. Demás roles: se elimina "Inteligencia Artificial" (solo disponible para ESTUDIANTE)
+  // 4. Rol PROFESOR_ASIGNATURA: dentro de Evaluaciones, solo se muestra "Realizar evaluaciones"
+  // 5. Rol ESTUDIANTE: se elimina "Información de Estudiantes" y evaluaciones
+  // 6. Demás roles: se elimina "Inteligencia Artificial" (solo disponible para ESTUDIANTE)
   const gruposCategorias = useMemo(() => {
     const mapa = new Map<string, PermisoItem[]>();
 
@@ -66,6 +74,20 @@ export function PermisosConfigView() {
         return;
       }
 
+      // Para Profesor de Asignatura: en la categoría Evaluaciones, solo mostrar "Realizar evaluaciones"
+      if (isProfesorAsignatura) {
+        const cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
+        const esEvaluaciones = cat === "EVALUACIONES";
+        if (esEvaluaciones) {
+          const esRealizarEvaluaciones =
+            p.codigo === "EVALUACIONES_REALIZAR" ||
+            p.nombre?.toLowerCase().includes("realizar evaluaciones");
+          if (!esRealizarEvaluaciones) {
+            return;
+          }
+        }
+      }
+
       let cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
 
       // Reubicar "Subir archivos" bajo categoría independiente "SUBIR ARCHIVOS"
@@ -73,9 +95,10 @@ export function PermisosConfigView() {
         cat = "SUBIR ARCHIVOS";
       }
 
-      // Eliminar "Subir Archivos" para roles Profesor Colaborador y Tutor
+      // Eliminar "Subir Archivos" para roles Profesor Colaborador y Tutor (no para Profesor de Asignatura)
       if (
         isColaboradorOTutor &&
+        !isProfesorAsignatura &&
         (p.codigo === "PORTAFOLIO_SUBIR" || cat === "SUBIR ARCHIVOS" || cat === "SUBIR_ARCHIVOS")
       ) {
         return;
@@ -122,7 +145,7 @@ export function PermisosConfigView() {
     });
 
     return ordenados;
-  }, [permisos, isEstudiante, isColaboradorOTutor]);
+  }, [permisos, isEstudiante, isColaboradorOTutor, isProfesorAsignatura]);
 
   const getRolFriendlyName = (nombre?: string) => {
     switch (nombre?.toUpperCase()) {

@@ -18,10 +18,14 @@ export async function eliminarDocumentoPortafolio(idDocumento: number): Promise<
   }
 }
 
-export async function obtenerEstudiantesPortafolio(): Promise<EstudiantePortafolioSummary[]> {
-  const res = await fetch("/api/portafolio/estudiantes");
+export async function obtenerEstudiantesPortafolio(idAsignatura?: number | string): Promise<EstudiantePortafolioSummary[]> {
+  const url = idAsignatura 
+    ? `/api/portafolio/estudiantes?idAsignatura=${encodeURIComponent(idAsignatura)}`
+    : "/api/portafolio/estudiantes";
+  const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Error al obtener lista de estudiantes (${res.status})`);
   }
   return res.json();
 }
+

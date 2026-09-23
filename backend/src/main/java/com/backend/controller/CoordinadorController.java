@@ -200,7 +200,18 @@ public class CoordinadorController {
         // 2. Tutores de Práctica
         List<TutorPractica> tutores = tutorPracticaRepository.findAll();
         List<Map<String, Object>> tutoresList = tutores.stream()
-            .filter(t -> t.getUsuario() == null || (t.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(t.getUsuario().getEstado())))
+            .filter(t -> {
+                if (t.getUsuario() != null) {
+                    if (!t.getUsuario().isActivo() || "inactivo".equalsIgnoreCase(t.getUsuario().getEstado())) {
+                        return false;
+                    }
+                    if (t.getUsuario().getRoles() != null && !t.getUsuario().getRoles().isEmpty()) {
+                        return t.getUsuario().getRoles().stream()
+                            .anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("TUTOR"));
+                    }
+                }
+                return true;
+            })
             .map(t -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idTutor", t.getIdTutor());
@@ -214,10 +225,22 @@ public class CoordinadorController {
             })
             .collect(Collectors.toList());
 
-        // 3. Profesores Colaboradores
+        // 3. Profesores Colaboradores (filtro estricto por rol PROFESOR_COLABORADOR)
         List<ProfesorColaborador> colaboradores = profesorColaboradorRepository.findAll();
         List<Map<String, Object>> colabList = colaboradores.stream()
-            .filter(c -> c.getUsuario() == null || (c.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(c.getUsuario().getEstado())))
+            .filter(c -> {
+                if (c.getUsuario() == null) {
+                    return false;
+                }
+                if (!c.getUsuario().isActivo() || "inactivo".equalsIgnoreCase(c.getUsuario().getEstado())) {
+                    return false;
+                }
+                if (c.getUsuario().getRoles() == null || c.getUsuario().getRoles().isEmpty()) {
+                    return false;
+                }
+                return c.getUsuario().getRoles().stream()
+                    .anyMatch(r -> r.getNombre() != null && r.getNombre().toUpperCase().contains("COLABORADOR"));
+            })
             .map(c -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idColaborador", c.getIdColaborador());

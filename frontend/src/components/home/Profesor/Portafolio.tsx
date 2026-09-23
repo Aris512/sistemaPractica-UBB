@@ -43,9 +43,22 @@ interface PortafolioProps {
   onBack?: () => void;
 }
 
+interface AsignaturaOption {
+  idAsignatura: number;
+  nombre: string;
+  semestre?: string;
+}
+
 export function Portafolio({ user, onBack }: PortafolioProps) {
   const { hasPermission } = usePermissions(user);
   const puedeSubir = hasPermission("PORTAFOLIO_SUBIR");
+
+  // Tabs: 'propio' = Mi Portafolio, 'estudiantes' = Portafolios de estudiantes
+  const [vistaActiva, setVistaActiva] = useState<'propio' | 'estudiantes'>('propio');
+
+  const [asignaturas, setAsignaturas] = useState<AsignaturaOption[]>([]);
+  const [selectedAsignaturaId, setSelectedAsignaturaId] = useState<number | null>(null);
+  const [cargandoAsignaturas, setCargandoAsignaturas] = useState<boolean>(true);
 
   const [estudiantes, setEstudiantes] = useState<EstudiantePortafolioSummary[]>([]);
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<EstudiantePortafolioSummary | null>(null);
@@ -54,14 +67,61 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   const [busqueda, setBusqueda] = useState<string>("");
   const [modalAbierto, setModalAbierto] = useState<boolean>(false);
 
-  // Cargar lista de estudiantes con portafolio
-  const cargarEstudiantes = useCallback(async () => {
+  // Estado para el portafolio propio del profesor
+  const [documentosProfesor, setDocumentosProfesor] = useState<PortafolioItem[]>([]);
+  const [cargandoPropio, setCargandoPropio] = useState<boolean>(true);
+  const [modalPropioAbierto, setModalPropioAbierto] = useState<boolean>(false);
+
+  // Cargar asignaturas a las que pertenece el profesor
+  useEffect(() => {
+    if (!user?.rut) {
+      setCargandoAsignaturas(false);
+      return;
+    }
+    fetch(`/api/profesores/rut/${encodeURIComponent(user.rut)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((profData) => {
+        if (!profData) return;
+        const list: AsignaturaOption[] = [];
+        if (Array.isArray(profData.asignaturas)) {
+          for (const a of profData.asignaturas) {
+            if (a?.idAsignatura && !list.some((item) => item.idAsignatura === a.idAsignatura)) {
+              list.push({
+                idAsignatura: a.idAsignatura,
+                nombre: a.nombre,
+                semestre: a.semestre,
+              });
+            }
+          }
+        }
+        if (
+          profData.asignatura &&
+          !list.some((item) => item.idAsignatura === profData.asignatura.idAsignatura)
+        ) {
+          list.push({
+            idAsignatura: profData.asignatura.idAsignatura,
+            nombre: profData.asignatura.nombre,
+            semestre: profData.asignatura.semestre,
+          });
+        }
+        setAsignaturas(list);
+        if (list.length > 0) {
+          setSelectedAsignaturaId(list[0].idAsignatura);
+        }
+      })
+      .catch((err) => console.error("Error al cargar asignaturas del profesor:", err))
+      .finally(() => setCargandoAsignaturas(false));
+  }, [user?.rut]);
+
+  // Cargar lista de estudiantes con portafolio filtrados por asignatura
+  const cargarEstudiantes = useCallback(async (idAsig?: number | null) => {
     setCargando(true);
     try {
-      const data = await obtenerEstudiantesPortafolio();
+      const data = await obtenerEstudiantesPortafolio(idAsig ?? undefined);
       setEstudiantes(data);
     } catch (err: any) {
       console.warn("No se pudieron cargar estudiantes para portafolio:", err);
+      setEstudiantes([]);
     } finally {
       setCargando(false);
     }
@@ -82,14 +142,44 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   }, []);
 
   useEffect(() => {
-    cargarEstudiantes();
-  }, [cargarEstudiantes]);
+    if (!cargandoAsignaturas && vistaActiva === "estudiantes") {
+      cargarEstudiantes(selectedAsignaturaId);
+    }
+  }, [selectedAsignaturaId, cargandoAsignaturas, cargarEstudiantes, vistaActiva]);
 
   useEffect(() => {
     if (estudianteSeleccionado) {
       cargarDocumentosEstudiante(estudianteSeleccionado.rut);
     }
   }, [estudianteSeleccionado, cargarDocumentosEstudiante]);
+
+  const cargarDocumentosProfesor = useCallback(async () => {
+    if (!user?.rut) return;
+    setCargandoPropio(true);
+    try {
+      const docs = await obtenerDocumentosPortafolio(user.rut);
+      setDocumentosProfesor(docs);
+    } catch (err: any) {
+      console.warn("Error al cargar portafolio propio del profesor:", err);
+      setDocumentosProfesor([]);
+    } finally {
+      setCargandoPropio(false);
+    }
+  }, [user?.rut]);
+
+  useEffect(() => {
+    cargarDocumentosProfesor();
+  }, [cargarDocumentosProfesor]);
+
+  const handleEliminarPropio = async (idDocumento: number, nombre: string) => {
+    try {
+      await eliminarDocumentoPortafolio(idDocumento);
+      sileo.success({ title: "Archivo eliminado", description: `Se eliminó "${nombre}" exitosamente.` });
+      cargarDocumentosProfesor();
+    } catch (err: any) {
+      sileo.error({ title: "Error al eliminar", description: err.message || "No se pudo eliminar el archivo." });
+    }
+  };
 
   const handleEliminar = async (idDocumento: number, nombre: string) => {
     try {
@@ -191,29 +281,75 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
               <span>
                 {estudianteSeleccionado
                   ? `Portafolio: ${estudianteSeleccionado.nombre}`
-                  : "Supervisión de Portafolios de Estudiantes"}
+                  : vistaActiva === "propio"
+                  ? "Mi Portafolio"
+                  : "Portafolios de Estudiantes"}
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
               {estudianteSeleccionado
                 ? `RUT: ${estudianteSeleccionado.rut} • Carrera: ${estudianteSeleccionado.carrera}`
-                : "Revisión de evidencias de aprendizaje, pautas de retroalimentación y supervisión pedagógica."}
+                : vistaActiva === "propio"
+                ? "Tus documentos y archivos personales de práctica."
+                : "Revisión de evidencias de aprendizaje y supervisión pedagógica."}
             </p>
           </div>
         </div>
 
         {/* Acciones */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Selector de Asignatura (solo en vista de estudiantes) */}
+          {vistaActiva === "estudiantes" && !estudianteSeleccionado && asignaturas.length > 0 && (
+            <div className="flex items-center gap-2 bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200">
+              <span className="text-xs font-bold text-slate-700">Asignatura:</span>
+              {asignaturas.length > 1 ? (
+                <select
+                  value={selectedAsignaturaId ?? ""}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setSelectedAsignaturaId(val);
+                    setEstudianteSeleccionado(null);
+                  }}
+                  className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+                >
+                  {asignaturas.map((asig) => (
+                    <option key={asig.idAsignatura} value={asig.idAsignatura}>
+                      {asig.nombre} (Semestre {asig.semestre || "—"})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs font-semibold text-sky-800 bg-sky-100 px-2 py-0.5 rounded-md">
+                  {asignaturas[0].nombre} (Semestre {asignaturas[0].semestre || "—"})
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Botón subir en Mi Portafolio */}
+          {vistaActiva === "propio" && puedeSubir && (
+            <button
+              type="button"
+              onClick={() => setModalPropioAbierto(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 shadow-xs hover:shadow transition-all cursor-pointer"
+            >
+              <Upload className="size-3.5" />
+              <span>Subir Archivo</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
-              if (estudianteSeleccionado) {
+              if (vistaActiva === "propio") {
+                cargarDocumentosProfesor();
+              } else if (estudianteSeleccionado) {
                 cargarDocumentosEstudiante(estudianteSeleccionado.rut);
               } else {
-                cargarEstudiantes();
+                cargarEstudiantes(selectedAsignaturaId);
               }
             }}
-            disabled={cargando}
+            disabled={vistaActiva === "propio" ? cargandoPropio : cargando}
             className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             title="Recargar"
           >
@@ -233,8 +369,124 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         </div>
       </div>
 
+      {/* Tabs: Mi Portafolio / Portafolios de Estudiantes */}
+      {!estudianteSeleccionado && (
+        <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setVistaActiva("propio")}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              vistaActiva === "propio"
+                ? "bg-white text-sky-700 shadow-xs border border-sky-200"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Mi Portafolio
+          </button>
+          <button
+            type="button"
+            onClick={() => setVistaActiva("estudiantes")}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              vistaActiva === "estudiantes"
+                ? "bg-white text-sky-700 shadow-xs border border-sky-200"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Portafolios de Estudiantes
+          </button>
+        </div>
+      )}
+
+      {/* Panel: Mi Portafolio (documentos propios del profesor) */}
+      {vistaActiva === "propio" && !estudianteSeleccionado && (
+        <div className="space-y-4">
+          {cargandoPropio ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center">
+              <RefreshCw className="size-7 text-sky-600 animate-spin mb-2" />
+              <p className="text-sm font-medium text-slate-500">Cargando tus documentos...</p>
+            </div>
+          ) : documentosProfesor.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center flex flex-col items-center justify-center">
+              <FolderOpen className="size-10 text-slate-300 mb-2" />
+              <h4 className="text-base font-bold text-slate-800 mb-1">Tu portafolio está vacío</h4>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-sm mb-4">
+                Aún no has subido ningún documento a tu portafolio. Usa el botón "Subir Archivo" para agregar evidencias.
+              </p>
+              {puedeSubir && (
+                <button
+                  type="button"
+                  onClick={() => setModalPropioAbierto(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 shadow-xs hover:shadow transition-all cursor-pointer"
+                >
+                  <Upload className="size-3.5" />
+                  <span>Subir primer archivo</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <AttachmentGroup>
+              {documentosProfesor.map((doc) => (
+                <Attachment key={doc.idDocumento}>
+                  <AttachmentMedia>{getFileIcon(doc.nombre)}</AttachmentMedia>
+                  <AttachmentContent>
+                    <AttachmentTitle>{doc.nombre}</AttachmentTitle>
+                    <AttachmentDescription>
+                      {doc.tipo && <span className="capitalize">{doc.tipo}</span>}
+                      {doc.fechaSubida && <span> • {formatearFecha(doc.fechaSubida)}</span>}
+                    </AttachmentDescription>
+                  </AttachmentContent>
+                  <AttachmentActions className="gap-1 shrink-0 ml-2">
+                    <AttachmentAction
+                      onClick={() => window.open(`/api/portafolio/descargar/${doc.idDocumento}`, "_blank")}
+                      title="Descargar"
+                      className="hover:bg-sky-50 hover:text-sky-700 text-slate-600 rounded-lg"
+                    >
+                      <Download className="size-3.5" />
+                    </AttachmentAction>
+                    <AttachmentAction
+                      onClick={() => handleEliminarPropio(doc.idDocumento, doc.nombre)}
+                      title="Eliminar archivo"
+                      className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </AttachmentAction>
+                  </AttachmentActions>
+                </Attachment>
+              ))}
+            </AttachmentGroup>
+          )}
+
+          {/* Modal de subida propio */}
+          {modalPropioAbierto && user?.rut && (
+            <FileUploadModal
+              isOpen={modalPropioAbierto}
+              onClose={() => setModalPropioAbierto(false)}
+              title="Subir archivo a mi portafolio"
+              description="Agrega evidencias, documentos o archivos a tu propio portafolio (Límite: 20 MB)."
+              endpoint="/api/portafolio/subir"
+              showCategorySelect={true}
+              categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+              defaultCategory="Documento"
+              additionalData={{
+                rutEstudiante: user.rut,
+                rutUsuarioSubio: user.rut,
+              }}
+              allowedExtensions={[".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".zip", ".png", ".jpg", ".jpeg"]}
+              maxSizeMB={20}
+              onSuccess={() => {
+                setModalPropioAbierto(false);
+                cargarDocumentosProfesor();
+                sileo.success({ title: "Archivo subido", description: "El archivo se agregó a tu portafolio." });
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Panel: Portafolios de Estudiantes */}
       {/* Vista 1: Detalle del Estudiante Seleccionado con Attachment */}
       {estudianteSeleccionado ? (
+
         <div className="space-y-4">
           <div className="bg-slate-50 rounded-2xl border border-slate-200/90 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -342,20 +594,23 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             title={`Adjuntar archivo a portafolio de ${estudianteSeleccionado.nombre}`}
             description="Puedes subir pautas de evaluación, observaciones o material complementario (Límite: 20 MB)."
             endpoint="/api/portafolio/subir"
+            showCategorySelect={true}
+            categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+            defaultCategory="Documento"
             additionalData={{
               rutEstudiante: estudianteSeleccionado.rut,
-              tipo: "RETROALIMENTACION",
+              idAsignatura: selectedAsignaturaId ?? undefined,
               rutUsuarioSubio: user?.rut,
             }}
             allowedExtensions={[".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".zip", ".png", ".jpg", ".jpeg"]}
             maxSizeMB={20}
             onSuccess={() => {
               cargarDocumentosEstudiante(estudianteSeleccionado.rut);
-              cargarEstudiantes();
+              cargarEstudiantes(selectedAsignaturaId);
             }}
           />
         </div>
-      ) : (
+      ) : vistaActiva === "estudiantes" ? (
         /* Vista 2: Lista de Estudiantes para Selección */
         <div className="space-y-4">
           {/* Barra de Búsqueda */}
@@ -424,7 +679,8 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             </div>
           )}
         </div>
-      )}
+      ) : null
+      }
     </div>
   );
 }

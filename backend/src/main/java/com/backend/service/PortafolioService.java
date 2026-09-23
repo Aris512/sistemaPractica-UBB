@@ -17,6 +17,9 @@ import com.backend.model.Documento;
 import com.backend.model.Estudiante;
 import com.backend.model.Usuario;
 import com.backend.repository.DocumentoRepository;
+import java.util.Optional;
+import com.backend.model.Asignatura;
+import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
@@ -29,15 +32,18 @@ public class PortafolioService {
     private final DocumentoRepository documentoRepository;
     private final UsuarioRepository usuarioRepository;
     private final EstudianteRepository estudianteRepository;
+    private final AsignaturaRepository asignaturaRepository;
     private final FileStorageService fileStorageService;
 
     public PortafolioService(DocumentoRepository documentoRepository,
                              UsuarioRepository usuarioRepository,
                              EstudianteRepository estudianteRepository,
+                             AsignaturaRepository asignaturaRepository,
                              FileStorageService fileStorageService) {
         this.documentoRepository = documentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
+        this.asignaturaRepository = asignaturaRepository;
         this.fileStorageService = fileStorageService;
     }
 
@@ -57,7 +63,7 @@ public class PortafolioService {
     }
 
     /**
-     * Sube un documento al portafolio de un estudiante.
+     * Sube un documento al portafolio de un estudiante (sobrecarga sin idAsignatura explícito).
      */
     @Transactional
     public PortafolioItemDTO subirDocumentoPortafolio(
@@ -66,6 +72,20 @@ public class PortafolioService {
             String tipo,
             String rutUsuarioSubioRaw,
             String descripcion) {
+        return subirDocumentoPortafolio(file, rutEstudianteRaw, tipo, rutUsuarioSubioRaw, descripcion, null);
+    }
+
+    /**
+     * Sube un documento al portafolio de un estudiante asociando estudiante + asignatura + profesor + categoría.
+     */
+    @Transactional
+    public PortafolioItemDTO subirDocumentoPortafolio(
+            MultipartFile file,
+            String rutEstudianteRaw,
+            String tipo,
+            String rutUsuarioSubioRaw,
+            String descripcion,
+            Long idAsignatura) {
 
         Usuario usuarioEstudiante = buscarUsuarioPorRut(rutEstudianteRaw);
         if (usuarioEstudiante == null) {
@@ -89,9 +109,17 @@ public class PortafolioService {
             extensionesPermitidas
         );
 
-        String tipoFinal = (tipo != null && !tipo.isBlank())
-            ? (tipo.toUpperCase().startsWith("PORTAFOLIO") ? tipo.toUpperCase().trim() : "PORTAFOLIO_" + tipo.toUpperCase().trim())
-            : "PORTAFOLIO_EVIDENCIA";
+        String tipoFinal;
+        if (tipo != null && !tipo.isBlank()) {
+            String tUpper = tipo.trim().toUpperCase();
+            if (tUpper.startsWith("PORTAFOLIO_")) {
+                tipoFinal = tUpper;
+            } else {
+                tipoFinal = "PORTAFOLIO_" + tUpper;
+            }
+        } else {
+            tipoFinal = "PORTAFOLIO_EVIDENCIA";
+        }
 
         Documento doc = new Documento(
             stored.originalFilename(),
@@ -104,8 +132,24 @@ public class PortafolioService {
         doc.setTamanioBytes(stored.sizeBytes());
         doc.setFechaCarga(LocalDateTime.now());
 
+        // Asociar Asignatura al documento
+        Asignatura asig = null;
+        if (idAsignatura != null) {
+            asig = asignaturaRepository.findById(idAsignatura).orElse(null);
+        }
+        if (asig == null) {
+            Optional<Estudiante> estOpt = estudianteRepository.findByUsuario(usuarioEstudiante);
+            if (estOpt.isPresent() && estOpt.get().getAsignatura() != null) {
+                asig = estOpt.get().getAsignatura();
+            }
+        }
+        if (asig != null) {
+            doc.setAsignatura(asig);
+        }
+
         Documento guardado = documentoRepository.save(doc);
-        logger.info("Documento de portafolio guardado con éxito: ID {}, archivo {}", guardado.getIdDocumento(), guardado.getNombre());
+        logger.info("Documento de portafolio guardado con éxito: ID {}, archivo {}, asignatura ID {}",
+                guardado.getIdDocumento(), guardado.getNombre(), asig != null ? asig.getIdAsignatura() : "sin-asignatura");
 
         return toDTO(guardado, usuarioEstudiante.getRut());
     }
@@ -155,11 +199,17 @@ public class PortafolioService {
     }
 
     /**
-     * Lista estudiantes que tienen portafolios para supervisión de profesores o coordinador.
+     * Lista estudiantes que tienen portafolios para supervisión de profesores o coordinador,
+     * filtrando opcionalmente por asignatura.
      */
     @Transactional(readOnly = true)
-    public List<java.util.Map<String, Object>> obtenerEstudiantesConPortafolio() {
-        List<Estudiante> estudiantes = estudianteRepository.findAll();
+    public List<java.util.Map<String, Object>> obtenerEstudiantesConPortafolio(Long idAsignatura) {
+        List<Estudiante> estudiantes;
+        if (idAsignatura != null) {
+            estudiantes = estudianteRepository.findByAsignaturaIdAsignatura(idAsignatura);
+        } else {
+            estudiantes = estudianteRepository.findAll();
+        }
         List<java.util.Map<String, Object>> resultado = new ArrayList<>();
 
         for (Estudiante est : estudiantes) {
@@ -175,12 +225,18 @@ public class PortafolioService {
             map.put("nombre", (u.getNombre() != null ? u.getNombre() : "") + " " + (u.getApellido() != null ? u.getApellido() : ""));
             map.put("correo", u.getCorreo());
             map.put("carrera", est.getAsignatura() != null ? est.getAsignatura().getNombre() : "Pedagogía");
+            map.put("idAsignatura", est.getAsignatura() != null ? est.getAsignatura().getIdAsignatura() : null);
             map.put("totalArchivos", docs.size());
             map.put("ultimaActualizacion", docs.isEmpty() ? null : docs.get(0).getFechaCarga());
             resultado.add(map);
         }
 
         return resultado;
+    }
+
+    @Transactional(readOnly = true)
+    public List<java.util.Map<String, Object>> obtenerEstudiantesConPortafolio() {
+        return obtenerEstudiantesConPortafolio(null);
     }
 
     private PortafolioItemDTO toDTO(Documento doc, String rutEstudianteFallback) {

@@ -145,9 +145,11 @@ export function PracticaDocumentosView({
         endpoint="/api/portafolio/subir"
         title="Subir Archivo al Portafolio de Práctica"
         description="Puedes subir informes, bitácoras, registros o pautas en PDF, Word, Excel, PPTX o imágenes (máx. 20 MB)."
+        showCategorySelect={true}
+        categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+        defaultCategory="Documento"
         additionalData={{
           rutEstudiante: user.rut,
-          tipo: categoriaActiva === "Informes" ? "INFORME" : "EVIDENCIA",
           rutUsuarioSubio: user.rut,
         }}
         onSuccess={() => {

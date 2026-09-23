@@ -27,6 +27,10 @@ export interface FileUploadModalProps {
   onSuccess?: (response: any) => void;
   onError?: (errorMessage: string) => void;
   acceptedMimeTypes?: string;
+  showCategorySelect?: boolean;
+  categoryOptions?: string[];
+  categoryLabel?: string;
+  defaultCategory?: string;
 }
 
 export function FileUploadModal({
@@ -41,6 +45,10 @@ export function FileUploadModal({
   onSuccess,
   onError,
   acceptedMimeTypes,
+  showCategorySelect = false,
+  categoryOptions = ["Documento", "Evidencia", "Informe", "Otro"],
+  categoryLabel = "Categoría del documento",
+  defaultCategory = "Documento",
 }: FileUploadModalProps) {
   const {
     file,
@@ -56,14 +64,17 @@ export function FileUploadModal({
   } = useFileUpload();
 
   const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>(defaultCategory);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Limpiar estado al cerrar o abrir el modal
   useEffect(() => {
     if (!isOpen) {
       reset();
+    } else {
+      setSelectedCategory(defaultCategory);
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, defaultCategory]);
 
   const validationOptions: FileValidationOptions = {
     maxSizeMB,
@@ -115,7 +126,12 @@ export function FileUploadModal({
     if (!file) return;
 
     try {
-      const result = await upload(file, endpoint, additionalData, validationOptions);
+      const dataToSend = {
+        ...additionalData,
+        ...(showCategorySelect ? { tipo: selectedCategory } : {}),
+      };
+
+      const result = await upload(file, endpoint, dataToSend, validationOptions);
       sileo.success({
         title: "Carga completada",
         description: `El archivo ${file.name} se cargó exitosamente.`,
@@ -201,6 +217,27 @@ export function FileUploadModal({
 
         {/* Cuerpo del Modal */}
         <div className="p-6 space-y-5">
+          {/* Clasificador / Selector de Categoría */}
+          {showCategorySelect && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700 tracking-wide">
+                {categoryLabel} <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                disabled={isUploading}
+                className="w-full px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {categoryOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Zona de Selección o Drag & Drop */}
           {!file && (
             <div
