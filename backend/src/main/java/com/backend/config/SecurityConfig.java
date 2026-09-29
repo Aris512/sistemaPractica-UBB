@@ -51,8 +51,20 @@ public class SecurityConfig {
                 // Todas las demas rutas (/api/**, /, etc.) permanecen publicas
                 .anyRequest().permitAll()
             )
-            // Activar HTTP Basic Authentication (genera el 401 y header WWW-Authenticate para el popup)
-            .httpBasic(basic -> basic.realmName("Admin Area"));
+            // HTTP Basic sigue activo para validar el header Authorization en cada request a /admin/**,
+            // pero el entry point personalizado devuelve JSON 401 sin el header WWW-Authenticate: Basic.
+            // Sin ese header, el navegador NO muestra el popup nativo de autenticación.
+            .httpBasic(basic -> basic
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    // Deliberadamente NO se agrega WWW-Authenticate: Basic para evitar el popup del navegador.
+                    // El frontend muestra el formulario propio (LoginForm con context="admin").
+                    response.getWriter().write(
+                        "{\"success\":false,\"message\":\"No autorizado. Se requiere autenticación administrativa.\"}"
+                    );
+                })
+            );
 
         return http.build();
     }

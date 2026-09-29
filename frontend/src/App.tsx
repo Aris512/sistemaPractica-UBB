@@ -88,12 +88,43 @@ export default function App() {
     return () => window.removeEventListener("popstate", handleLocationChange);
   }, []);
 
+  /**
+   * Si hay un usuario ADMINISTRADOR en sesión y la ruta no es /admin,
+   * redirigirlo al panel (puede ocurrir al restaurar sesión desde sessionStorage).
+   */
+  useEffect(() => {
+    if (!currentUser) return;
+    if (currentPath === "/admin" || currentPath.startsWith("/admin/")) return;
 
+    const allRoles = [...(currentUser.roles || []), currentUser.rol || ""].map((r) =>
+      r.toUpperCase()
+    );
+    const isAdminRole = allRoles.some(
+      (r) => r.includes("ADMINISTRADOR") || r === "ADMIN" || r === "ROLE_ADMIN"
+    );
 
+    if (isAdminRole) {
+      window.history.pushState({}, "", "/admin");
+      setCurrentPath("/admin");
+    }
+  }, [currentUser, currentPath]);
 
   const handleLoginSuccess = useCallback((user: UserSession) => {
     setStoredUserSession(user);
     setCurrentUser(user);
+
+    // Detectar rol ADMINISTRADOR inmediatamente tras el login principal y redirigir a /admin.
+    // Una vez en /admin, AdminPage mostrará el LoginForm (context="admin") para la
+    // segunda autenticación administrativa — el usuario aún NO está dentro del panel.
+    const allRoles = [...(user.roles || []), user.rol || ""].map((r) => r.toUpperCase());
+    const isAdminRole = allRoles.some(
+      (r) => r.includes("ADMINISTRADOR") || r === "ADMIN" || r === "ROLE_ADMIN"
+    );
+
+    if (isAdminRole) {
+      window.history.pushState({}, "", "/admin");
+      setCurrentPath("/admin");
+    }
   }, []);
 
   const handleLogout = useCallback(() => {

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { clearAdminAuth } from "@/lib/adminAuth";
+import { LoginForm } from "@/components/login/LoginForm";
 import { DataTable } from "./data-table";
 import { userColumns } from "./columns";
 import {
@@ -26,19 +27,13 @@ import { RefreshCw, Loader2, AlertCircle, UserPlus, LogOut, FileSpreadsheet } fr
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
 
-export default function AdminPage() {
+/**
+ * Componente interno: contiene toda la lógica y JSX del panel.
+ * Solo se monta cuando el usuario ya está autenticado como administrador,
+ * evitando que los hooks (useDataTableFeatures) hagan llamadas a /admin/** sin credenciales.
+ */
+function AdminPanel({ onLogout }: { onLogout: () => void }) {
   const [activeSection, setActiveSection] = useState<AdminSection>("usuarios");
-
-  useEffect(() => {
-    // Sincronizar cookie de sesión de administración a sessionStorage
-    const match = document.cookie.match(/(?:^|; )admin_auth=([^;]*)/);
-    if (match && match[1]) {
-      const decoded = decodeURIComponent(match[1]);
-      if (decoded) {
-        sessionStorage.setItem("admin_auth_header", decoded);
-      }
-    }
-  }, []);
 
   const {
     data,
@@ -169,7 +164,9 @@ export default function AdminPage() {
 
   const handleLogout = () => {
     clearAdminAuth();
-    window.location.href = "/admin?logout=1";
+    // Notificar al guard (AdminPage) para resetear el estado sin recargar la página.
+    // AdminPage mostrará nuevamente el LoginForm con context="admin".
+    onLogout();
   };
 
   const handleGoHome = () => {
@@ -380,4 +377,69 @@ export default function AdminPage() {
       </SidebarProvider>
     </TooltipProvider>
   );
+}
+
+/**
+ * Guard de acceso al panel administrativo.
+ *
+ * Verifica si hay una sesión admin almacenada (sessionStorage / cookie).
+ * - Sin sesión: muestra LoginForm con context="admin" (sin popup nativo del navegador).
+ * - Con sesión válida: monta AdminPanel (que contiene todos los hooks y llamadas a /admin/**).
+ *
+ * Separar AdminPanel de AdminPage evita que los hooks del panel hagan
+ * llamadas a la API antes de que el usuario se haya autenticado.
+ */
+export default function AdminPage() {
+  const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+
+    // 1. Verificar sessionStorage
+    const ssHeader = window.sessionStorage.getItem("admin_auth_header");
+    if (ssHeader) return true;
+
+    // 2. Sincronizar cookie a sessionStorage si existe (restaura sesión tras recarga)
+    const cookieMatch = document.cookie.match(/(?:^|; )admin_auth=([^;]*)/);
+    if (cookieMatch && cookieMatch[1]) {
+      const decoded = decodeURIComponent(cookieMatch[1]);
+      if (decoded) {
+        window.sessionStorage.setItem("admin_auth_header", decoded);
+        return true;
+      }
+    }
+
+    return false;
+  });
+
+  const handleAdminLogout = () => {
+    // clearAdminAuth() ya fue llamado por AdminPanel antes de invocar esta función.
+    // Solo reseteamos el estado para mostrar el LoginForm nuevamente.
+    setAdminAuthenticated(false);
+  };
+
+  if (!adminAuthenticated) {
+    return (
+      <div className="min-h-screen w-full flex flex-col justify-center items-center bg-[#edf2f7] p-4 sm:p-6 md:p-10 relative overflow-hidden">
+        {/* Fondo de matemáticas: mismo patrón que el login principal para coherencia visual */}
+        <div
+          className="absolute inset-0 pointer-events-none select-none opacity-25 bg-repeat bg-center"
+          style={{
+            backgroundImage: "url('/math-doodles.svg')",
+            backgroundSize: "680px 680px",
+          }}
+          aria-hidden="true"
+        />
+        <div className="w-full max-w-md mx-auto relative z-10">
+          <LoginForm
+            context="admin"
+            onAdminLoginSuccess={() => setAdminAuthenticated(true)}
+            onLoginSuccess={() => {
+              /* No utilizado en contexto admin; requerido por la firma de la prop */
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return <AdminPanel onLogout={handleAdminLogout} />;
 }

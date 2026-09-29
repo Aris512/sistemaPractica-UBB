@@ -14,18 +14,36 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup } from "@/components/ui/field";
 import { formatRut, formatRutStandard, validateRut, cleanRut } from "@/lib/rutUtils";
 import { verificarEstudianteEsPractica, setStoredEsPractica } from "@/lib/authSession";
+import { setAdminAuthHeader } from "@/lib/adminAuth";
 import type { UserSession } from "@/types/auth";
 
 interface LoginFormProps {
   onLoginSuccess: (user: UserSession) => void;
+  /**
+   * Cuando context="admin", el formulario cambia a modo de autenticación administrativa:
+   * - Campo usuario en lugar de RUT.
+   * - Llama a /api/auth/admin-login en lugar de /api/auth/login.
+   * - Al autenticarse, almacena el header Basic para llamadas a /admin/** y llama onAdminLoginSuccess.
+   * Mismo componente visual, lógica bifurcada por prop.
+   */
+  context?: "admin";
+  onAdminLoginSuccess?: () => void;
 }
 
-export function LoginForm({ onLoginSuccess }: LoginFormProps) {
-  const [rut, setRut] = useState("");
+export function LoginForm({ onLoginSuccess, context, onAdminLoginSuccess }: LoginFormProps) {
+  const isAdmin = context === "admin";
+
+  /* ── Estado compartido ── */
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* ── Estado — login principal (RUT) ── */
+  const [rut, setRut] = useState("");
   const [rutValidationError, setRutValidationError] = useState<string | null>(null);
+
+  /* ── Estado — login admin (username) ── */
+  const [adminUsername, setAdminUsername] = useState("");
 
   function handleRutChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
@@ -53,6 +71,63 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     }
   }
 
+  /* ── Submit — contexto administrativo ── */
+  async function handleAdminSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!adminUsername.trim()) {
+      const msg = "Por favor, ingrese su nombre de usuario.";
+      setError(msg);
+      sileo.error({ title: "Campo requerido", description: msg });
+      return;
+    }
+
+    if (!password) {
+      const msg = "Por favor, ingrese su contraseña.";
+      setError(msg);
+      sileo.error({ title: "Campo requerido", description: msg });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: adminUsername.trim(), password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        const msg = data.message ?? "Usuario o contraseña incorrectos.";
+        setError(msg);
+        sileo.error({ title: "Acceso denegado", description: msg });
+        return;
+      }
+
+      // Almacenar el header Basic para que adminFetch lo incluya en llamadas a /admin/**
+      const basicHeader = "Basic " + btoa(`${adminUsername.trim()}:${password}`);
+      setAdminAuthHeader(basicHeader);
+
+      sileo.success({
+        title: "Acceso concedido",
+        description: "Bienvenido al panel de administración.",
+      });
+
+      onAdminLoginSuccess?.();
+    } catch {
+      const msg = "No se pudo conectar con el servidor. Verifique que el backend esté activo.";
+      setError(msg);
+      sileo.error({ title: "Error de conexión", description: msg });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ── Submit — contexto login principal ── */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -137,6 +212,88 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
     }
   }
 
+  /* ── Render — contexto administrativo ── */
+  if (isAdmin) {
+    return (
+      <Card className="w-full shadow-sm">
+        <CardHeader>
+          <CardTitle>Panel de Administración</CardTitle>
+          <CardDescription>
+            Ingresa con tus credenciales administrativas para acceder al panel.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <form id="admin-login-form" onSubmit={handleAdminSubmit}>
+            <FieldGroup>
+              <Field>
+                <Label htmlFor="admin-username">Usuario</Label>
+                <Input
+                  id="admin-username"
+                  type="text"
+                  placeholder="Usuario administrativo"
+                  autoComplete="username"
+                  required
+                  value={adminUsername}
+                  onChange={(e) => {
+                    setAdminUsername(e.target.value);
+                    setError(null);
+                  }}
+                  aria-invalid={!!error}
+                />
+              </Field>
+
+              <Field>
+                <Label htmlFor="admin-password">Contraseña</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setError(null);
+                  }}
+                  aria-invalid={!!error}
+                />
+              </Field>
+
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium flex items-start gap-2">
+                  <svg className="w-4 h-4 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                    <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+            </FieldGroup>
+          </form>
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-3">
+          <Button
+            type="submit"
+            form="admin-login-form"
+            size="lg"
+            className="w-full"
+            disabled={loading}
+          >
+            {loading ? "Verificando…" : "Acceder al panel"}
+          </Button>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Acceso restringido a administradores del sistema.
+          </p>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  /* ── Render — contexto login principal (original inalterado) ── */
   return (
     <Card className="w-full shadow-sm">
       <CardHeader>
