@@ -7,7 +7,6 @@ import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "./Portafolio";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
-import { TableEstudiantes } from "./table";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
 import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
@@ -111,7 +110,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         );
       case "revision-retroalimentacion":
         if (!cargandoProfesor && !esProfesorOctavoONoveno) {
-          return <TableEstudiantes user={user} />;
+          return null;
         }
         return (
           <RevisionRetroalimentacion
@@ -121,29 +120,29 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         );
       case "documentos-practica":
         if (!cargandoProfesor && !esProfesorOctavoONoveno) {
-          return <TableEstudiantes user={user} />;
+          return null;
         }
         return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
         if (!hasPermission("PORTAFOLIO_CONSULTAR") && !hasPermission("PORTAFOLIO_SUBIR")) {
-          return <TableEstudiantes user={user} />;
+          return null;
         }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
-        return <TableEstudiantes user={user} />;
+        return null;
       case "planificacion":
         if (!cargandoProfesor && !esProfesorOctavoONoveno) {
-          return <TableEstudiantes user={user} />;
+          return null;
         }
         return <Planificacion onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
         if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
-          return <TableEstudiantes user={user} />;
+          return null;
         }
         return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
-        return <TableEstudiantes user={user} />;
+        return null;
     }
   };
 

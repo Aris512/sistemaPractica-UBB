@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Home,
-  GraduationCap,
   Briefcase,
   ClipboardCheck,
   MessageSquareText,
@@ -128,26 +127,6 @@ export function HomeSidebar({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-
-
-              {/* Cursos */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "cursos-practica" || activeMenu === "mis-cursos"}
-                  onClick={() => handleSelectMockup("cursos-practica", "Cursos / Práctica")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "cursos-practica" || activeMenu === "mis-cursos"
-                      ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <GraduationCap className="size-4.5 text-sky-600 shrink-0" />
-                    <span>Cursos</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
 
               {/* Evaluaciones */}
               {hasPermission("EVALUACIONES_CONSULTAR") && (

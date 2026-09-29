@@ -1,12 +1,14 @@
 package com.backend.service;
 
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.backend.dto.ActividadEstudianteDTO;
 import com.backend.dto.CrearActividadDTO;
 import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
@@ -63,6 +65,74 @@ public class ActividadService {
         }
         // Si no tiene asignatura asignada o la lista está vacía, retornar todas las actividades
         return actividadRepository.findAllByOrderByFechaCreacionDesc();
+    }
+
+    /**
+     * Devuelve las actividades de la asignatura del estudiante enriquecidas
+     * con el estado de su evidencia (si ya entregó o no).
+     * Solo muestra actividades de la asignatura a la que pertenece el estudiante.
+     */
+    public List<ActividadEstudianteDTO> obtenerParaEstudianteEnriquecido(String rut) {
+        Optional<Estudiante> estudianteOpt = estudianteRepository.findByUsuarioRut(rut);
+        if (estudianteOpt.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Estudiante estudiante = estudianteOpt.get();
+        if (estudiante.getAsignatura() == null) {
+            return new ArrayList<>();
+        }
+
+        Long idAsignatura = estudiante.getAsignatura().getIdAsignatura();
+        List<Actividad> actividades = actividadRepository
+                .findByAsignaturaIdAsignaturaOrderByFechaCreacionDesc(idAsignatura);
+
+        List<ActividadEstudianteDTO> resultado = new ArrayList<>();
+        for (Actividad act : actividades) {
+            // Actividades desactivadas (CERRADA) no se muestran al estudiante
+            if ("CERRADA".equalsIgnoreCase(act.getEstado())) {
+                continue;
+            }
+            ActividadEstudianteDTO dto = new ActividadEstudianteDTO();
+            dto.setIdActividad(act.getIdActividad());
+            dto.setTitulo(act.getTitulo());
+            dto.setDescripcion(act.getDescripcion());
+            dto.setEstado(act.getEstado());
+            dto.setFechaCreacion(act.getFechaCreacion());
+            dto.setFechaLimite(act.getFechaLimite());
+
+            if (act.getAsignatura() != null) {
+                dto.setIdAsignatura(act.getAsignatura().getIdAsignatura());
+                dto.setNombreAsignatura(act.getAsignatura().getNombre());
+            }
+
+            if (act.getProfesor() != null) {
+                dto.setIdProfesor(act.getProfesor().getIdProfesor());
+                if (act.getProfesor().getUsuario() != null) {
+                    dto.setNombreProfesor(act.getProfesor().getUsuario().getNombre());
+                    dto.setApellidoProfesor(act.getProfesor().getUsuario().getApellido());
+                    dto.setRutProfesor(act.getProfesor().getUsuario().getRut());
+                }
+            }
+
+            // Buscar evidencia del estudiante para esta actividad
+            Optional<Evidencia> evidenciaOpt = evidenciaRepository
+                    .findByActividadIdActividadAndEstudianteUsuarioRut(act.getIdActividad(), rut);
+            if (evidenciaOpt.isPresent()) {
+                Evidencia ev = evidenciaOpt.get();
+                dto.setIdEvidencia(ev.getIdEvidencia());
+                dto.setEstadoEvidencia(ev.getEstado());
+                dto.setFechaEntrega(ev.getFechaEntrega());
+                dto.setNombreArchivo(ev.getNombreArchivo());
+                dto.setArchivoUrl(ev.getArchivoUrl());
+                dto.setComentarioEstudiante(ev.getComentarioEstudiante());
+                dto.setCalificacion(ev.getCalificacion());
+                dto.setRetroalimentacion(ev.getRetroalimentacion());
+                dto.setFechaRevision(ev.getFechaRevision());
+            }
+
+            resultado.add(dto);
+        }
+        return resultado;
     }
 
     @Transactional
