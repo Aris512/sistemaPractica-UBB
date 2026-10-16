@@ -314,3 +314,12 @@ puerto indicado.
 10. No eliminar configuraciones existentes sin verificar de qué dependen.
 11. No editar migraciones de Flyway ya aplicadas; añadir una nueva versión.
 12. Los cambios de esquema se versionan en `backend/src/main/resources/db/migration/`.
+13. Ningún PR de Dependabot se acepta sin ejecutar antes `.\mvnw.cmd verify`.
+
+---
+
+## 12. Versiones entregadas
+
+| Etiqueta | Contenido |
+|----------|-----------|
+| `v1.0.0` | Incremento 1 + configuración revisada (dependencias, perfiles, Flyway, entorno y front-end). |
