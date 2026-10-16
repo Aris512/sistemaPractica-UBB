@@ -28,6 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Versión explícita para importación masiva de Excel; Spring Boot starter parent no administra org.apache.poi -->
+    	<poi.version>5.4.0</poi.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -55,7 +57,7 @@
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi-ooxml</artifactId>
-			<version>5.4.0</version>
+			<version>${poi.version}</version>
 		</dependency>
 
 		<dependency>
