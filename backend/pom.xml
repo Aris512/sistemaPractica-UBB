@@ -86,6 +86,13 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- H2 en memoria para pruebas: el perfil "test" usa H2 en modo MySQL,
+		     así .\mvnw.cmd test pasa en cualquier PC sin necesitar MySQL ni Docker. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
