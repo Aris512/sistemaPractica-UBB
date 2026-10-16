@@ -147,7 +147,7 @@ export function EditModal({
       const fetchRoles = async () => {
         setLoadingRoles(true);
         try {
-          const res = await fetch("http://localhost:8080/api/roles");
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/roles`);
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -165,7 +165,7 @@ export function EditModal({
       const fetchAsignaturas = async () => {
         setLoadingAsignaturas(true);
         try {
-          const res = await fetch("http://localhost:8080/api/asignaturas");
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/asignaturas`);
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -201,7 +201,7 @@ export function EditModal({
       const fetchCentros = async () => {
         setLoadingCentros(true);
         try {
-          const res = await fetch("http://localhost:8080/api/centros-practica");
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/api/centros-practica`);
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -288,7 +288,7 @@ export function EditModal({
     const rolNormalizado = normalizeRole(rol);
 
     try {
-      const res = await adminFetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
+      const res = await adminFetch(`${import.meta.env.VITE_API_URL}/admin/usuarios/${encodeURIComponent(rut)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

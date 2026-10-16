@@ -16,7 +16,7 @@ export function useSeguimientoData(userRut?: string) {
     try {
       const profesorRut = userRut || "11111111-1";
       const res = await fetch(
-        `http://localhost:8080/api/evidencias/seguimiento/profesor/${encodeURIComponent(profesorRut)}`
+        `${import.meta.env.VITE_API_URL}/api/evidencias/seguimiento/profesor/${encodeURIComponent(profesorRut)}`
       );
 
       if (res.ok) {
@@ -60,7 +60,7 @@ export function useSeguimientoData(userRut?: string) {
         }
       }
 
-      const resEst = await fetch("http://localhost:8080/api/estudiantes");
+      const resEst = await fetch(`${import.meta.env.VITE_API_URL}/api/estudiantes`);
       if (resEst.ok) {
         const estJson = await resEst.json();
         if (Array.isArray(estJson)) {

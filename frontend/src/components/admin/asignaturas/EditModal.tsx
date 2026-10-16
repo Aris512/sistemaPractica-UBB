@@ -95,7 +95,7 @@ export function EditModal({ isOpen, onClose, asignatura, onSave }: EditModalProp
     };
 
     try {
-      const res = await fetch(`http://localhost:8080/api/asignaturas/${asignatura.idAsignatura}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/asignaturas/${asignatura.idAsignatura}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

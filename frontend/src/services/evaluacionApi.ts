@@ -1,6 +1,6 @@
 import type { Evaluacion, ObservacionEvaluacion } from "../types/evaluacion";
 
-const API_URL = "http://localhost:8080/api";
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 export const getEvaluaciones = async (): Promise<Evaluacion[]> => {
   const response = await fetch(`${API_URL}/evaluaciones`);

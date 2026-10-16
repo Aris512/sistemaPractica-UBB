@@ -37,7 +37,7 @@ export function EstudiantesPracticaList({
   const fetchEstudiantes = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8080/api/coordinador/estudiantes-practica");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/coordinador/estudiantes-practica`);
       if (!res.ok) {
         throw new Error("No se pudieron cargar los estudiantes de práctica.");
       }

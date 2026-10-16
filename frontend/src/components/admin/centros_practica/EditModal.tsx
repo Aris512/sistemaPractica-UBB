@@ -70,7 +70,7 @@ export function EditModal({ isOpen, onClose, centro, onSave }: EditModalProps) {
     };
 
     try {
-      const res = await fetch(`http://localhost:8080/api/centros-practica/${centro.idCentro}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/centros-practica/${centro.idCentro}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
