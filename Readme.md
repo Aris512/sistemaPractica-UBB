@@ -62,13 +62,33 @@ npm run dev
 
 ## 2. Requisitos previos
 
-Antes de ejecutar el proyecto, verificar las instalaciones necesarias:
+Antes de ejecutar el proyecto, verificar las instalaciones necesarias.
+**Todo el equipo usa las mismas versiones** (ver tabla más abajo).
 
-- **Java 21** y **Maven** (`java -version`, `mvn -version`)
-- **Node.js (versión LTS)** y **npm** (`node -v`, `npm -v`)
-- **Docker Desktop** y **Docker Compose** (`docker --version`, `docker compose version`)
-- **Git** (`git --version`)
-- **MySQL Workbench** *(opcional, para visualizar la base de datos)*
+- **Java 21** (`java -version`) — sin instalar Maven: se usa el wrapper.
+- **Docker Desktop** y **Docker Compose** (`docker --version`, `docker compose version`).
+- **Node.js 22** y **npm** (`node -v`, `npm -v`).
+- **Git** (`git --version`).
+- **MySQL Workbench** *(opcional, para visualizar la base de datos)*.
+
+### Versiones acordadas (dónde quedan fijadas)
+
+| Herramienta | Versión | Dónde queda fijada |
+|-------------|---------|--------------------|
+| Java        | 21      | `backend/pom.xml` (`<java.version>`) |
+| Maven       | 3.9.x   | `backend/.mvn/wrapper/maven-wrapper.properties` |
+| MySQL       | 8.4     | `docker-compose.yml` (`image: mysql:8.4`) |
+| Node.js     | 22      | `frontend/package.json` (`engines`) y `frontend/.nvmrc` |
+
+### Versiones por integrante
+
+| Integrante        | Java (`java -version`) | MySQL   | Node (`node -v`) |
+|-------------------|------------------------|---------|------------------|
+| Sebastian Cadiz   |                        |         |                  |
+| Pedro Merino      |                        |         |                  |
+| Cristobal Muñoz   |                        |         |                  |
+| Javier Toro       |                        |         |                  |
+| *(completar)*     |                        |         |                  |
 
 ---
 
