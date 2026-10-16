@@ -75,12 +75,12 @@ public class EvidenciaController {
     }
 
     @PostMapping
-    public ResponseEntity<Evidencia> subirEvidencia(@RequestBody SubirEvidenciaDTO dto) {
+    public ResponseEntity<?> subirEvidencia(@RequestBody SubirEvidenciaDTO dto) {
         try {
             Evidencia guardada = evidenciaService.subirEvidencia(dto);
             return ResponseEntity.ok(guardada);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -95,6 +95,9 @@ public class EvidenciaController {
             @RequestParam("rutEstudiante") String rutEstudiante,
             @RequestParam(value = "comentario", required = false) String comentario) {
         try {
+            // Validar plazo ANTES de almacenar el archivo para evitar archivos huérfanos
+            evidenciaService.validarPlazoEntrega(idActividad);
+
             FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
                     file,
                     "evidencias",
@@ -130,8 +133,12 @@ public class EvidenciaController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        evidenciaService.eliminar(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> eliminar(@PathVariable Long id) {
+        try {
+            evidenciaService.eliminar(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }

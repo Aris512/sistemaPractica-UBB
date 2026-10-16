@@ -37,10 +37,39 @@ interface EvaluacionesProps {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Parsea una fecha límite ISO respetando la zona horaria del usuario y
+ * evitando que cadenas con solo fecha (YYYY-MM-DD) se interpreten como UTC medianoche.
+ */
+function parseFechaLimite(iso?: string): Date | null {
+  if (!iso) return null;
+  // Si viene solo fecha YYYY-MM-DD, interpretar hasta el final del día en hora local
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d, 23, 59, 59, 999);
+  }
+  // Si viene ISO sin sufijo de zona horaria (ej: 2026-10-06T23:59:00), parsear explícitamente en hora local
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (match && !iso.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(iso)) {
+    const [, y, m, d, h, min, s] = match;
+    return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s || 0));
+  }
+  const date = new Date(iso);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function isPlazoVencido(fechaLimite?: string): boolean {
+  if (!fechaLimite) return false;
+  const deadline = parseFechaLimite(fechaLimite);
+  if (!deadline) return false;
+  return deadline.getTime() < Date.now();
+}
+
 function formatFecha(iso?: string): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString("es-CL", {
+    const d = parseFechaLimite(iso) ?? new Date(iso);
+    return d.toLocaleDateString("es-CL", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -53,7 +82,8 @@ function formatFecha(iso?: string): string {
 function formatFechaHora(iso?: string): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString("es-CL", {
+    const d = parseFechaLimite(iso) ?? new Date(iso);
+    return d.toLocaleDateString("es-CL", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -66,14 +96,13 @@ function formatFechaHora(iso?: string): string {
 }
 
 function estadoEvidenciaBadge(act: ActividadEstudiante) {
+  const vencida = isPlazoVencido(act.fechaLimite);
+
   if (!act.idEvidencia) {
-    // Sin entrega — revisar si está vencida
-    const vencida =
-      act.fechaLimite && new Date(act.fechaLimite) < new Date();
     return vencida ? (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
         <X className="size-3" />
-        Vencida
+        Plazo vencido
       </span>
     ) : (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
@@ -201,6 +230,15 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
   const handleUpload = async () => {
     if (!selectedActividad || !uploadFile) return;
 
+    if (isPlazoVencido(selectedActividad.fechaLimite)) {
+      sileo.error({
+        title: "Plazo vencido",
+        description:
+          "El plazo de entrega ha vencido. No se permiten nuevas entregas ni reemplazos.",
+      });
+      return;
+    }
+
     setIsUploading(true);
     try {
       await subirEvidenciaArchivo({
@@ -324,10 +362,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         ) : (
           actividades.map((act) => {
             const yaEntrego = !!act.idEvidencia;
-            const vencida =
-              !yaEntrego &&
-              act.fechaLimite &&
-              new Date(act.fechaLimite) < new Date();
+            const vencida = isPlazoVencido(act.fechaLimite);
 
             return (
               <div
@@ -346,16 +381,18 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                     {/* Ícono de estado */}
                     <div
                       className={`size-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        yaEntrego
-                          ? act.estadoEvidencia === "REVISADO"
-                            ? "bg-sky-100 text-sky-700"
-                            : "bg-emerald-100 text-emerald-700"
-                          : vencida
-                            ? "bg-rose-100 text-rose-600"
+                        vencida
+                          ? "bg-rose-100 text-rose-600"
+                          : yaEntrego
+                            ? act.estadoEvidencia === "REVISADO"
+                              ? "bg-sky-100 text-sky-700"
+                              : "bg-emerald-100 text-emerald-700"
                             : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {yaEntrego ? (
+                      {vencida ? (
+                        <Clock className="size-5 text-rose-600" />
+                      ) : yaEntrego ? (
                         act.estadoEvidencia === "REVISADO" ? (
                           <CheckCircle2 className="size-5" />
                         ) : (
@@ -386,14 +423,27 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                         {act.fechaLimite && (
                           <span
                             className={`flex items-center gap-1 font-medium ${
-                              vencida ? "text-rose-600" : "text-slate-500"
+                              vencida ? "text-rose-600 font-semibold" : "text-slate-500"
                             }`}
                           >
                             <Calendar className="size-3" />
-                            Entrega: {formatFecha(act.fechaLimite)}
+                            Fecha límite: {formatFecha(act.fechaLimite)}
                           </span>
                         )}
                       </div>
+
+                      {/* Banner explicativo cuando el plazo ha vencido */}
+                      {vencida && (
+                        <div className="mt-2.5 p-2.5 rounded-xl bg-rose-50/70 border border-rose-200/80 text-xs text-rose-800">
+                          <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                            <AlertCircle className="size-3.5 text-rose-600 shrink-0" />
+                            Estado: Plazo vencido
+                          </div>
+                          <p className="mt-0.5 text-rose-700">
+                            La fecha límite de entrega ha finalizado. Ya no puedes subir ni reemplazar archivos.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Calificación si fue revisado */}
                       {act.calificacion != null && (
@@ -419,8 +469,19 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                   </div>
 
                   {/* Badge + Botón */}
-                  <div className="flex items-center gap-3 sm:shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                     {estadoEvidenciaBadge(act)}
+                    {vencida && act.archivoUrl && (
+                      <a
+                        href={getArchivoDownloadUrl(act.archivoUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-8 px-3 text-xs inline-flex items-center gap-1.5 rounded-lg font-medium border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition-colors"
+                      >
+                        <Download className="size-3.5 text-slate-500" />
+                        Descargar entrega anterior
+                      </a>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -469,6 +530,21 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
 
             {/* Contenido */}
             <div className="p-5 sm:p-6 space-y-4 max-h-[72vh] overflow-y-auto text-sm">
+              {/* Alerta de plazo vencido en modal */}
+              {isPlazoVencido(selectedActividad.fechaLimite) && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 flex items-start gap-3">
+                  <AlertCircle className="size-5 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-rose-900 uppercase tracking-wide">
+                      Estado: Plazo vencido
+                    </p>
+                    <p className="text-xs text-rose-700 leading-relaxed">
+                      La fecha límite de entrega ha finalizado. Ya no puedes subir ni reemplazar archivos.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Metadatos */}
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
@@ -515,8 +591,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       </span>
                       <span
                         className={`font-semibold ${
-                          !selectedActividad.idEvidencia &&
-                          new Date(selectedActividad.fechaLimite) < new Date()
+                          isPlazoVencido(selectedActividad.fechaLimite)
                             ? "text-rose-600"
                             : "text-slate-800"
                         }`}
@@ -529,14 +604,18 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                     <span className="text-slate-400 block mb-0.5">Estado:</span>
                     <span
                       className={`font-semibold ${
-                        selectedActividad.estado === "ACTIVA"
-                          ? "text-emerald-700"
-                          : "text-slate-500"
+                        isPlazoVencido(selectedActividad.fechaLimite)
+                          ? "text-rose-700"
+                          : selectedActividad.estado === "ACTIVA"
+                            ? "text-emerald-700"
+                            : "text-slate-500"
                       }`}
                     >
-                      {selectedActividad.estado === "ACTIVA"
-                        ? "Activa"
-                        : "Cerrada"}
+                      {isPlazoVencido(selectedActividad.fechaLimite)
+                        ? "Plazo vencido"
+                        : selectedActividad.estado === "ACTIVA"
+                          ? "Activa"
+                          : "Cerrada"}
                     </span>
                   </div>
                 </div>
@@ -564,19 +643,21 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                     </p>
                     <div className="flex items-center gap-2">
                       {estadoEvidenciaBadge(selectedActividad)}
-                      <button
-                        type="button"
-                        onClick={handleEliminarEvidencia}
-                        disabled={isDeletingEvidencia || isUploading}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                      >
-                        {isDeletingEvidencia ? (
-                          <RefreshCw className="size-3 animate-spin" />
-                        ) : (
-                          <X className="size-3" />
-                        )}
-                        {isDeletingEvidencia ? "Eliminando..." : "Eliminar entrega"}
-                      </button>
+                      {!isPlazoVencido(selectedActividad.fechaLimite) && (
+                        <button
+                          type="button"
+                          onClick={handleEliminarEvidencia}
+                          disabled={isDeletingEvidencia || isUploading}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        >
+                          {isDeletingEvidencia ? (
+                            <RefreshCw className="size-3 animate-spin" />
+                          ) : (
+                            <X className="size-3" />
+                          )}
+                          {isDeletingEvidencia ? "Eliminando..." : "Eliminar entrega"}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -669,7 +750,26 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
               ) : null}
 
               {/* ── Sección: Subir/Actualizar entrega ── */}
-              {selectedActividad.estado === "ACTIVA" && (
+              {isPlazoVencido(selectedActividad.fechaLimite) ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <Upload className="size-4 text-slate-400" />
+                    {selectedActividad.idEvidencia
+                      ? "Reemplazar entrega (Bloqueado)"
+                      : "Subir entrega (Bloqueado)"}
+                  </p>
+
+                  <div className="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center bg-slate-100/70 cursor-not-allowed select-none">
+                    <AlertCircle className="size-6 text-slate-400 mx-auto mb-2" />
+                    <p className="text-xs text-slate-600 font-semibold">
+                      Subida de archivos deshabilitada
+                    </p>
+                    <p className="text-2xs text-slate-400 mt-1">
+                      El plazo de entrega ha finalizado. No se permiten nuevas entregas ni reemplazos.
+                    </p>
+                  </div>
+                </div>
+              ) : selectedActividad.estado === "ACTIVA" ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                     <Upload className="size-4" />
@@ -747,10 +847,11 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                     />
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Actividad cerrada sin entrega */}
               {selectedActividad.estado === "CERRADA" &&
+                !isPlazoVencido(selectedActividad.fechaLimite) &&
                 !selectedActividad.idEvidencia && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-4 text-center">
                     <X className="size-5 text-rose-500 mx-auto mb-1" />
@@ -773,7 +874,17 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 Cerrar
               </Button>
 
-              {selectedActividad.estado === "ACTIVA" && (
+              {isPlazoVencido(selectedActividad.fechaLimite) ? (
+                <Button
+                  size="sm"
+                  disabled={true}
+                  className="text-xs gap-1.5 bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed shadow-none"
+                  title="El plazo de entrega ha vencido"
+                >
+                  <Upload className="size-3.5" />
+                  {selectedActividad.idEvidencia ? "Actualizar entrega (Deshabilitado)" : "Entregar actividad (Deshabilitado)"}
+                </Button>
+              ) : selectedActividad.estado === "ACTIVA" ? (
                 <Button
                   size="sm"
                   onClick={handleUpload}
@@ -792,7 +903,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                     </>
                   )}
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

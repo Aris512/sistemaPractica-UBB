@@ -138,10 +138,27 @@ public class EvidenciaService {
         return resultado;
     }
 
+    public void validarPlazoEntrega(Long idActividad) {
+        Actividad actividad = actividadRepository.findById(idActividad)
+                .orElseThrow(() -> new IllegalArgumentException("Actividad no encontrada con ID: " + idActividad));
+        validarPlazoEntrega(actividad);
+    }
+
+    public void validarPlazoEntrega(Actividad actividad) {
+        if (actividad.getFechaLimite() != null && LocalDateTime.now().isAfter(actividad.getFechaLimite())) {
+            throw new IllegalArgumentException("El plazo de entrega ha vencido. No se permiten nuevas entregas ni reemplazos.");
+        }
+        if ("CERRADA".equalsIgnoreCase(actividad.getEstado())) {
+            throw new IllegalArgumentException("Esta actividad está cerrada y no admite entregas.");
+        }
+    }
+
     @Transactional
     public Evidencia subirEvidencia(SubirEvidenciaDTO dto) {
         Actividad actividad = actividadRepository.findById(dto.getIdActividad())
                 .orElseThrow(() -> new IllegalArgumentException("Actividad no encontrada con ID: " + dto.getIdActividad()));
+
+        validarPlazoEntrega(actividad);
 
         Estudiante estudiante = estudianteRepository.findByUsuarioRut(dto.getRutEstudiante())
                 .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado con RUT: " + dto.getRutEstudiante()));
@@ -195,6 +212,13 @@ public class EvidenciaService {
 
     @Transactional
     public void eliminar(Long id) {
-        evidenciaRepository.deleteById(id);
+        Evidencia evidencia = evidenciaRepository.findById(id).orElse(null);
+        if (evidencia != null) {
+            Actividad actividad = evidencia.getActividad();
+            if (actividad != null && actividad.getFechaLimite() != null && LocalDateTime.now().isAfter(actividad.getFechaLimite())) {
+                throw new IllegalArgumentException("El plazo de entrega ha vencido. No se permiten modificaciones ni eliminar la entrega.");
+            }
+            evidenciaRepository.delete(evidencia);
+        }
     }
 }
