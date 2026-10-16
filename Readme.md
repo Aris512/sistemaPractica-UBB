@@ -114,14 +114,15 @@ proyectoU/
 
 ## 5. Configuración de MySQL
 
-MySQL se ejecuta mediante Docker Compose con los siguientes parámetros de conexión:
+MySQL se ejecuta mediante Docker Compose. Las credenciales **no** viven en el
+código: se leen del archivo `.env` (ver `.env.example`).
 
 - **Host:** `127.0.0.1`
 - **Puerto:** `3306`
-- **Base de datos:** `proyecto_db`
-- **Usuario:** `proyecto_user`
-- **Contraseña:** `proyecto_pass`
-- **Root Password:** `root_pass`
+- **Base de datos:** `${DB_NAME:-proyecto_db}`
+- **Usuario:** `${DB_USER:-proyecto_user}`
+- **Contraseña:** `${DB_PASSWORD}` (definida en `.env`)
+- **Root Password:** `${DB_ROOT_PASSWORD}` (definida en `.env`)
 - **Volumen de datos:** `mysql_data`
 
 ---
