@@ -39,7 +39,7 @@ docker compose version
 | Integrante        | `java -version` | `mysql --version` | `node -v` |
 |-------------------|-----------------|-------------------|-----------|
 | Sebastian Cadiz   |                 |                   |           |
-| Pedro Merino      |                 |                   |           |
+| Pedro Merino      |     Java 24            |   Mysql 8.4                |   Node v24.21.0        |
 | Cristobal Muñoz   |Java 24.0.2      |MariaDB 10.4.32 (XAMPP)|v26.8.2           |
 | Javier Toro       |                 |                   |           |
 
