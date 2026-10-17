@@ -68,7 +68,7 @@ export function RevisionModal({
 
     try {
       if (student.idEvidencia) {
-        const res = await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/evidencias/${student.idEvidencia}/revisar`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

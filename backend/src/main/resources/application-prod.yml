@@ -1,0 +1,12 @@
+# Perfil de producción: sin valores por defecto.
+# Si falta cualquiera de las variables, la aplicación NO arranca.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false

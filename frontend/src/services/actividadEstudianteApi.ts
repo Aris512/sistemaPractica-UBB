@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8080/api";
+const API_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 /** Actividad enriquecida con el estado de la evidencia del estudiante */
 export interface ActividadEstudiante {
@@ -86,13 +86,13 @@ export const getArchivoDownloadUrl = (relativePath: string): string => {
   if (!relativePath) return "";
   if (relativePath.startsWith("http")) return relativePath;
   const clean = relativePath.replace(/^uploads\//, "");
-  return `http://localhost:8080/uploads/${clean}`;
+  return `${import.meta.env.VITE_API_URL}/uploads/${clean}`;
 };
 
 /** Elimina la evidencia entregada por el estudiante para una actividad */
 export const eliminarEvidencia = async (idEvidencia: number): Promise<void> => {
   const response = await fetch(
-    `http://localhost:8080/api/evidencias/${idEvidencia}`,
+    `${import.meta.env.VITE_API_URL}/api/evidencias/${idEvidencia}`,
     { method: "DELETE" }
   );
   if (!response.ok) {

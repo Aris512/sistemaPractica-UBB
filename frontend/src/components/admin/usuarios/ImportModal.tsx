@@ -160,7 +160,7 @@ export function ImportModal({ isOpen, onClose, onImportSuccess }: ImportModalPro
     formData.append("file", selectedFile);
 
     try {
-      const res = await adminFetch("http://localhost:8080/admin/usuarios/importar", {
+      const res = await adminFetch(`${import.meta.env.VITE_API_URL}/admin/usuarios/importar`, {
         method: "POST",
         body: formData,
       });

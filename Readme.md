@@ -1,183 +1,325 @@
 # ProyectoU
 
-Sistema web desarrollado como proyecto Full Stack utilizando **Spring Boot**, **React**, **MySQL** y **Docker**.
+Sistema web Full Stack para la gestión de prácticas de la carrera, construido con
+**Spring Boot 4**, **React 19 + TypeScript (Vite)**, **MySQL 8.4** y **Docker**.
+
+Este documento explica, paso a paso, cómo levantar el proyecto **desde cero** en
+una máquina nueva. Si sigues las instrucciones en orden deberías poder ejecutar
+todo sin preguntar a nadie.
 
 ---
 
-## 1. Pasos de ejecución del proyecto
+## 1. Requisitos previos
 
-Para levantar el entorno de desarrollo completo:
+Instala las herramientas en las versiones acordadas por el equipo. **Todos los
+integrantes deben usar las mismas versiones** para evitar diferencias.
 
-### Paso 1 — Iniciar Docker
-Asegurarse de tener **Docker Desktop** abierto y en ejecución.
+```bash
+git --version
+java -version
+node -v
+npm -v
+docker --version
+docker compose version
+```
 
-### Paso 2 — Iniciar la Base de Datos (MySQL)
-Desde la raíz del proyecto:
+| Herramienta    | Versión | Dónde queda fijada                                          |
+|----------------|---------|-------------------------------------------------------------|
+| Java (JDK)     | 21      | `backend/pom.xml` (`<java.version>`)                        |
+| Maven          | 3.9.x   | `backend/.mvn/wrapper/maven-wrapper.properties` (wrapper)   |
+| MySQL          | 8.4     | `docker-compose.yml` (`image: mysql:8.4`)                   |
+| Node.js        | 22      | `frontend/package.json` (`engines`) y `frontend/.nvmrc`     |
+| Docker Compose | v2      | `docker-compose.yml`                                        |
+
+> No necesitas instalar Maven ni MySQL a mano: el primero viene con el *wrapper*
+> (`mvnw`) y el segundo corre en un contenedor Docker.
+
+### Versiones verificadas por integrante
+
+| Integrante        | `java -version` | `mysql --version` | `node -v` |
+|-------------------|-----------------|-------------------|-----------|
+| Sebastian Cadiz   |       Java 24          |     Mysql 8.4              |     Node 22.22.3   |
+| Pedro Merino      |     Java 24            |   Mysql 8.4                |   Node v24.21.0        |
+| Cristobal Muñoz   |Java 24.0.2      |MariaDB 10.4.32 (XAMPP)|v26.8.2           |
+| Javier Toro       |    Java 21             |   Mysql 8.4                |       Node V26.8.2   |
+
+
+---
+
+## 2. Configuración inicial (una sola vez)
+
+### 2.1 Variables de entorno del backend / base de datos
+
+En la **raíz del proyecto** existe una plantilla `.env.example`. Cópiala a `.env`
+y completa las contraseñas:
+
+```bash
+cp .env.example .env
+```
+
+Edita `.env` y define al menos:
+
+```env
+DB_URL=jdbc:mysql://localhost:3306/proyecto_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+DB_USER=proyecto_user
+DB_PASSWORD=elige_una_password
+DB_ROOT_PASSWORD=elige_otra_password
+
+ADMIN_BASIC_USERNAME=tu_usuario_admin
+ADMIN_BASIC_PASSWORD=tu_contrasena_segura
+```
+
+> El archivo `.env` **nunca** se sube a Git (está en `.gitignore`).
+> Solo se versiona `.env.example`, sin valores reales.
+
+### 2.2 Variables de entorno del frontend
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+El valor por defecto (`VITE_API_URL=http://localhost:8080`) sirve para desarrollo
+local. Cambia esa URL si el backend corre en otro host/puerto.
+
+---
+
+## 3. Puesta en marcha (paso a paso)
+
+Ejecuta los pasos en este orden. Usa **una terminal para el backend** y **otra
+para el frontend**.
+
+### Paso 1 — Clonar el repositorio
+
+```bash
+git clone https://github.com/Aris512/sistemaPractica-UBB.git
+cd sistemaPractica-UBB
+```
+
+### Paso 2 — Abrir Docker Desktop
+
+Docker debe estar **abierto y en ejecución** antes del siguiente paso.
+
+### Paso 3 — Levantar la base de datos (MySQL)
+
+Desde la raíz del proyecto (donde está `docker-compose.yml`):
+
 ```bash
 docker compose up -d
 ```
 
-### Paso 3 — Iniciar el Backend
-En una terminal:
+Esto crea el contenedor `proyecto-mysql` con la base `${DB_NAME:-proyecto_db}`.
+Comprueba que quedó arriba:
+
+```bash
+docker ps
+```
+
+### Paso 4 — Iniciar el backend
+
 ```bash
 cd backend
-.\mvnw.cmd spring-boot:run
-```
-*(O `mvn spring-boot:run` si cuentas con Maven instalado globalmente).*
 
-### Paso 4 — Iniciar el Frontend
-En otra terminal:
+# Windows (PowerShell / CMD):
+.\mvnw.cmd spring-boot:run
+
+# Linux / macOS:
+./mvnw spring-boot:run
+```
+
+La primera vez descarga dependencias (puede tardar). El backend queda en
+**http://localhost:8080**. Al arrancar, **Flyway aplica las migraciones**
+automáticamente (crea el esquema) e Hibernate solo *valida* que coincida.
+
+### Paso 5 — Iniciar el frontend
+
+En otra terminal, desde la raíz:
+
 ```bash
 cd frontend
+npm ci          # instala exactamente lo del package-lock.json (reproducible)
 npm run dev
 ```
 
-### Paso 5 — Abrir la aplicación
-- **Frontend:** [http://localhost:5173](http://localhost:5173)
-- **Backend (API):** [http://localhost:8080](http://localhost:8080)
+El frontend queda en **http://localhost:5173**.
 
-### En caso de que PowerShell no reconozca los comandos
+### Paso 6 — Abrir la aplicación
 
-1. **Verificar herramientas instaladas:**
-   ```bash
-   git --version
-   java -version
-   node -v
-   npm -v
-   docker --version
-   docker compose version
-   ```
-
-2. **Si algún comando da error de comando no reconocido**, agregarlo al `PATH` de Windows:
-   - Presionar `Win + R`, escribir `sysdm.cpl` y presionar **Enter**.
-   - Ir a **Opciones avanzadas** → **Variables de entorno...**
-   - En la sección de variables (de usuario o del sistema), seleccionar **`Path`** y pulsar **Editar**.
-   - Hacer clic en **Nuevo** y añadir la ruta que corresponda:
-     - **Git:** `C:\Program Files\Git\cmd`
-     - **Node.js:** `C:\Program Files\nodejs\`
-     - **npm:** `%AppData%\npm`
-   - Aceptar en todas las ventanas y **reiniciar la terminal** (PowerShell) para aplicar los cambios.
+- **Frontend:** http://localhost:5173
+- **Backend (API):** http://localhost:8080
+- **Panel admin:** http://localhost:5173/admin (usa `ADMIN_BASIC_USERNAME` / `ADMIN_BASIC_PASSWORD`)
 
 ---
 
-## 2. Requisitos previos
+## 4. Detener el entorno
 
-Antes de ejecutar el proyecto, verificar las instalaciones necesarias:
-
-- **Java 21** y **Maven** (`java -version`, `mvn -version`)
-- **Node.js (versión LTS)** y **npm** (`node -v`, `npm -v`)
-- **Docker Desktop** y **Docker Compose** (`docker --version`, `docker compose version`)
-- **Git** (`git --version`)
-- **MySQL Workbench** *(opcional, para visualizar la base de datos)*
+```bash
+# Ctrl + C en las terminales de backend y frontend
+docker compose down        # detiene y elimina el contenedor de MySQL
+# docker compose down -v    # además borra los datos (¡cuidado!)
+```
 
 ---
 
-## 3. Tecnologías utilizadas
-
-- **Backend:** Java 21, Spring Boot, Spring Web, Spring Data JPA, Hibernate, Maven, MySQL Connector/J.
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS, shadcn/ui, Base UI, Lucide Icons.
-- **Base de Datos & Contenedores:** MySQL 8.4, Docker, Docker Compose.
-
----
-
-## 4. Estructura del proyecto
+## 5. Estructura del proyecto
 
 ```text
-proyectoU/
-│
+sistemaPractica-UBB/
 ├── backend/
-│   ├── src/
-│   │   └── main/
-│   │       ├── java/
-│   │       └── resources/
-│   │
+│   ├── .mvn/wrapper/            # wrapper de Maven (no requiere Maven instalado)
+│   ├── mvnw / mvnw.cmd
+│   ├── src/main/java/           # código Java (Spring Boot)
+│   ├── src/main/resources/
+│   │   ├── application.properties
+│   │   ├── application-dev.yml
+│   │   ├── application-prod.yml
+│   │   └── db/migration/        # migraciones Flyway (V1__esquema_inicial.sql)
+│   ├── src/test/                # pruebas JUnit (perfil "test" con H2)
 │   └── pom.xml
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   └── ui/
-│   │   ├── lib/
-│   │   │   └── utils.ts
-│   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   └── index.css
-│   │
+│   │   ├── components/          # componentes React
+│   │   ├── services/            # llamadas a la API (usan VITE_API_URL)
+│   │   └── vite-env.d.ts        # tipos de las variables VITE_*
+│   ├── .env.example
+│   ├── .nvmrc
 │   ├── package.json
 │   └── vite.config.ts
 │
-├── docker-compose.yml
-└── README.md
+├── .github/dependabot.yml       # actualizaciones automáticas de dependencias
+├── .env.example                 # variables de entorno (plantilla)
+├── docker-compose.yml           # MySQL 8.4
+└── Readme.md
 ```
 
 ---
 
-## 5. Configuración de MySQL
+## 6. Tecnologías utilizadas
 
-MySQL se ejecuta mediante Docker Compose con los siguientes parámetros de conexión:
-
-- **Host:** `127.0.0.1`
-- **Puerto:** `3306`
-- **Base de datos:** `proyecto_db`
-- **Usuario:** `proyecto_user`
-- **Contraseña:** `proyecto_pass`
-- **Root Password:** `root_pass`
-- **Volumen de datos:** `mysql_data`
+- **Backend:** Java 21, Spring Boot 4, Spring Web MVC, Spring Data JPA (Hibernate),
+  Spring Security, Flyway, Apache POI, Maven Wrapper.
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4, Base UI, Lucide Icons.
+- **Base de datos y contenedores:** MySQL 8.4, Docker, Docker Compose.
+- **Pruebas:** JUnit 5 + H2 (perfil `test`, no requiere Docker ni MySQL).
 
 ---
 
-## 6. Componentes del Frontend (shadcn/ui)
+## 7. Base de datos y migraciones
 
-Los componentes de interfaz residen en `frontend/src/components/ui/`.
+MySQL corre en Docker Compose. Las credenciales **no** viven en el código: se leen
+del archivo `.env`.
 
-Para añadir nuevos componentes mediante el CLI de shadcn/ui, ejecutar desde la carpeta `frontend`:
+| Variable           | Descripción                              | Valor por defecto |
+|--------------------|------------------------------------------|-------------------|
+| `DB_URL`           | URL JDBC de conexión                     | `jdbc:mysql://localhost:3306/proyecto_db...` |
+| `DB_USER`          | Usuario de la aplicación                 | `proyecto_user`   |
+| `DB_PASSWORD`      | Contraseña del usuario                   | *(sin valor)*     |
+| `DB_NAME`          | Nombre de la base (docker-compose)       | `proyecto_db`     |
+| `DB_ROOT_PASSWORD` | Contraseña `root` del contenedor         | *(sin valor)*     |
+
+Las tablas se crean mediante **Flyway** (`backend/src/main/resources/db/migration/`).
+Hibernate está en `ddl-auto=validate`, por lo que **no** modifica el esquema: solo
+verifica que las entidades coincidan con las migraciones. Para añadir un cambio de
+esquema, crea una nueva migración `V2__descripcion.sql` (nunca edites una ya aplicada).
+
+---
+
+## 8. Perfiles de Spring
+
+El backend tiene 3 perfiles:
+
+| Perfil | Archivo                 | Uso                                             |
+|--------|-------------------------|-------------------------------------------------|
+| `dev`  | `application-dev.yml`   | Desarrollo local (SQL visible, logs debug). Por defecto. |
+| `prod` | `application-prod.yml`  | Producción (exige `DB_URL`/`DB_USER`/`DB_PASSWORD`, sin valores por defecto). |
+| `test` | `application-test.yml`  | Pruebas con H2 en memoria.                       |
+
+Para elegir un perfil:
+
 ```bash
-npx shadcn@latest add [componente]
-```
-*Ejemplo:*
-```bash
-npx shadcn@latest add button
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=prod
 ```
 
 ---
 
-## 7. Comandos útiles
+## 9. Comandos útiles
 
 ### Docker
 ```bash
-docker compose up -d    # Iniciar servicios en segundo plano
-docker ps               # Ver contenedores activos
-docker compose logs     # Ver logs de los servicios
-docker compose down     # Detener servicios
+docker compose up -d        # iniciar MySQL en segundo plano
+docker ps                   # ver contenedores activos
+docker compose logs -f      # ver logs de MySQL
+docker compose down         # detener servicios
 ```
 
 ### Backend
 ```bash
 cd backend
-mvn spring-boot:run     # Ejecutar servidor de desarrollo
-mvn clean package       # Compilar y empaquetar el proyecto
+.\mvnw.cmd spring-boot:run          # servidor de desarrollo
+.\mvnw.cmd test                     # ejecutar pruebas (H2, sin Docker)
+.\mvnw.cmd clean package            # compilar y empaquetar (genera el .jar)
+.\mvnw.cmd dependency:tree          # ver el árbol de dependencias
 ```
 
 ### Frontend
 ```bash
 cd frontend
-npm install             # Instalar dependencias
-npm run dev             # Iniciar servidor de desarrollo
-npm run build           # Compilar para producción
-npm run preview         # Previsualizar compilación de producción
+npm ci                      # instalar dependencias de forma reproducible
+npm run dev                 # servidor de desarrollo
+npm run build               # compilar para producción
+npm run preview             # previsualizar la compilación de producción
+npm run lint                # revisar estilo con ESLint
+npm audit                   # revisar vulnerabilidades de dependencias
 ```
 
 ---
 
-## 8. Reglas de desarrollo
+## 10. Solución de problemas
 
-1. No desarrollar funcionalidades de negocio sin revisar previamente los requerimientos.
+**`docker compose up` falla porque el puerto 3306 está ocupado.**
+Tienes otro MySQL/MariaDB local (por ejemplo XAMPP) usando el 3306. Detén ese
+servicio o cambia el mapeo de puertos en `docker-compose.yml`
+(`"3307:3306"`) y ajusta el puerto en `DB_URL`.
+
+**El backend no conecta a la base de datos.**
+Revisa que el contenedor esté arriba (`docker ps`) y que `DB_PASSWORD`/`DB_USER`
+en `.env` coincidan con los de `docker-compose.yml`.
+
+**`npm run dev` o `node -v` dan error de comando no reconocido.**
+Agrega Node.js al `PATH`: `Win + R` → `sysdm.cpl` → **Opciones avanzadas** →
+**Variables de entorno** → edita **`Path`** y añade `C:\Program Files\nodejs\`.
+Reinicia la terminal.
+
+**`.\mvnw.cmd` no se reconoce.**
+Asegúrate de estar dentro de `backend/` y de tener Java 21 instalado
+(`java -version`). El wrapper no requiere Maven global.
+
+**El frontend no llega al backend.**
+Verifica `frontend/.env` (`VITE_API_URL`) y que el backend esté corriendo en el
+puerto indicado.
+
+---
+
+## 11. Reglas de desarrollo
+
+1. No desarrollar funcionalidades de negocio sin revisar antes los requerimientos.
 2. Mantener separadas las responsabilidades de frontend, backend y base de datos.
-3. Evitar colocar lógica de negocio directamente en los controladores; utilizar servicios.
-4. Utilizar repositorios para el acceso a datos.
+3. No poner lógica de negocio en los controladores: usar servicios.
+4. Acceder a los datos mediante repositorios.
 5. Mantener los componentes de React organizados y reutilizables.
-6. Utilizar TypeScript correctamente y evitar el uso de `any`.
-7. No almacenar contraseñas o credenciales reales en el repositorio.
-8. Probar las funcionalidades antes de considerarlas terminadas.
-9. Documentar cambios importantes.
-10. No eliminar configuraciones existentes sin verificar sus dependencias.
+6. Usar TypeScript correctamente y evitar `any`.
+7. **No** almacenar contraseñas ni credenciales reales en el repositorio.
+8. Probar las funcionalidades antes de darlas por terminadas.
+9. Documentar los cambios importantes.
+10. No eliminar configuraciones existentes sin verificar de qué dependen.
+11. No editar migraciones de Flyway ya aplicadas; añadir una nueva versión.
+12. Los cambios de esquema se versionan en `backend/src/main/resources/db/migration/`.
+13. Ningún PR de Dependabot se acepta sin ejecutar antes `.\mvnw.cmd verify`.
+
+---
+
+## 12. Versiones entregadas
+
+| Etiqueta | Contenido |
+|----------|-----------|
+| `v1.0.0` | Incremento 1 + configuración revisada (dependencias, perfiles, Flyway, entorno y front-end). |

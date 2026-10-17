@@ -94,7 +94,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8080/admin/documentos/estudiantes", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/documentos/estudiantes`, {
         headers: getAuthHeader(),
       });
       if (!res.ok) {
@@ -177,7 +177,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
   const fetchStudentDetail = async (rut: string) => {
     setDetailLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/admin/documentos/estudiantes/${encodeURIComponent(rut)}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/documentos/estudiantes/${encodeURIComponent(rut)}`, {
         headers: getAuthHeader(),
       });
       if (!res.ok) {
@@ -212,7 +212,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
         description: `Preparando ${doc.nombreArchivo}...`,
       });
 
-      const res = await fetch(`http://localhost:8080/admin/documentos/archivo/${doc.id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/documentos/archivo/${doc.id}`, {
         headers: getAuthHeader(),
       });
 
@@ -257,7 +257,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       });
 
       const res = await fetch(
-        `http://localhost:8080/admin/documentos/estudiantes/${encodeURIComponent(rut)}/descargar`,
+        `${import.meta.env.VITE_API_URL}/admin/documentos/estudiantes/${encodeURIComponent(rut)}/descargar`,
         {
           headers: getAuthHeader(),
         }

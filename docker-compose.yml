@@ -4,10 +4,10 @@ services:
     container_name: proyecto-mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: proyecto_db
-      MYSQL_USER: proyecto_user
-      MYSQL_PASSWORD: proyecto_pass
-      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: ${DB_NAME:-proyecto_db}
+      MYSQL_USER: ${DB_USER:-proyecto_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     ports:
       - "3306:3306"
     volumes:

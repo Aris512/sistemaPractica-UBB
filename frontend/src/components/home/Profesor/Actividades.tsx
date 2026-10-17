@@ -98,14 +98,14 @@ export function Actividades({ user }: ActividadesProps) {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:8080/api/actividades/profesor/${encodeURIComponent(profesorRut)}`
+        `${import.meta.env.VITE_API_URL}/api/actividades/profesor/${encodeURIComponent(profesorRut)}`
       );
       if (res.ok) {
         const data = await res.json();
         setActividades(Array.isArray(data) ? data : []);
       } else {
         // Fallback a todas si no hay por profesor
-        const resAll = await fetch("http://localhost:8080/api/actividades");
+        const resAll = await fetch(`${import.meta.env.VITE_API_URL}/api/actividades`);
         if (resAll.ok) {
           const allData = await resAll.json();
           setActividades(Array.isArray(allData) ? allData : []);
@@ -162,7 +162,7 @@ export function Actividades({ user }: ActividadesProps) {
         fechaLimite: fechaLimiteIso,
       };
 
-      const res = await fetch("http://localhost:8080/api/actividades", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/actividades`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -208,7 +208,7 @@ export function Actividades({ user }: ActividadesProps) {
     );
 
     try {
-      const res = await fetch(`http://localhost:8080/api/actividades/${idActividad}/estado`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/actividades/${idActividad}/estado`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado: nuevoEstado }),
@@ -249,7 +249,7 @@ export function Actividades({ user }: ActividadesProps) {
   // Eliminar tarea sin confirmación
   const handleEliminarActividad = async (idActividad: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/actividades/${idActividad}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/actividades/${idActividad}`, {
         method: "DELETE",
       });
 
@@ -316,7 +316,7 @@ export function Actividades({ user }: ActividadesProps) {
     setEditingSubmitting(true);
     try {
       const fechaLimiteIso = formatToISO(editFechaDate, editHora);
-      const res = await fetch(`http://localhost:8080/api/actividades/${editingActividad.idActividad}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/actividades/${editingActividad.idActividad}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

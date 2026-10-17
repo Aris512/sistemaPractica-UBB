@@ -150,7 +150,7 @@ export function useDataTableFeatures(
     setLoading(true);
     setError(null);
     try {
-      const res = await adminFetch("http://localhost:8080/admin/usuarios");
+      const res = await adminFetch(`${import.meta.env.VITE_API_URL}/admin/usuarios`);
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
       const json = await res.json();
@@ -250,7 +250,7 @@ export function useDataTableFeatures(
   // ── Operaciones CRUD ──
   const deleteUsuario = async (rut: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await adminFetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
+      const res = await adminFetch(`${import.meta.env.VITE_API_URL}/admin/usuarios/${encodeURIComponent(rut)}`, {
         method: "DELETE",
       });
 
@@ -283,7 +283,7 @@ export function useDataTableFeatures(
 
     try {
       let res = await adminFetch(
-        `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}/estado`,
+        `${import.meta.env.VITE_API_URL}/admin/usuarios/${encodeURIComponent(rut)}/estado`,
         {
           method: "PUT",
           headers: {
@@ -296,7 +296,7 @@ export function useDataTableFeatures(
       // Si el endpoint específico da 404, fallback al endpoint principal de usuarios
       if (res.status === 404) {
         res = await adminFetch(
-          `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`,
+          `${import.meta.env.VITE_API_URL}/admin/usuarios/${encodeURIComponent(rut)}`,
           {
             method: "PUT",
             headers: {
