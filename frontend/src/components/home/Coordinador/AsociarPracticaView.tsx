@@ -6,6 +6,7 @@ import type {
   CandidatosResponse,
 } from "./types";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
   Card,
   CardHeader,
@@ -46,6 +47,7 @@ export function AsociarPracticaView({
   initialEstudiante,
   onClearInitialEstudiante,
 }: AsociarPracticaViewProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   // Asignaturas de práctica oficiales
   const [asignaturas, setAsignaturas] = useState<AsignaturaPractica[]>([]);
   const [selectedAsignaturaId, setSelectedAsignaturaId] = useState<string>("");
@@ -722,7 +724,9 @@ export function AsociarPracticaView({
                         size="sm"
                         variant="ghost"
                         onClick={() =>
-                          handleEliminarAsociacion(asoc.idPractica, asoc.estudianteNombre)
+                          setDeleteAction(() => () =>
+                            handleEliminarAsociacion(asoc.idPractica, asoc.estudianteNombre)
+                          )
                         }
                         className="cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5"
                         title="Desvincular práctica"
@@ -737,6 +741,11 @@ export function AsociarPracticaView({
           </UnifiedTable>
         </UnifiedTableContainer>
       </div>
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }

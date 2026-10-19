@@ -12,9 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup } from "@/components/ui/field";
+import { ArrowLeft } from "lucide-react";
 import { formatRut, formatRutStandard, validateRut, cleanRut } from "@/lib/rutUtils";
-import { verificarEstudianteEsPractica, setStoredEsPractica } from "@/lib/authSession";
-import { setAdminAuthHeader } from "@/lib/adminAuth";
+import { clearStoredUserSession, verificarEstudianteEsPractica, setStoredEsPractica } from "@/lib/authSession";
+import { clearAdminAuth, setAdminAuthHeader } from "@/lib/adminAuth";
 import type { UserSession } from "@/types/auth";
 
 interface LoginFormProps {
@@ -279,10 +280,25 @@ export function LoginForm({ onLoginSuccess, context, onAdminLoginSuccess }: Logi
             type="submit"
             form="admin-login-form"
             size="lg"
-            className="w-full"
+            className="w-full cursor-pointer"
             disabled={loading}
           >
             {loading ? "Verificando…" : "Acceder al panel"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              clearAdminAuth();
+              clearStoredUserSession();
+              window.location.href = "/";
+            }}
+            className="w-full text-xs text-slate-500 hover:text-slate-800 gap-1.5 cursor-pointer"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span>Volver al login principal</span>
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">

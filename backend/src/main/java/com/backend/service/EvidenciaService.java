@@ -20,6 +20,8 @@ import com.backend.repository.ActividadRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.ProfesorRepository;
+import org.springframework.core.io.Resource;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class EvidenciaService {
@@ -28,15 +30,21 @@ public class EvidenciaService {
     private final ActividadRepository actividadRepository;
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
+    private final FileStorageService fileStorageService;
+    private final AvanceAcademicoService avanceAcademicoService;
 
     public EvidenciaService(EvidenciaRepository evidenciaRepository,
                             ActividadRepository actividadRepository,
                             EstudianteRepository estudianteRepository,
-                            ProfesorRepository profesorRepository) {
+                            ProfesorRepository profesorRepository,
+                            FileStorageService fileStorageService,
+                            AvanceAcademicoService avanceAcademicoService) {
         this.evidenciaRepository = evidenciaRepository;
         this.actividadRepository = actividadRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
+        this.fileStorageService = fileStorageService;
+        this.avanceAcademicoService = avanceAcademicoService;
     }
 
     public List<Evidencia> obtenerTodas() {
@@ -191,7 +199,37 @@ public class EvidenciaService {
     @Transactional
     public Evidencia revisarEvidencia(Long idEvidencia, RevisionEvidenciaDTO dto) {
         Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
-                .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+
+        aplicarRevision(evidencia, dto);
+        Evidencia guardada = evidenciaRepository.save(evidencia);
+        actualizarAvanceCurso(guardada);
+        return guardada;
+    }
+
+    @Transactional
+    public Evidencia revisarEvidenciaConArchivo(Long idEvidencia, RevisionEvidenciaDTO dto, MultipartFile archivoRevision) {
+        Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+
+        if (archivoRevision != null && !archivoRevision.isEmpty()) {
+            FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+                archivoRevision,
+                "revisiones-evidencias",
+                List.of("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "png", "jpg", "jpeg", "zip")
+            );
+            fileStorageService.deleteFile(evidencia.getArchivoRevisionUrl());
+            evidencia.setNombreArchivoRevision(stored.originalFilename());
+            evidencia.setArchivoRevisionUrl(stored.relativePath());
+        }
+
+        aplicarRevision(evidencia, dto);
+        Evidencia guardada = evidenciaRepository.save(evidencia);
+        actualizarAvanceCurso(guardada);
+        return guardada;
+    }
+
+    private void aplicarRevision(Evidencia evidencia, RevisionEvidenciaDTO dto) {
 
         if (dto.getRutProfesor() != null) {
             Profesor profesor = profesorRepository.findByUsuarioRut(dto.getRutProfesor()).orElse(null);
@@ -206,8 +244,23 @@ public class EvidenciaService {
                 ? dto.getEstado().toUpperCase()
                 : "REVISADO";
         evidencia.setEstado(nuevoEstado);
+    }
 
-        return evidenciaRepository.save(evidencia);
+    private void actualizarAvanceCurso(Evidencia evidencia) {
+        if (evidencia.getEstudiante() == null || evidencia.getActividad() == null) return;
+        var asignatura = evidencia.getActividad().getAsignatura();
+        if (asignatura == null) return;
+        avanceAcademicoService.recalcularYGuardar(evidencia.getEstudiante(), asignatura);
+    }
+
+    public Resource obtenerRecursoArchivo(Long idEvidencia, boolean revision) {
+        Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+        String ruta = revision ? evidencia.getArchivoRevisionUrl() : evidencia.getArchivoUrl();
+        if (ruta == null || ruta.isBlank()) {
+            throw new IllegalArgumentException("El archivo solicitado no está disponible.");
+        }
+        return fileStorageService.loadFileAsResource(ruta);
     }
 
     @Transactional

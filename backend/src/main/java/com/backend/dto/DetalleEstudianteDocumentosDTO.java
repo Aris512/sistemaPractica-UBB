@@ -14,6 +14,7 @@ public class DetalleEstudianteDocumentosDTO {
     private int documentosRequeridos;
     private List<ProfesorContactoDTO> profesores;
     private List<DocumentoItemDTO> documentos;
+    private List<TareaSeguimientoDTO> tareas;
 
     public DetalleEstudianteDocumentosDTO() {
     }
@@ -122,5 +123,13 @@ public class DetalleEstudianteDocumentosDTO {
 
     public void setDocumentos(List<DocumentoItemDTO> documentos) {
         this.documentos = documentos;
+    }
+
+    public List<TareaSeguimientoDTO> getTareas() {
+        return tareas;
+    }
+
+    public void setTareas(List<TareaSeguimientoDTO> tareas) {
+        this.tareas = tareas;
     }
 }

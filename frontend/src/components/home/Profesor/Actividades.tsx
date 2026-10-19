@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Calendar as CalendarIcon,
@@ -49,6 +50,7 @@ interface ActividadesProps {
 }
 
 export function Actividades({ user }: ActividadesProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const [actividades, setActividades] = useState<ActividadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -246,7 +248,7 @@ export function Actividades({ user }: ActividadesProps) {
     }
   };
 
-  // Eliminar tarea sin confirmación
+  // La eliminación se ejecuta tras confirmar en el diálogo compartido.
   const handleEliminarActividad = async (idActividad: number) => {
     try {
       const res = await fetch(`http://localhost:8080/api/actividades/${idActividad}`, {
@@ -677,11 +679,11 @@ export function Actividades({ user }: ActividadesProps) {
                         Editar
                       </Button>
 
-                      {/* Botón Eliminar Tarea (sin confirmación) */}
+                      {/* Botón para solicitar la eliminación de la tarea */}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEliminarActividad(act.idActividad)}
+                        onClick={() => setDeleteAction(() => () => handleEliminarActividad(act.idActividad))}
                         className="cursor-pointer text-xs border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 gap-1"
                         title="Eliminar tarea"
                       >
@@ -833,6 +835,11 @@ export function Actividades({ user }: ActividadesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }

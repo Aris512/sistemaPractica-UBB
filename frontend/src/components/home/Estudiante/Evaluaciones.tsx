@@ -29,6 +29,7 @@ import {
   type ActividadEstudiante,
 } from "../../../services/actividadEstudianteApi";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface EvaluacionesProps {
   user?: UserSession;
@@ -138,6 +139,7 @@ function estadoEvidenciaBadge(act: ActividadEstudiante) {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const rutEstudiante = user?.rut ?? "";
 
   // Datos
@@ -646,7 +648,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       {!isPlazoVencido(selectedActividad.fechaLimite) && (
                         <button
                           type="button"
-                          onClick={handleEliminarEvidencia}
+                          onClick={() => setIsDeleteConfirmOpen(true)}
                           disabled={isDeletingEvidencia || isUploading}
                           className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
@@ -908,6 +910,11 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        onConfirm={handleEliminarEvidencia}
+      />
     </div>
   );
 }

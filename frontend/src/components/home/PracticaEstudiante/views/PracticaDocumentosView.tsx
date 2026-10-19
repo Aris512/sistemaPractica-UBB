@@ -11,14 +11,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { sileo } from "sileo";
 
 interface PracticaDocumentosViewProps {
@@ -162,33 +155,11 @@ export function PracticaDocumentosView({
         }}
       />
 
-      {/* Diálogo de Confirmación de Eliminación */}
-      <Dialog open={!!docAEliminar} onOpenChange={(open) => !open && setDocAEliminar(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>¿Eliminar este archivo?</DialogTitle>
-            <DialogDescription>
-              Se eliminará «<strong>{docAEliminar?.nombre}</strong>» de tu portafolio de práctica. Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 mt-3">
-            <button
-              type="button"
-              onClick={() => setDocAEliminar(null)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmarEliminar}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer shadow-xs"
-            >
-              Eliminar Archivo
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={!!docAEliminar}
+        onOpenChange={(open) => !open && setDocAEliminar(null)}
+        onConfirm={handleConfirmarEliminar}
+      />
 
       {/* Cabecera y Barra de Acciones */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">

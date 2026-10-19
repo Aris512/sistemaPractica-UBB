@@ -23,7 +23,7 @@ export interface EstudiantePortafolioSummary {
 
 export type CategoriaPortafolio =
   | "TODOS"
+  | "DOCUMENTO"
   | "EVIDENCIA"
-  | "REFLEXION"
-  | "RETROALIMENTACION"
+  | "INFORME"
   | "OTRO";

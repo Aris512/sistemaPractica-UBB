@@ -92,7 +92,7 @@ function ProgressBar({ progreso, total, requeridos }: { progreso: number; total:
     <div className="w-full max-w-[200px] flex flex-col gap-1">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-slate-700">
-          {total} de {requeridos} doc.
+          {total} de {requeridos} asignaturas
         </span>
         <span className="font-semibold text-slate-900 tabular-nums">
           {percentage}%
@@ -143,7 +143,7 @@ export const estudianteDocumentoColumns: ColumnDef<EstudianteDocumentoRow>[] = [
   },
   {
     id: "progreso",
-    header: "Progreso Documentación",
+    header: "Avance académico",
     sortable: true,
     cell: (item) => (
       <ProgressBar

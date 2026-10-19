@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { UserSession } from "@/types/auth";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { sileo } from "sileo";
 
 interface PlanificacionProps {
@@ -96,6 +97,7 @@ const CATEGORIAS: {
   ];
 
 export function Planificacion({ user, onBack }: PlanificacionProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const [planificaciones, setPlanificaciones] = useState<PlanificacionItem[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<PlanificacionItem | null>(null);
   const [archivos, setArchivos] = useState<ArchivoPlanificacionDTO[]>([]);
@@ -355,7 +357,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                           {/* Botón Eliminar */}
                           <button
                             type="button"
-                            onClick={() => handleDeleteArchivo(arch.idDocumento, arch.nombre)}
+                            onClick={() => setDeleteAction(() => () => handleDeleteArchivo(arch.idDocumento, arch.nombre))}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Eliminar de la planificación"
                           >
@@ -408,6 +410,11 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
           }}
         />
       )}
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }

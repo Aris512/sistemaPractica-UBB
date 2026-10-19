@@ -132,6 +132,28 @@ public class EvidenciaController {
         }
     }
 
+    /**
+     * Guarda la revisión y, opcionalmente, un archivo de retroalimentación del profesor.
+     */
+    @PutMapping("/{id}/revisar-con-archivo")
+    public ResponseEntity<?> revisarEvidenciaConArchivo(
+            @PathVariable Long id,
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @RequestParam(value = "retroalimentacion", required = false) String retroalimentacion,
+            @RequestParam(value = "calificacion", required = false) Double calificacion,
+            @RequestParam(value = "estado", required = false) String estado,
+            @RequestParam(value = "archivoRevision", required = false) MultipartFile archivoRevision) {
+        try {
+            RevisionEvidenciaDTO dto = new RevisionEvidenciaDTO(rutProfesor, retroalimentacion, calificacion, estado);
+            return ResponseEntity.ok(evidenciaService.revisarEvidenciaConArchivo(id, dto, archivoRevision));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error al guardar revisión de evidencia {}: {}", id, e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "No se pudo guardar la revisión."));
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id) {
         try {

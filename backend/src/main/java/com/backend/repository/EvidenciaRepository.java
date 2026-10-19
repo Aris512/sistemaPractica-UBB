@@ -24,4 +24,12 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
     long countByActividadIdActividad(Long idActividad);
 
     long countByActividadIdActividadAndEstado(Long idActividad, String estado);
+
+    List<Evidencia> findByEstudianteIdEstudiante(Long idEstudiante);
+
+    List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignatura(Long idEstudiante, Long idAsignatura);
+
+    List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignaturaAndCalificacionIsNotNull(
+        Long idEstudiante, Long idAsignatura
+    );
 }

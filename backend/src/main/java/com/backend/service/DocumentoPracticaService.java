@@ -17,7 +17,6 @@ import java.util.zip.ZipOutputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -27,6 +26,7 @@ import com.backend.dto.DetalleEstudianteDocumentosDTO;
 import com.backend.dto.DocumentoItemDTO;
 import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.dto.ProfesorContactoDTO;
+import com.backend.dto.TareaSeguimientoDTO;
 import com.backend.model.Asignatura;
 import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
@@ -35,6 +35,7 @@ import com.backend.model.Usuario;
 import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.ProfesorRepository;
+import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
 
@@ -50,19 +51,25 @@ public class DocumentoPracticaService {
     private final UsuarioRepository usuarioRepository;
     private final com.backend.repository.AsignaturaRepository asignaturaRepository;
     private final FileStorageService fileStorageService;
+    private final EvidenciaRepository evidenciaRepository;
+    private final AvanceAcademicoService avanceAcademicoService;
 
     public DocumentoPracticaService(DocumentoPracticaRepository documentoPracticaRepository,
                                    EstudianteRepository estudianteRepository,
                                    ProfesorRepository profesorRepository,
                                    UsuarioRepository usuarioRepository,
                                    com.backend.repository.AsignaturaRepository asignaturaRepository,
-                                   FileStorageService fileStorageService) {
+                                   FileStorageService fileStorageService,
+                                   EvidenciaRepository evidenciaRepository,
+                                   AvanceAcademicoService avanceAcademicoService) {
         this.documentoPracticaRepository = documentoPracticaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
         this.usuarioRepository = usuarioRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.fileStorageService = fileStorageService;
+        this.evidenciaRepository = evidenciaRepository;
+        this.avanceAcademicoService = avanceAcademicoService;
         initUploadsDirectory();
     }
 
@@ -119,17 +126,12 @@ public class DocumentoPracticaService {
                 }
             }
 
-            // Consultar documentos de práctica para este estudiante y asignatura
-            List<DocumentoPractica> docs = idAsignatura != null
-                ? documentoPracticaRepository.findByEstudianteRutAndAsignaturaIdAsignatura(rut, idAsignatura)
-                : documentoPracticaRepository.findByEstudianteRut(rut);
-
-            boolean tieneDocEstudiante = docs.stream().anyMatch(d -> "ESTUDIANTE".equalsIgnoreCase(d.getTipoDocumento()));
-            boolean tieneDocProfesor = docs.stream().anyMatch(d -> "PROFESOR".equalsIgnoreCase(d.getTipoDocumento()));
-
-            int entregados = (tieneDocEstudiante ? 1 : 0) + (tieneDocProfesor ? 1 : 0);
-            int requeridos = 2; // Documento de estudiante + Documento de profesor
-            double progreso = Math.round((entregados / (double) requeridos) * 100.0);
+            AvanceAcademicoService.ResumenAvance avance = avanceAcademicoService.calcularAvance(
+                est, avanceAcademicoService.obtenerPlanOrdenado()
+            );
+            int entregados = avance.aprobadas();
+            int requeridos = avance.totalAsignaturas();
+            double progreso = avance.progreso();
 
             String estado;
             if (entregados >= requeridos) {
@@ -285,11 +287,14 @@ public class DocumentoPracticaService {
             ));
         }
 
-        int entregados = (docEstudianteOpt.isPresent() ? 1 : 0) + (docProfesorOpt.isPresent() ? 1 : 0);
-        int requeridos = 2;
-        double progreso = Math.round((entregados / (double) requeridos) * 100.0);
+        AvanceAcademicoService.ResumenAvance avance = estOpt
+            .map(estudiante -> avanceAcademicoService.calcularAvance(estudiante, avanceAcademicoService.obtenerPlanOrdenado()))
+            .orElse(new AvanceAcademicoService.ResumenAvance(0, 0, 0, null));
+        int entregados = avance.aprobadas();
+        int requeridos = avance.totalAsignaturas();
+        double progreso = avance.progreso();
 
-        return new DetalleEstudianteDocumentosDTO(
+        DetalleEstudianteDocumentosDTO detalle = new DetalleEstudianteDocumentosDTO(
             rutFinal,
             nombreCompleto,
             correo,
@@ -302,6 +307,26 @@ public class DocumentoPracticaService {
             profesoresDTO,
             documentosList
         );
+        List<com.backend.model.Evidencia> evidencias = estOpt
+            .map(estudiante -> evidenciaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante()))
+            .orElseGet(List::of);
+        detalle.setTareas(evidencias.stream()
+            .map(e -> new TareaSeguimientoDTO(
+                e.getIdEvidencia(),
+                e.getActividad() != null ? e.getActividad().getIdActividad() : null,
+                e.getActividad() != null ? e.getActividad().getTitulo() : "Actividad",
+                e.getActividad() != null && e.getActividad().getAsignatura() != null ? e.getActividad().getAsignatura().getNombre() : "—",
+                e.getActividad() != null && e.getActividad().getAsignatura() != null ? e.getActividad().getAsignatura().getSemestre() : "—",
+                e.getEstado(),
+                e.getCalificacion(),
+                e.getFechaEntrega(),
+                e.getNombreArchivo(),
+                e.getNombreArchivoRevision(),
+                e.getArchivoUrl() != null && !e.getArchivoUrl().isBlank(),
+                e.getArchivoRevisionUrl() != null && !e.getArchivoRevisionUrl().isBlank()
+            ))
+            .toList());
+        return detalle;
     }
 
     @Transactional(readOnly = true)
@@ -439,12 +464,7 @@ public class DocumentoPracticaService {
         }
 
         // Si el archivo físico no existe en disco, generar un PDF legible en memoria
-        byte[] pdfMock = generarPdfMock(
-            doc.getNombreDocumento() != null ? doc.getNombreDocumento() : doc.getNombreArchivo(),
-            doc.getEstudiante() != null ? doc.getEstudiante().getNombre() + " " + doc.getEstudiante().getApellido() : "Estudiante",
-            doc.getAsignatura() != null ? doc.getAsignatura().getNombre() : "Práctica"
-        );
-        return new ByteArrayResource(pdfMock);
+        throw new IOException("El archivo físico no está disponible en el servidor.");
     }
 
 
@@ -474,22 +494,15 @@ public class DocumentoPracticaService {
                     String prefijo = "ESTUDIANTE".equalsIgnoreCase(doc.getTipoDocumento()) ? "[ESTUDIANTE]" : "[PROFESOR]";
                     String nombreArchivo = prefijo + "_" + sanitizarNombre(doc.getNombreArchivo());
 
-                    ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
-                    zos.putNextEntry(entry);
-
                     Path localPath = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
                     if (localPath != null && Files.exists(localPath)) {
+                        ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
+                        zos.putNextEntry(entry);
                         Files.copy(localPath, zos);
+                        zos.closeEntry();
                     } else {
-                        byte[] pdfContent = generarPdfMock(
-                            doc.getNombreDocumento() != null ? doc.getNombreDocumento() : doc.getNombreArchivo(),
-                            usuario.getNombre() + " " + usuario.getApellido(),
-                            asigNombre
-                        );
-                        zos.write(pdfContent);
+                        logger.warn("Se omitió del ZIP el archivo inexistente: {}", doc.getUbicacion());
                     }
-
-                    zos.closeEntry();
                 }
             }
             zos.finish();

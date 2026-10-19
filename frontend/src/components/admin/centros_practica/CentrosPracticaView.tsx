@@ -7,6 +7,7 @@ import { CreateModal } from "./CreateModal";
 import { EditModal } from "./EditModal";
 import type { CentroPractica } from "./types";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { RefreshCw, Loader2, AlertCircle, Building2 } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -34,6 +35,7 @@ export function CentrosPracticaView() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingCentro, setEditingCentro] = useState<CentroPractica | null>(null);
+  const [centroAEliminar, setCentroAEliminar] = useState<CentroPractica | null>(null);
 
   const handleRowAction = async (action: string, item: CentroPractica) => {
     switch (action) {
@@ -42,6 +44,10 @@ export function CentrosPracticaView() {
         setIsEditOpen(true);
         break;
       case "delete": {
+        if (!centroAEliminar) {
+          setCentroAEliminar(item);
+          break;
+        }
         const res = await deleteCentro(item.idCentro);
         if (res.success) {
           sileo.success({
@@ -179,6 +185,11 @@ export function CentrosPracticaView() {
         }}
         centro={editingCentro}
         onSave={handleEditSuccess}
+      />
+      <ConfirmDeleteDialog
+        open={!!centroAEliminar}
+        onOpenChange={(open) => !open && setCentroAEliminar(null)}
+        onConfirm={() => handleRowAction("delete", centroAEliminar!)}
       />
     </div>
   );

@@ -37,6 +37,7 @@ import {
   AttachmentAction,
 } from "@/components/ui/attachment";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface PortafolioProps {
   user?: UserSession;
@@ -50,6 +51,7 @@ interface AsignaturaOption {
 }
 
 export function Portafolio({ user, onBack }: PortafolioProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const { hasPermission } = usePermissions(user);
   const puedeSubir = hasPermission("PORTAFOLIO_SUBIR");
 
@@ -237,6 +239,13 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
     } catch {
       return fechaStr;
     }
+  };
+
+  const formatearCategoria = (tipo: string) => {
+    if (tipo.includes("DOCUMENTO")) return "Documento";
+    if (tipo.includes("INFORME")) return "Informe";
+    if (tipo.includes("OTRO")) return "Otro";
+    return "Evidencia";
   };
 
   const estudiantesFiltrados = estudiantes.filter((est) => {
@@ -431,7 +440,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                   <AttachmentContent>
                     <AttachmentTitle>{doc.nombre}</AttachmentTitle>
                     <AttachmentDescription>
-                      {doc.tipo && <span className="capitalize">{doc.tipo}</span>}
+                      {doc.tipo && <span>{formatearCategoria(doc.tipo)}</span>}
                       {doc.fechaCarga && <span> • {formatearFecha(doc.fechaCarga)}</span>}
                     </AttachmentDescription>
                   </AttachmentContent>
@@ -444,7 +453,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                       <Download className="size-3.5" />
                     </AttachmentAction>
                     <AttachmentAction
-                      onClick={() => handleEliminarPropio(doc.idDocumento, doc.nombre)}
+                      onClick={() => setDeleteAction(() => () => handleEliminarPropio(doc.idDocumento, doc.nombre))}
                       title="Eliminar archivo"
                       className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
                     >
@@ -556,6 +565,8 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                         <span>•</span>
                         <span>{formatearFecha(doc.fechaCarga)}</span>
                         <span>•</span>
+                        <span className="font-medium text-sky-700">{formatearCategoria(doc.tipo)}</span>
+                        <span>•</span>
                         <span className="text-slate-600 truncate max-w-[120px]">
                           Por: {doc.subidoPorNombre}
                         </span>
@@ -574,7 +585,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
 
                     {puedeSubir && (
                       <AttachmentAction
-                        onClick={() => handleEliminar(doc.idDocumento, doc.nombre)}
+                        onClick={() => setDeleteAction(() => () => handleEliminar(doc.idDocumento, doc.nombre))}
                         title="Eliminar archivo"
                         className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
                       >
@@ -681,6 +692,11 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         </div>
       ) : null
       }
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }

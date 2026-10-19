@@ -27,6 +27,7 @@ import {
   type EstudianteEvaluacion,
 } from "../../../services/profesorEvaluacionApi";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Input } from "@/components/ui/input";
 
 interface EvaluacionesProps {
@@ -56,6 +57,8 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
   const [nota, setNota] = useState("");
   const [observacion, setObservacion] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [campoAEliminar, setCampoAEliminar] = useState<"nota" | "observacion" | null>(null);
+  const [isDeleteSaveConfirmOpen, setIsDeleteSaveConfirmOpen] = useState(false);
 
   // Cargar estudiantes del profesor
   const cargarEstudiantes = async () => {
@@ -96,7 +99,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
   };
 
   // Guardar evaluación (crear, actualizar o eliminar nota/observación en la BD)
-  const handleGuardarEvaluacion = async () => {
+  const handleGuardarEvaluacion = async (confirmedDelete = false) => {
     if (!selectedStudent) return;
 
     let puntajeFinal: number | null = null;
@@ -125,6 +128,14 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         title: "Formulario vacío",
         description: "Debes ingresar al menos una calificación o una observación pedagógica.",
       });
+      return;
+    }
+
+    const eliminaContenidoExistente =
+      (selectedStudent.nota != null && puntajeFinal === null) ||
+      (!!selectedStudent.observacion && obsFinal === null);
+    if (eliminaContenidoExistente && !confirmedDelete) {
+      setIsDeleteSaveConfirmOpen(true);
       return;
     }
 
@@ -802,7 +813,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       {nota.trim() !== "" && (
                         <button
                           type="button"
-                          onClick={handleQuitarNota}
+                          onClick={() => setCampoAEliminar("nota")}
                           disabled={isSaving}
                           className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
                         >
@@ -855,7 +866,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       {observacion.trim() !== "" && (
                         <button
                           type="button"
-                          onClick={handleQuitarObservacion}
+                          onClick={() => setCampoAEliminar("observacion")}
                           disabled={isSaving}
                           className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
                         >
@@ -892,7 +903,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
               </Button>
               <Button
                 size="sm"
-                onClick={handleGuardarEvaluacion}
+                onClick={() => handleGuardarEvaluacion()}
                 disabled={
                   isSaving ||
                   (nota === (selectedStudent.nota != null ? String(selectedStudent.nota) : "") &&
@@ -917,6 +928,19 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={!!campoAEliminar}
+        onOpenChange={(open) => !open && setCampoAEliminar(null)}
+        onConfirm={() => {
+          if (campoAEliminar === "nota") handleQuitarNota();
+          if (campoAEliminar === "observacion") handleQuitarObservacion();
+        }}
+      />
+      <ConfirmDeleteDialog
+        open={isDeleteSaveConfirmOpen}
+        onOpenChange={setIsDeleteSaveConfirmOpen}
+        onConfirm={() => handleGuardarEvaluacion(true)}
+      />
     </div>
   );
 }

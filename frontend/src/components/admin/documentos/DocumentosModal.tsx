@@ -289,8 +289,8 @@ export function DocumentosModal({
                 <div className="space-y-1.5 pt-2 border-t border-slate-200/80">
                   <div className="flex items-center justify-between text-xs text-slate-600">
                     <span>
-                      Progreso de entrega: <strong>{detalle.totalDocumentos}</strong> de{" "}
-                      <strong>{detalle.documentosRequeridos}</strong> documentos entregados
+                      Avance académico: <strong>{detalle.totalDocumentos}</strong> de{" "}
+                      <strong>{detalle.documentosRequeridos}</strong> asignaturas aprobadas
                     </span>
                     <span className="font-semibold text-slate-900 tabular-nums">
                       {detalle.progreso}%
@@ -415,6 +415,47 @@ export function DocumentosModal({
                   })}
                 </div>
               </div>
+
+              {detalle.tareas?.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-900">Entregas y revisiones por tarea</h4>
+                  <div className="space-y-2">
+                    {detalle.tareas.map((tarea) => (
+                      <div key={tarea.idEvidencia} className="rounded-xl border border-slate-200 bg-white p-3.5">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{tarea.tituloActividad}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {tarea.asignatura} · Semestre {tarea.semestre} · {tarea.calificacion ?? "Sin calificación"}
+                            </p>
+                          </div>
+                          <span className="text-[11px] font-semibold rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                            {tarea.estado || "PENDIENTE"}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tarea.tieneArchivoEstudiante && (
+                            <a
+                              href={`http://localhost:8080/admin/documentos/evidencias/${tarea.idEvidencia}/archivo?tipo=ESTUDIANTE`}
+                              className="text-xs font-semibold text-sky-700 hover:underline"
+                            >
+                              Descargar entrega
+                            </a>
+                          )}
+                          {tarea.tieneArchivoRevision && (
+                            <a
+                              href={`http://localhost:8080/admin/documentos/evidencias/${tarea.idEvidencia}/archivo?tipo=PROFESOR`}
+                              className="text-xs font-semibold text-emerald-700 hover:underline"
+                            >
+                              Descargar revisión
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

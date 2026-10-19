@@ -29,6 +29,7 @@ export function RevisionModal({
   const [retroalimentacion, setRetroalimentacion] = useState("");
   const [estadoRevision, setEstadoRevision] = useState<"REVISADO" | "OBSERVADO">("REVISADO");
   const [fechaRevision, setFechaRevision] = useState<Date>(() => new Date());
+  const [archivoRevision, setArchivoRevision] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function RevisionModal({
       setCalificacion(student.calificacion ? String(student.calificacion) : "");
       setRetroalimentacion(student.retroalimentacion || "");
       setEstadoRevision(student.estadoRevision === "OBSERVADO" ? "OBSERVADO" : "REVISADO");
+      setArchivoRevision(null);
       if (student.fechaRevision) {
         const d = new Date(student.fechaRevision);
         if (!isNaN(d.getTime())) {
@@ -68,15 +70,16 @@ export function RevisionModal({
 
     try {
       if (student.idEvidencia) {
-        const res = await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar`, {
+        const formData = new FormData();
+        formData.append("rutProfesor", profesorRut || "11111111-1");
+        formData.append("retroalimentacion", retroalimentacion);
+        formData.append("estado", estadoRevision);
+        if (notaNum !== null) formData.append("calificacion", String(notaNum));
+        if (archivoRevision) formData.append("archivoRevision", archivoRevision);
+
+        const res = await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar-con-archivo`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            rutProfesor: profesorRut || "11111111-1",
-            retroalimentacion,
-            calificacion: notaNum,
-            estado: estadoRevision,
-          }),
+          body: formData,
         });
 
         if (!res.ok) {
@@ -192,6 +195,21 @@ export function RevisionModal({
                   <option value="OBSERVADO">Con Observaciones</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Archivo de revisión (opcional)
+              </label>
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.zip"
+                onChange={(e) => setArchivoRevision(e.target.files?.[0] || null)}
+                className="text-xs h-9 cursor-pointer"
+              />
+              {archivoRevision && (
+                <p className="mt-1 text-[11px] text-slate-500">Se adjuntará: {archivoRevision.name}</p>
+              )}
             </div>
 
             {/* Calendario compacto integrado con Retroalimentación */}

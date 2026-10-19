@@ -57,11 +57,13 @@ export function PracticaPortafolioView({
         isOpen={modalSubidaAbierto}
         onClose={() => setModalSubidaAbierto(false)}
         endpoint="/api/portafolio/subir"
-        title="Subir Evidencia al Portafolio"
+        title="Subir Archivo al Portafolio"
         description="Formatos permitidos: PDF, Word, Excel, PowerPoint, JPG, PNG (máx. 20 MB)."
+        showCategorySelect={true}
+        categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+        defaultCategory="Evidencia"
         additionalData={{
           rutEstudiante: user.rut,
-          tipo: "EVIDENCIA",
           rutUsuarioSubio: user.rut,
         }}
         onSuccess={() => {

@@ -54,6 +54,13 @@ public class Evidencia {
     @JoinColumn(name = "id_profesor_revisor")
     private Profesor revisadoPor;
 
+    /** Archivo de revisión/retroalimentación subido por el profesor (ruta relativa en FileStorageService). */
+    @Column(name = "archivo_revision_url", length = 1000)
+    private String archivoRevisionUrl;
+
+    @Column(name = "nombre_archivo_revision", length = 500)
+    private String nombreArchivoRevision;
+
     public Evidencia() {
         this.fechaEntrega = LocalDateTime.now();
         this.estado = "PENDIENTE";
@@ -164,5 +171,21 @@ public class Evidencia {
 
     public void setRevisadoPor(Profesor revisadoPor) {
         this.revisadoPor = revisadoPor;
+    }
+
+    public String getArchivoRevisionUrl() {
+        return archivoRevisionUrl;
+    }
+
+    public void setArchivoRevisionUrl(String archivoRevisionUrl) {
+        this.archivoRevisionUrl = archivoRevisionUrl;
+    }
+
+    public String getNombreArchivoRevision() {
+        return nombreArchivoRevision;
+    }
+
+    public void setNombreArchivoRevision(String nombreArchivoRevision) {
+        this.nombreArchivoRevision = nombreArchivoRevision;
     }
 }

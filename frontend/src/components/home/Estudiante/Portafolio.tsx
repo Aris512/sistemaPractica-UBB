@@ -33,6 +33,7 @@ import {
   AttachmentAction,
 } from "@/components/ui/attachment";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface PortafolioProps {
   user?: UserSession;
@@ -41,13 +42,14 @@ interface PortafolioProps {
 
 const CATEGORIAS_CONFIG: { key: CategoriaPortafolio; label: string }[] = [
   { key: "TODOS", label: "Todos los archivos" },
-  { key: "EVIDENCIA", label: "Evidencias pedagógicas" },
-  { key: "REFLEXION", label: "Reflexiones y diarios" },
-  { key: "RETROALIMENTACION", label: "Retroalimentaciones" },
-  { key: "OTRO", label: "Otros documentos" },
+  { key: "DOCUMENTO", label: "Documentos" },
+  { key: "EVIDENCIA", label: "Evidencias" },
+  { key: "INFORME", label: "Informes" },
+  { key: "OTRO", label: "Otros" },
 ];
 
 export function Portafolio({ user, onBack }: PortafolioProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const { hasPermission } = usePermissions(user);
   const puedeSubir = hasPermission("PORTAFOLIO_SUBIR");
 
@@ -55,8 +57,6 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   const [cargando, setCargando] = useState<boolean>(true);
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaPortafolio>("TODOS");
   const [modalAbierto, setModalAbierto] = useState<boolean>(false);
-  const [tipoParaSubir, setTipoParaSubir] = useState<string>("EVIDENCIA");
-
   const rutEstudiante = user?.rut || "";
 
   const cargarDocumentos = useCallback(async () => {
@@ -119,10 +119,10 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   };
 
   const formatearTipo = (tipo: string) => {
-    if (tipo.includes("REFLEXION")) return "Reflexión";
-    if (tipo.includes("RETROALIMENTACION")) return "Retroalimentación";
-    if (tipo.includes("PAUTA")) return "Pauta de evaluación";
-    return "Evidencia pedagógica";
+    if (tipo.includes("DOCUMENTO")) return "Documento";
+    if (tipo.includes("INFORME")) return "Informe";
+    if (tipo.includes("OTRO")) return "Otro";
+    return "Evidencia";
   };
 
   const formatearFecha = (fechaStr: string) => {
@@ -140,10 +140,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
 
   const docsFiltrados = documentos.filter((doc) => {
     if (filtroCategoria === "TODOS") return true;
-    if (filtroCategoria === "EVIDENCIA") return doc.tipo.includes("EVIDENCIA");
-    if (filtroCategoria === "REFLEXION") return doc.tipo.includes("REFLEXION");
-    if (filtroCategoria === "RETROALIMENTACION") return doc.tipo.includes("RETROALIMENTACION");
-    return !doc.tipo.includes("EVIDENCIA") && !doc.tipo.includes("REFLEXION") && !doc.tipo.includes("RETROALIMENTACION");
+    return doc.tipo.includes(filtroCategoria);
   });
 
   return (
@@ -189,7 +186,6 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             <button
               type="button"
               onClick={() => {
-                setTipoParaSubir("EVIDENCIA");
                 setModalAbierto(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 shadow-xs hover:shadow transition-all cursor-pointer"
@@ -251,7 +247,6 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             <button
               type="button"
               onClick={() => {
-                setTipoParaSubir("EVIDENCIA");
                 setModalAbierto(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer"
@@ -305,7 +300,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                   {/* Eliminar (si tiene permiso) */}
                   {puedeSubir && (
                     <AttachmentAction
-                      onClick={() => handleEliminar(doc.idDocumento, doc.nombre)}
+                      onClick={() => setDeleteAction(() => () => handleEliminar(doc.idDocumento, doc.nombre))}
                       title="Eliminar de portafolio"
                       className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
                     >
@@ -326,9 +321,11 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         title="Subir Archivo al Portafolio"
         description="Selecciona o arrastra tu evidencia o documento pedagógico (Límite: 20 MB • PDF, Word, PowerPoint, Excel, ZIP o Imágenes)."
         endpoint="/api/portafolio/subir"
+        showCategorySelect={true}
+        categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+        defaultCategory="Documento"
         additionalData={{
           rutEstudiante: rutEstudiante,
-          tipo: tipoParaSubir,
           rutUsuarioSubio: user?.rut,
         }}
         allowedExtensions={[".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".zip", ".rar", ".png", ".jpg", ".jpeg"]}
@@ -336,6 +333,11 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         onSuccess={() => {
           cargarDocumentos();
         }}
+      />
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
       />
     </div>
   );

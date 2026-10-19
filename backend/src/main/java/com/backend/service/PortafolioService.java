@@ -28,6 +28,9 @@ import com.backend.util.RutUtils;
 public class PortafolioService {
 
     private static final Logger logger = LoggerFactory.getLogger(PortafolioService.class);
+    private static final List<String> CATEGORIAS_PERMITIDAS = List.of(
+        "DOCUMENTO", "EVIDENCIA", "INFORME", "OTRO"
+    );
 
     private final DocumentoRepository documentoRepository;
     private final UsuarioRepository usuarioRepository;
@@ -109,17 +112,7 @@ public class PortafolioService {
             extensionesPermitidas
         );
 
-        String tipoFinal;
-        if (tipo != null && !tipo.isBlank()) {
-            String tUpper = tipo.trim().toUpperCase();
-            if (tUpper.startsWith("PORTAFOLIO_")) {
-                tipoFinal = tUpper;
-            } else {
-                tipoFinal = "PORTAFOLIO_" + tUpper;
-            }
-        } else {
-            tipoFinal = "PORTAFOLIO_EVIDENCIA";
-        }
+        String tipoFinal = normalizarCategoria(tipo);
 
         Documento doc = new Documento(
             stored.originalFilename(),
@@ -169,6 +162,24 @@ public class PortafolioService {
             .filter(u -> RutUtils.clean(u.getRut()).equalsIgnoreCase(limpio))
             .findFirst()
             .orElse(null);
+    }
+
+    private String normalizarCategoria(String categoria) {
+        String categoriaNormalizada = categoria == null || categoria.isBlank()
+            ? "EVIDENCIA"
+            : categoria.trim().toUpperCase();
+
+        if (categoriaNormalizada.startsWith("PORTAFOLIO_")) {
+            categoriaNormalizada = categoriaNormalizada.substring("PORTAFOLIO_".length());
+        }
+
+        if (!CATEGORIAS_PERMITIDAS.contains(categoriaNormalizada)) {
+            throw new IllegalArgumentException(
+                "Categoría no válida. Debe ser Documento, Evidencia, Informe u Otro."
+            );
+        }
+
+        return "PORTAFOLIO_" + categoriaNormalizada;
     }
 
     /**

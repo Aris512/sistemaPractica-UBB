@@ -3,6 +3,7 @@ export type CoordinadorMenuKey =
   | "asociar"
   | "centros-practica"
   | "evaluaciones"
+  | "documentos"
   | "documentos-practica"
   | "portafolio"
   | "perfil";

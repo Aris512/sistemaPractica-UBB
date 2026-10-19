@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { clearAdminAuth } from "@/lib/adminAuth";
+import { clearStoredUserSession } from "@/lib/authSession";
 import { LoginForm } from "@/components/login/LoginForm";
 import { DataTable } from "./data-table";
 import { userColumns } from "./columns";
@@ -16,6 +17,7 @@ import { CentrosPracticaView } from "./centros_practica";
 import { PermisosConfigView } from "./config";
 import { EvaluacionesView } from "./Evaluaciones";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -69,8 +71,25 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState<UsuarioRow | null>(null);
 
   const nextInvoiceId = `INV${String(data.length + 1).padStart(3, "0")}`;
+
+  const handleConfirmarEliminarUsuario = async () => {
+    if (!usuarioAEliminar) return;
+    const res = await deleteUsuario(usuarioAEliminar.rut);
+    if (res.success) {
+      sileo.success({
+        title: "Usuario eliminado",
+        description: `${usuarioAEliminar.nombre} (${usuarioAEliminar.rut}) fue eliminado correctamente de la base de datos.`,
+      });
+    } else {
+      sileo.error({
+        title: "Error al eliminar usuario",
+        description: res.error || "No se pudo eliminar el usuario del servidor.",
+      });
+    }
+  };
 
   const handleRowAction = async (action: string, item: UsuarioRow) => {
     switch (action) {
@@ -79,18 +98,7 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
         setIsEditModalOpen(true);
         break;
       case "delete": {
-        const res = await deleteUsuario(item.rut);
-        if (res.success) {
-          sileo.success({
-            title: "Usuario eliminado",
-            description: `${item.nombre} (${item.rut}) fue eliminado correctamente de la base de datos.`,
-          });
-        } else {
-          sileo.error({
-            title: "Error al eliminar usuario",
-            description: res.error || "No se pudo eliminar el usuario del servidor.",
-          });
-        }
+        setUsuarioAEliminar(item);
         break;
       }
       case "toggle-estado": {
@@ -164,9 +172,9 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
 
   const handleLogout = () => {
     clearAdminAuth();
-    // Notificar al guard (AdminPage) para resetear el estado sin recargar la página.
-    // AdminPage mostrará nuevamente el LoginForm con context="admin".
-    onLogout();
+    clearStoredUserSession();
+    onLogout?.();
+    window.location.href = "/";
   };
 
   const handleGoHome = () => {
@@ -374,6 +382,11 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
             </div>
           )}
         </SidebarInset>
+        <ConfirmDeleteDialog
+          open={!!usuarioAEliminar}
+          onOpenChange={(open) => !open && setUsuarioAEliminar(null)}
+          onConfirm={handleConfirmarEliminarUsuario}
+        />
       </SidebarProvider>
     </TooltipProvider>
   );
@@ -411,9 +424,9 @@ export default function AdminPage() {
   });
 
   const handleAdminLogout = () => {
-    // clearAdminAuth() ya fue llamado por AdminPanel antes de invocar esta función.
-    // Solo reseteamos el estado para mostrar el LoginForm nuevamente.
-    setAdminAuthenticated(false);
+    clearAdminAuth();
+    clearStoredUserSession();
+    window.location.href = "/";
   };
 
   if (!adminAuthenticated) {

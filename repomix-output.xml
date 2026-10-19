@@ -110,10 +110,12 @@ backend/
               RolPermisoConfigDTO.java
               SeguimientoEstudianteDTO.java
               SubirEvidenciaDTO.java
+              TareaSeguimientoDTO.java
             model/
               Actividad.java
               Asignatura.java
               CentroPractica.java
+              CursoAprobado.java
               Documento.java
               DocumentoPractica.java
               Encuesta.java
@@ -144,6 +146,7 @@ backend/
               ActividadRepository.java
               AsignaturaRepository.java
               CentroPracticaRepository.java
+              CursoAprobadoRepository.java
               DocumentoPracticaRepository.java
               DocumentoRepository.java
               EncuestaRepository.java
@@ -174,6 +177,7 @@ backend/
               ActividadService.java
               AsignaturaService.java
               AuthService.java
+              AvanceAcademicoService.java
               CentroPracticaService.java
               DireccionService.java
               DocumentoPracticaService.java
@@ -358,6 +362,7 @@ frontend/
         button.tsx
         calendar.tsx
         card.tsx
+        ConfirmDeleteDialog.tsx
         dialog.tsx
         field.tsx
         FileUploadModal.tsx
@@ -419,6 +424,353 @@ tablas.md
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="backend/src/main/java/com/backend/dto/TareaSeguimientoDTO.java">
+package com.backend.dto;
+
+import java.time.LocalDateTime;
+
+public record TareaSeguimientoDTO(
+    Long idEvidencia,
+    Long idActividad,
+    String tituloActividad,
+    String asignatura,
+    String semestre,
+    String estado,
+    Double calificacion,
+    LocalDateTime fechaEntrega,
+    String nombreArchivoEstudiante,
+    String nombreArchivoRevision,
+    boolean tieneArchivoEstudiante,
+    boolean tieneArchivoRevision
+) {}
+</file>
+
+<file path="backend/src/main/java/com/backend/model/CursoAprobado.java">
+package com.backend.model;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+
+@Entity
+@Table(
+    name = "cursos_aprobados",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"id_estudiante", "id_asignatura"})
+)
+public class CursoAprobado {
+
+    public static final String EN_CURSO = "EN_CURSO";
+    public static final String APROBADO = "APROBADO";
+    public static final String REPROBADO = "REPROBADO";
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_estudiante", nullable = false)
+    private Estudiante estudiante;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "id_asignatura", nullable = false)
+    private Asignatura asignatura;
+
+    @Column(nullable = false, length = 20)
+    private String estado;
+
+    @Column(name = "promedio")
+    private Double promedio;
+
+    @Column(name = "fecha_actualizacion", nullable = false)
+    private LocalDateTime fechaActualizacion;
+
+    public CursoAprobado() {}
+
+    public CursoAprobado(Estudiante estudiante, Asignatura asignatura, String estado) {
+        this.estudiante = estudiante;
+        this.asignatura = asignatura;
+        this.estado = estado;
+        this.fechaActualizacion = LocalDateTime.now();
+    }
+
+    public Long getId() { return id; }
+    public Estudiante getEstudiante() { return estudiante; }
+    public void setEstudiante(Estudiante estudiante) { this.estudiante = estudiante; }
+    public Asignatura getAsignatura() { return asignatura; }
+    public void setAsignatura(Asignatura asignatura) { this.asignatura = asignatura; }
+    public String getEstado() { return estado; }
+    public void setEstado(String estado) { this.estado = estado; }
+    public Double getPromedio() { return promedio; }
+    public void setPromedio(Double promedio) { this.promedio = promedio; }
+    public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
+    public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
+}
+</file>
+
+<file path="backend/src/main/java/com/backend/repository/CursoAprobadoRepository.java">
+package com.backend.repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.backend.model.CursoAprobado;
+
+public interface CursoAprobadoRepository extends JpaRepository<CursoAprobado, Long> {
+    Optional<CursoAprobado> findByEstudianteIdEstudianteAndAsignaturaIdAsignatura(Long idEstudiante, Long idAsignatura);
+    List<CursoAprobado> findByEstudianteIdEstudiante(Long idEstudiante);
+}
+</file>
+
+<file path="backend/src/main/java/com/backend/service/AvanceAcademicoService.java">
+package com.backend.service;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.backend.model.Actividad;
+import com.backend.model.Asignatura;
+import com.backend.model.CursoAprobado;
+import com.backend.model.Estudiante;
+import com.backend.model.Evidencia;
+import com.backend.repository.ActividadRepository;
+import com.backend.repository.AsignaturaRepository;
+import com.backend.repository.CursoAprobadoRepository;
+import com.backend.repository.EvidenciaRepository;
+
+/**
+ * Centraliza la regla académica de aprobación de asignaturas y el cálculo del progreso.
+ *
+ * Regla: una asignatura queda APROBADA cuando todas sus tareas (actividades) tienen una
+ * entrega calificada del estudiante y el promedio de esas notas es >= 4.0.
+ * Si todas están calificadas y el promedio es < 4.0 queda REPROBADA.
+ * Mientras falten tareas por calificar queda EN_CURSO.
+ *
+ * Progreso = asignaturas APROBADAS / total de asignaturas del plan (tabla asignatura).
+ */
+@Service
+public class AvanceAcademicoService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AvanceAcademicoService.class);
+    public static final double NOTA_APROBACION = 4.0;
+
+    private final CursoAprobadoRepository cursoAprobadoRepository;
+    private final ActividadRepository actividadRepository;
+    private final EvidenciaRepository evidenciaRepository;
+    private final AsignaturaRepository asignaturaRepository;
+
+    public AvanceAcademicoService(CursoAprobadoRepository cursoAprobadoRepository,
+                                  ActividadRepository actividadRepository,
+                                  EvidenciaRepository evidenciaRepository,
+                                  AsignaturaRepository asignaturaRepository) {
+        this.cursoAprobadoRepository = cursoAprobadoRepository;
+        this.actividadRepository = actividadRepository;
+        this.evidenciaRepository = evidenciaRepository;
+        this.asignaturaRepository = asignaturaRepository;
+    }
+
+    /** Resultado del cálculo para un estudiante en una asignatura. */
+    public record ResultadoCurso(String estado, Double promedio, int tareasTotales, int tareasCalificadas) {}
+
+    /** Resumen del avance del estudiante en el plan. */
+    public record ResumenAvance(int totalAsignaturas, int aprobadas, double progreso,
+                                Asignatura siguienteAsignatura) {}
+
+    /**
+     * Calcula (sin persistir) el estado del estudiante en una asignatura a partir de las notas reales.
+     */
+    @Transactional(readOnly = true)
+    public ResultadoCurso calcularCurso(Estudiante estudiante, Asignatura asignatura) {
+        if (estudiante == null || asignatura == null) {
+            return new ResultadoCurso(CursoAprobado.EN_CURSO, null, 0, 0);
+        }
+
+        List<Actividad> actividades = actividadRepository
+            .findByAsignaturaIdAsignaturaOrderByFechaCreacionDesc(asignatura.getIdAsignatura());
+
+        Map<Long, Evidencia> evidenciaPorActividad = evidenciaRepository
+            .findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignatura(
+                estudiante.getIdEstudiante(), asignatura.getIdAsignatura())
+            .stream()
+            .filter(e -> e.getActividad() != null)
+            .collect(Collectors.toMap(e -> e.getActividad().getIdActividad(), Function.identity(), (a, b) -> a));
+
+        List<Double> notas = actividades.stream()
+            .map(a -> evidenciaPorActividad.get(a.getIdActividad()))
+            .filter(Objects::nonNull)
+            .map(Evidencia::getCalificacion)
+            .filter(Objects::nonNull)
+            .toList();
+
+        OptionalDouble avg = notas.stream().mapToDouble(Double::doubleValue).average();
+        Double promedio = avg.isPresent() ? Math.round(avg.getAsDouble() * 10.0) / 10.0 : null;
+
+        String estado;
+        if (actividades.isEmpty() || notas.size() < actividades.size() || promedio == null) {
+            estado = CursoAprobado.EN_CURSO;
+        } else {
+            estado = promedio >= NOTA_APROBACION ? CursoAprobado.APROBADO : CursoAprobado.REPROBADO;
+        }
+
+        return new ResultadoCurso(estado, promedio, actividades.size(), notas.size());
+    }
+
+    /**
+     * Recalcula y persiste en cursos_aprobados el estado del estudiante en la asignatura.
+     * Se invoca cada vez que un profesor registra/actualiza una nota.
+     */
+    @Transactional
+    public CursoAprobado recalcularYGuardar(Estudiante estudiante, Asignatura asignatura) {
+        if (estudiante == null || asignatura == null) return null;
+
+        ResultadoCurso resultado = calcularCurso(estudiante, asignatura);
+
+        CursoAprobado registro = cursoAprobadoRepository
+            .findByEstudianteIdEstudianteAndAsignaturaIdAsignatura(estudiante.getIdEstudiante(), asignatura.getIdAsignatura())
+            .orElseGet(() -> new CursoAprobado(estudiante, asignatura, CursoAprobado.EN_CURSO));
+
+        registro.setEstado(resultado.estado());
+        registro.setPromedio(resultado.promedio());
+        registro.setFechaActualizacion(java.time.LocalDateTime.now());
+        CursoAprobado guardado = cursoAprobadoRepository.save(registro);
+
+        logger.info("Curso recalculado: estudiante={} asignatura={} estado={} promedio={} ({}/{} tareas calificadas)",
+            estudiante.getIdEstudiante(), asignatura.getNombre(), resultado.estado(), resultado.promedio(),
+            resultado.tareasCalificadas(), resultado.tareasTotales());
+        return guardado;
+    }
+
+    /** Plan de estudios: todas las asignaturas registradas, ordenadas por semestre. */
+    @Transactional(readOnly = true)
+    public List<Asignatura> obtenerPlanOrdenado() {
+        List<Asignatura> plan = new ArrayList<>(asignaturaRepository.findAll());
+        plan.sort(Comparator.comparingInt((Asignatura a) -> semestreNumerico(a.getSemestre()))
+            .thenComparing(a -> a.getNombre() != null ? a.getNombre() : ""));
+        return plan;
+    }
+
+    /** Estados persistidos del estudiante indexados por id de asignatura. */
+    @Transactional(readOnly = true)
+    public Map<Long, String> obtenerEstadosPersistidos(Estudiante estudiante) {
+        if (estudiante == null) return Map.of();
+        return cursoAprobadoRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante()).stream()
+            .filter(c -> c.getAsignatura() != null)
+            .collect(Collectors.toMap(c -> c.getAsignatura().getIdAsignatura(), CursoAprobado::getEstado, (a, b) -> a));
+    }
+
+    /**
+     * Progreso real = asignaturas APROBADAS (persistidas en cursos_aprobados) / total del plan.
+     * La siguiente asignatura habilitada es la primera del plan (por semestre) aún no aprobada.
+     */
+    @Transactional(readOnly = true)
+    public ResumenAvance calcularAvance(Estudiante estudiante, List<Asignatura> plan) {
+        Map<Long, String> estados = obtenerEstadosPersistidos(estudiante);
+        int total = plan.size();
+        int aprobadas = (int) plan.stream()
+            .filter(a -> CursoAprobado.APROBADO.equals(estados.get(a.getIdAsignatura())))
+            .count();
+        double progreso = total > 0 ? Math.round((aprobadas * 100.0) / total) : 0;
+
+        Optional<Asignatura> siguiente = plan.stream()
+            .filter(a -> !CursoAprobado.APROBADO.equals(estados.get(a.getIdAsignatura())))
+            .findFirst();
+
+        return new ResumenAvance(total, aprobadas, progreso, siguiente.orElse(null));
+    }
+
+    public static int semestreNumerico(String semestre) {
+        if (semestre == null) return Integer.MAX_VALUE;
+        String digits = semestre.replaceAll("\\D+", "");
+        if (digits.isEmpty()) return Integer.MAX_VALUE;
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
+    }
+}
+</file>
+
+<file path="frontend/src/components/ui/ConfirmDeleteDialog.tsx">
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface ConfirmDeleteDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => Promise<void> | void;
+}
+
+export function ConfirmDeleteDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+}: ConfirmDeleteDialogProps) {
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const handleConfirm = async () => {
+    setIsConfirming(true);
+    try {
+      await onConfirm();
+      onOpenChange(false);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !isConfirming && onOpenChange(nextOpen)}>
+      <DialogContent className="sm:max-w-md bg-white border border-slate-200">
+        <DialogHeader>
+          <DialogTitle className="text-slate-900 font-bold">Confirmar eliminación</DialogTitle>
+          <DialogDescription className="text-slate-500">
+            ¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-2 gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={isConfirming}>
+            {isConfirming ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+</file>
 
 <file path="backend/.mvn/wrapper/maven-wrapper.properties">
 wrapperVersion=3.3.4
@@ -545,7 +897,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.backend.dto.DetalleEstudianteDocumentosDTO;
 import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.model.DocumentoPractica;
+import com.backend.model.Evidencia;
 import com.backend.service.DocumentoPracticaService;
+import com.backend.service.EvidenciaService;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -557,9 +911,36 @@ public class AdminDocumentoController {
     private static final Logger logger = LoggerFactory.getLogger(AdminDocumentoController.class);
 
     private final DocumentoPracticaService documentoPracticaService;
+    private final EvidenciaService evidenciaService;
 
-    public AdminDocumentoController(DocumentoPracticaService documentoPracticaService) {
+    public AdminDocumentoController(DocumentoPracticaService documentoPracticaService,
+                                   EvidenciaService evidenciaService) {
         this.documentoPracticaService = documentoPracticaService;
+        this.evidenciaService = evidenciaService;
+    }
+
+    /** Descarga el archivo entregado o la revisión adjunta de una evidencia real. */
+    @GetMapping("/evidencias/{idEvidencia}/archivo")
+    public ResponseEntity<Resource> descargarArchivoEvidencia(
+            @PathVariable Long idEvidencia,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "ESTUDIANTE") String tipo) {
+        Evidencia evidencia = evidenciaService.obtenerPorId(idEvidencia);
+        if (evidencia == null) return ResponseEntity.notFound().build();
+
+        boolean esRevision = "PROFESOR".equalsIgnoreCase(tipo);
+        String nombre = esRevision ? evidencia.getNombreArchivoRevision() : evidencia.getNombreArchivo();
+        if (nombre == null || nombre.isBlank()) return ResponseEntity.notFound().build();
+
+        try {
+            Resource recurso = evidenciaService.obtenerRecursoArchivo(idEvidencia, esRevision);
+            String encodedFilename = URLEncoder.encode(nombre, StandardCharsets.UTF_8).replace("+", "%20");
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"; filename*=UTF-8''" + encodedFilename)
+                .body(recurso);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
@@ -1948,6 +2329,7 @@ public class DetalleEstudianteDocumentosDTO {
     private int documentosRequeridos;
     private List<ProfesorContactoDTO> profesores;
     private List<DocumentoItemDTO> documentos;
+    private List<TareaSeguimientoDTO> tareas;
 
     public DetalleEstudianteDocumentosDTO() {
     }
@@ -2056,6 +2438,14 @@ public class DetalleEstudianteDocumentosDTO {
 
     public void setDocumentos(List<DocumentoItemDTO> documentos) {
         this.documentos = documentos;
+    }
+
+    public List<TareaSeguimientoDTO> getTareas() {
+        return tareas;
+    }
+
+    public void setTareas(List<TareaSeguimientoDTO> tareas) {
+        this.tareas = tareas;
     }
 }
 </file>
@@ -4010,6 +4400,13 @@ public class Evidencia {
     @JoinColumn(name = "id_profesor_revisor")
     private Profesor revisadoPor;
 
+    /** Archivo de revisión/retroalimentación subido por el profesor (ruta relativa en FileStorageService). */
+    @Column(name = "archivo_revision_url", length = 1000)
+    private String archivoRevisionUrl;
+
+    @Column(name = "nombre_archivo_revision", length = 500)
+    private String nombreArchivoRevision;
+
     public Evidencia() {
         this.fechaEntrega = LocalDateTime.now();
         this.estado = "PENDIENTE";
@@ -4120,6 +4517,22 @@ public class Evidencia {
 
     public void setRevisadoPor(Profesor revisadoPor) {
         this.revisadoPor = revisadoPor;
+    }
+
+    public String getArchivoRevisionUrl() {
+        return archivoRevisionUrl;
+    }
+
+    public void setArchivoRevisionUrl(String archivoRevisionUrl) {
+        this.archivoRevisionUrl = archivoRevisionUrl;
+    }
+
+    public String getNombreArchivoRevision() {
+        return nombreArchivoRevision;
+    }
+
+    public void setNombreArchivoRevision(String nombreArchivoRevision) {
+        this.nombreArchivoRevision = nombreArchivoRevision;
     }
 }
 </file>
@@ -5628,6 +6041,14 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
     long countByActividadIdActividad(Long idActividad);
 
     long countByActividadIdActividadAndEstado(Long idActividad, String estado);
+
+    List<Evidencia> findByEstudianteIdEstudiante(Long idEstudiante);
+
+    List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignatura(Long idEstudiante, Long idAsignatura);
+
+    List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignaturaAndCalificacionIsNotNull(
+        Long idEstudiante, Long idAsignatura
+    );
 }
 </file>
 
@@ -8023,6 +8444,7 @@ import { CreateModal } from "./CreateModal";
 import { EditModal } from "./EditModal";
 import type { Asignatura } from "./types";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { RefreshCw, Loader2, AlertCircle, BookPlus } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -8054,6 +8476,7 @@ export function AsignaturasView() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingAsignatura, setEditingAsignatura] = useState<Asignatura | null>(null);
+  const [asignaturaAEliminar, setAsignaturaAEliminar] = useState<Asignatura | null>(null);
 
   const handleRowAction = async (action: string, item: Asignatura) => {
     switch (action) {
@@ -8062,9 +8485,13 @@ export function AsignaturasView() {
         setIsEditOpen(true);
         break;
       case "delete": {
+        if (!asignaturaAEliminar) {
+          setAsignaturaAEliminar(item);
+          break;
+        }
         const res = await deleteAsignatura(item.idAsignatura);
         if (res.success) {
-          sileo.error({
+          sileo.success({
             title: "Asignatura eliminada",
             description: `Se eliminó "${item.nombre}" de la base de datos`,
           });
@@ -8230,6 +8657,11 @@ export function AsignaturasView() {
         }}
         asignatura={editingAsignatura}
         onSave={handleEditSuccess}
+      />
+      <ConfirmDeleteDialog
+        open={!!asignaturaAEliminar}
+        onOpenChange={(open) => !open && setAsignaturaAEliminar(null)}
+        onConfirm={() => handleRowAction("delete", asignaturaAEliminar!)}
       />
     </div>
   );
@@ -8589,6 +9021,7 @@ import { CreateModal } from "./CreateModal";
 import { EditModal } from "./EditModal";
 import type { CentroPractica } from "./types";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { RefreshCw, Loader2, AlertCircle, Building2 } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -8616,6 +9049,7 @@ export function CentrosPracticaView() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingCentro, setEditingCentro] = useState<CentroPractica | null>(null);
+  const [centroAEliminar, setCentroAEliminar] = useState<CentroPractica | null>(null);
 
   const handleRowAction = async (action: string, item: CentroPractica) => {
     switch (action) {
@@ -8624,6 +9058,10 @@ export function CentrosPracticaView() {
         setIsEditOpen(true);
         break;
       case "delete": {
+        if (!centroAEliminar) {
+          setCentroAEliminar(item);
+          break;
+        }
         const res = await deleteCentro(item.idCentro);
         if (res.success) {
           sileo.success({
@@ -8761,6 +9199,11 @@ export function CentrosPracticaView() {
         }}
         centro={editingCentro}
         onSave={handleEditSuccess}
+      />
+      <ConfirmDeleteDialog
+        open={!!centroAEliminar}
+        onOpenChange={(open) => !open && setCentroAEliminar(null)}
+        onConfirm={() => handleRowAction("delete", centroAEliminar!)}
       />
     </div>
   );
@@ -9525,7 +9968,7 @@ function ProgressBar({ progreso, total, requeridos }: { progreso: number; total:
     <div className="w-full max-w-[200px] flex flex-col gap-1">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-slate-700">
-          {total} de {requeridos} doc.
+          {total} de {requeridos} asignaturas
         </span>
         <span className="font-semibold text-slate-900 tabular-nums">
           {percentage}%
@@ -9576,7 +10019,7 @@ export const estudianteDocumentoColumns: ColumnDef<EstudianteDocumentoRow>[] = [
   },
   {
     id: "progreso",
-    header: "Progreso Documentación",
+    header: "Avance académico",
     sortable: true,
     cell: (item) => (
       <ProgressBar
@@ -9898,8 +10341,8 @@ export function DocumentosModal({
                 <div className="space-y-1.5 pt-2 border-t border-slate-200/80">
                   <div className="flex items-center justify-between text-xs text-slate-600">
                     <span>
-                      Progreso de entrega: <strong>{detalle.totalDocumentos}</strong> de{" "}
-                      <strong>{detalle.documentosRequeridos}</strong> documentos entregados
+                      Avance académico: <strong>{detalle.totalDocumentos}</strong> de{" "}
+                      <strong>{detalle.documentosRequeridos}</strong> asignaturas aprobadas
                     </span>
                     <span className="font-semibold text-slate-900 tabular-nums">
                       {detalle.progreso}%
@@ -10024,6 +10467,47 @@ export function DocumentosModal({
                   })}
                 </div>
               </div>
+
+              {detalle.tareas?.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-900">Entregas y revisiones por tarea</h4>
+                  <div className="space-y-2">
+                    {detalle.tareas.map((tarea) => (
+                      <div key={tarea.idEvidencia} className="rounded-xl border border-slate-200 bg-white p-3.5">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{tarea.tituloActividad}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {tarea.asignatura} · Semestre {tarea.semestre} · {tarea.calificacion ?? "Sin calificación"}
+                            </p>
+                          </div>
+                          <span className="text-[11px] font-semibold rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                            {tarea.estado || "PENDIENTE"}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tarea.tieneArchivoEstudiante && (
+                            <a
+                              href={`http://localhost:8080/admin/documentos/evidencias/${tarea.idEvidencia}/archivo?tipo=ESTUDIANTE`}
+                              className="text-xs font-semibold text-sky-700 hover:underline"
+                            >
+                              Descargar entrega
+                            </a>
+                          )}
+                          {tarea.tieneArchivoRevision && (
+                            <a
+                              href={`http://localhost:8080/admin/documentos/evidencias/${tarea.idEvidencia}/archivo?tipo=PROFESOR`}
+                              className="text-xs font-semibold text-emerald-700 hover:underline"
+                            >
+                              Descargar revisión
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -10442,6 +10926,22 @@ export interface EstudianteDetalleDocumentos {
   documentosRequeridos: number;
   profesores: ProfesorContacto[];
   documentos: DocumentoItem[];
+  tareas: TareaSeguimiento[];
+}
+
+export interface TareaSeguimiento {
+  idEvidencia: number;
+  idActividad: number | null;
+  tituloActividad: string;
+  asignatura: string;
+  semestre: string;
+  estado: string;
+  calificacion: number | null;
+  fechaEntrega: string | null;
+  nombreArchivoEstudiante: string | null;
+  nombreArchivoRevision: string | null;
+  tieneArchivoEstudiante: boolean;
+  tieneArchivoRevision: boolean;
 }
 
 export type SortDirection = "asc" | "desc" | null;
@@ -10810,6 +11310,7 @@ import type {
   CandidatosResponse,
 } from "./types";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
   Card,
   CardHeader,
@@ -10850,6 +11351,7 @@ export function AsociarPracticaView({
   initialEstudiante,
   onClearInitialEstudiante,
 }: AsociarPracticaViewProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   // Asignaturas de práctica oficiales
   const [asignaturas, setAsignaturas] = useState<AsignaturaPractica[]>([]);
   const [selectedAsignaturaId, setSelectedAsignaturaId] = useState<string>("");
@@ -11526,7 +12028,9 @@ export function AsociarPracticaView({
                         size="sm"
                         variant="ghost"
                         onClick={() =>
-                          handleEliminarAsociacion(asoc.idPractica, asoc.estudianteNombre)
+                          setDeleteAction(() => () =>
+                            handleEliminarAsociacion(asoc.idPractica, asoc.estudianteNombre)
+                          )
                         }
                         className="cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5"
                         title="Desvincular práctica"
@@ -11541,6 +12045,11 @@ export function AsociarPracticaView({
           </UnifiedTable>
         </UnifiedTableContainer>
       </div>
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }
@@ -18901,9 +19410,9 @@ export interface EstudiantePortafolioSummary {
 
 export type CategoriaPortafolio =
   | "TODOS"
+  | "DOCUMENTO"
   | "EVIDENCIA"
-  | "REFLEXION"
-  | "RETROALIMENTACION"
+  | "INFORME"
   | "OTRO";
 </file>
 
@@ -21495,7 +22004,6 @@ import java.util.zip.ZipOutputStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -21505,6 +22013,7 @@ import com.backend.dto.DetalleEstudianteDocumentosDTO;
 import com.backend.dto.DocumentoItemDTO;
 import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.dto.ProfesorContactoDTO;
+import com.backend.dto.TareaSeguimientoDTO;
 import com.backend.model.Asignatura;
 import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
@@ -21513,6 +22022,7 @@ import com.backend.model.Usuario;
 import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.ProfesorRepository;
+import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
 
@@ -21528,19 +22038,25 @@ public class DocumentoPracticaService {
     private final UsuarioRepository usuarioRepository;
     private final com.backend.repository.AsignaturaRepository asignaturaRepository;
     private final FileStorageService fileStorageService;
+    private final EvidenciaRepository evidenciaRepository;
+    private final AvanceAcademicoService avanceAcademicoService;
 
     public DocumentoPracticaService(DocumentoPracticaRepository documentoPracticaRepository,
                                    EstudianteRepository estudianteRepository,
                                    ProfesorRepository profesorRepository,
                                    UsuarioRepository usuarioRepository,
                                    com.backend.repository.AsignaturaRepository asignaturaRepository,
-                                   FileStorageService fileStorageService) {
+                                   FileStorageService fileStorageService,
+                                   EvidenciaRepository evidenciaRepository,
+                                   AvanceAcademicoService avanceAcademicoService) {
         this.documentoPracticaRepository = documentoPracticaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
         this.usuarioRepository = usuarioRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.fileStorageService = fileStorageService;
+        this.evidenciaRepository = evidenciaRepository;
+        this.avanceAcademicoService = avanceAcademicoService;
         initUploadsDirectory();
     }
 
@@ -21602,12 +22118,12 @@ public class DocumentoPracticaService {
                 ? documentoPracticaRepository.findByEstudianteRutAndAsignaturaIdAsignatura(rut, idAsignatura)
                 : documentoPracticaRepository.findByEstudianteRut(rut);
 
-            boolean tieneDocEstudiante = docs.stream().anyMatch(d -> "ESTUDIANTE".equalsIgnoreCase(d.getTipoDocumento()));
-            boolean tieneDocProfesor = docs.stream().anyMatch(d -> "PROFESOR".equalsIgnoreCase(d.getTipoDocumento()));
-
-            int entregados = (tieneDocEstudiante ? 1 : 0) + (tieneDocProfesor ? 1 : 0);
-            int requeridos = 2; // Documento de estudiante + Documento de profesor
-            double progreso = Math.round((entregados / (double) requeridos) * 100.0);
+            AvanceAcademicoService.ResumenAvance avance = avanceAcademicoService.calcularAvance(
+                est, avanceAcademicoService.obtenerPlanOrdenado()
+            );
+            int entregados = avance.aprobadas();
+            int requeridos = avance.totalAsignaturas();
+            double progreso = avance.progreso();
 
             String estado;
             if (entregados >= requeridos) {
@@ -21763,11 +22279,14 @@ public class DocumentoPracticaService {
             ));
         }
 
-        int entregados = (docEstudianteOpt.isPresent() ? 1 : 0) + (docProfesorOpt.isPresent() ? 1 : 0);
-        int requeridos = 2;
-        double progreso = Math.round((entregados / (double) requeridos) * 100.0);
+        AvanceAcademicoService.ResumenAvance avance = estOpt
+            .map(estudiante -> avanceAcademicoService.calcularAvance(estudiante, avanceAcademicoService.obtenerPlanOrdenado()))
+            .orElse(new AvanceAcademicoService.ResumenAvance(0, 0, 0, null));
+        int entregados = avance.aprobadas();
+        int requeridos = avance.totalAsignaturas();
+        double progreso = avance.progreso();
 
-        return new DetalleEstudianteDocumentosDTO(
+        DetalleEstudianteDocumentosDTO detalle = new DetalleEstudianteDocumentosDTO(
             rutFinal,
             nombreCompleto,
             correo,
@@ -21780,6 +22299,26 @@ public class DocumentoPracticaService {
             profesoresDTO,
             documentosList
         );
+        List<com.backend.model.Evidencia> evidencias = estOpt
+            .map(estudiante -> evidenciaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante()))
+            .orElseGet(List::of);
+        detalle.setTareas(evidencias.stream()
+            .map(e -> new TareaSeguimientoDTO(
+                e.getIdEvidencia(),
+                e.getActividad() != null ? e.getActividad().getIdActividad() : null,
+                e.getActividad() != null ? e.getActividad().getTitulo() : "Actividad",
+                e.getActividad() != null && e.getActividad().getAsignatura() != null ? e.getActividad().getAsignatura().getNombre() : "—",
+                e.getActividad() != null && e.getActividad().getAsignatura() != null ? e.getActividad().getAsignatura().getSemestre() : "—",
+                e.getEstado(),
+                e.getCalificacion(),
+                e.getFechaEntrega(),
+                e.getNombreArchivo(),
+                e.getNombreArchivoRevision(),
+                e.getArchivoUrl() != null && !e.getArchivoUrl().isBlank(),
+                e.getArchivoRevisionUrl() != null && !e.getArchivoRevisionUrl().isBlank()
+            ))
+            .toList());
+        return detalle;
     }
 
     @Transactional(readOnly = true)
@@ -21917,12 +22456,7 @@ public class DocumentoPracticaService {
         }
 
         // Si el archivo físico no existe en disco, generar un PDF legible en memoria
-        byte[] pdfMock = generarPdfMock(
-            doc.getNombreDocumento() != null ? doc.getNombreDocumento() : doc.getNombreArchivo(),
-            doc.getEstudiante() != null ? doc.getEstudiante().getNombre() + " " + doc.getEstudiante().getApellido() : "Estudiante",
-            doc.getAsignatura() != null ? doc.getAsignatura().getNombre() : "Práctica"
-        );
-        return new ByteArrayResource(pdfMock);
+        throw new IOException("El archivo físico no está disponible en el servidor.");
     }
 
 
@@ -21952,22 +22486,15 @@ public class DocumentoPracticaService {
                     String prefijo = "ESTUDIANTE".equalsIgnoreCase(doc.getTipoDocumento()) ? "[ESTUDIANTE]" : "[PROFESOR]";
                     String nombreArchivo = prefijo + "_" + sanitizarNombre(doc.getNombreArchivo());
 
-                    ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
-                    zos.putNextEntry(entry);
-
                     Path localPath = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
                     if (localPath != null && Files.exists(localPath)) {
+                        ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
+                        zos.putNextEntry(entry);
                         Files.copy(localPath, zos);
+                        zos.closeEntry();
                     } else {
-                        byte[] pdfContent = generarPdfMock(
-                            doc.getNombreDocumento() != null ? doc.getNombreDocumento() : doc.getNombreArchivo(),
-                            usuario.getNombre() + " " + usuario.getApellido(),
-                            asigNombre
-                        );
-                        zos.write(pdfContent);
+                        logger.warn("Se omitió del ZIP el archivo inexistente: {}", doc.getUbicacion());
                     }
-
-                    zos.closeEntry();
                 }
             }
             zos.finish();
@@ -22567,6 +23094,9 @@ import com.backend.util.RutUtils;
 public class PortafolioService {
 
     private static final Logger logger = LoggerFactory.getLogger(PortafolioService.class);
+    private static final List<String> CATEGORIAS_PERMITIDAS = List.of(
+        "DOCUMENTO", "EVIDENCIA", "INFORME", "OTRO"
+    );
 
     private final DocumentoRepository documentoRepository;
     private final UsuarioRepository usuarioRepository;
@@ -22648,17 +23178,7 @@ public class PortafolioService {
             extensionesPermitidas
         );
 
-        String tipoFinal;
-        if (tipo != null && !tipo.isBlank()) {
-            String tUpper = tipo.trim().toUpperCase();
-            if (tUpper.startsWith("PORTAFOLIO_")) {
-                tipoFinal = tUpper;
-            } else {
-                tipoFinal = "PORTAFOLIO_" + tUpper;
-            }
-        } else {
-            tipoFinal = "PORTAFOLIO_EVIDENCIA";
-        }
+        String tipoFinal = normalizarCategoria(tipo);
 
         Documento doc = new Documento(
             stored.originalFilename(),
@@ -22708,6 +23228,24 @@ public class PortafolioService {
             .filter(u -> RutUtils.clean(u.getRut()).equalsIgnoreCase(limpio))
             .findFirst()
             .orElse(null);
+    }
+
+    private String normalizarCategoria(String categoria) {
+        String categoriaNormalizada = categoria == null || categoria.isBlank()
+            ? "EVIDENCIA"
+            : categoria.trim().toUpperCase();
+
+        if (categoriaNormalizada.startsWith("PORTAFOLIO_")) {
+            categoriaNormalizada = categoriaNormalizada.substring("PORTAFOLIO_".length());
+        }
+
+        if (!CATEGORIAS_PERMITIDAS.contains(categoriaNormalizada)) {
+            throw new IllegalArgumentException(
+                "Categoría no válida. Debe ser Documento, Evidencia, Informe u Otro."
+            );
+        }
+
+        return "PORTAFOLIO_" + categoriaNormalizada;
     }
 
     /**
@@ -24451,7 +24989,7 @@ import {
   UserPlus,
   Building2,
   ClipboardCheck,
-  FolderGit2,
+  FolderArchive,
   Briefcase,
   LogOut,
 } from "lucide-react";
@@ -24574,19 +25112,19 @@ export function HomeSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Documentos de Práctica */}
+              {/* Documentos */}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={activeMenu === "documentos-practica"}
-                  onClick={() => onSelectMenu("documentos-practica")}
+                  isActive={activeMenu === "documentos" || activeMenu === "documentos-practica"}
+                  onClick={() => onSelectMenu("documentos")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "documentos-practica"
+                    activeMenu === "documentos" || activeMenu === "documentos-practica"
                       ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <FolderGit2 className="size-4 mr-2" />
-                  <span>Documentos de Práctica</span>
+                  <FolderArchive className="size-4 mr-2" />
+                  <span>Documentos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -24634,6 +25172,7 @@ export type CoordinadorMenuKey =
   | "asociar"
   | "centros-practica"
   | "evaluaciones"
+  | "documentos"
   | "documentos-practica"
   | "portafolio"
   | "perfil";
@@ -25809,14 +26348,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { sileo } from "sileo";
 
 interface PracticaDocumentosViewProps {
@@ -25960,33 +26492,11 @@ export function PracticaDocumentosView({
         }}
       />
 
-      {/* Diálogo de Confirmación de Eliminación */}
-      <Dialog open={!!docAEliminar} onOpenChange={(open) => !open && setDocAEliminar(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>¿Eliminar este archivo?</DialogTitle>
-            <DialogDescription>
-              Se eliminará «<strong>{docAEliminar?.nombre}</strong>» de tu portafolio de práctica. Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 mt-3">
-            <button
-              type="button"
-              onClick={() => setDocAEliminar(null)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmarEliminar}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer shadow-xs"
-            >
-              Eliminar Archivo
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={!!docAEliminar}
+        onOpenChange={(open) => !open && setDocAEliminar(null)}
+        onConfirm={handleConfirmarEliminar}
+      />
 
       {/* Cabecera y Barra de Acciones */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
@@ -26667,11 +27177,13 @@ export function PracticaPortafolioView({
         isOpen={modalSubidaAbierto}
         onClose={() => setModalSubidaAbierto(false)}
         endpoint="/api/portafolio/subir"
-        title="Subir Evidencia al Portafolio"
+        title="Subir Archivo al Portafolio"
         description="Formatos permitidos: PDF, Word, Excel, PowerPoint, JPG, PNG (máx. 20 MB)."
+        showCategorySelect={true}
+        categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+        defaultCategory="Evidencia"
         additionalData={{
           rutEstudiante: user.rut,
-          tipo: "EVIDENCIA",
           rutUsuarioSubio: user.rut,
         }}
         onSuccess={() => {
@@ -27018,6 +27530,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Calendar as CalendarIcon,
@@ -27063,6 +27576,7 @@ interface ActividadesProps {
 }
 
 export function Actividades({ user }: ActividadesProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const [actividades, setActividades] = useState<ActividadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -27260,7 +27774,7 @@ export function Actividades({ user }: ActividadesProps) {
     }
   };
 
-  // Eliminar tarea sin confirmación
+  // La eliminación se ejecuta tras confirmar en el diálogo compartido.
   const handleEliminarActividad = async (idActividad: number) => {
     try {
       const res = await fetch(`http://localhost:8080/api/actividades/${idActividad}`, {
@@ -27691,11 +28205,11 @@ export function Actividades({ user }: ActividadesProps) {
                         Editar
                       </Button>
 
-                      {/* Botón Eliminar Tarea (sin confirmación) */}
+                      {/* Botón para solicitar la eliminación de la tarea */}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEliminarActividad(act.idActividad)}
+                        onClick={() => setDeleteAction(() => () => handleEliminarActividad(act.idActividad))}
                         className="cursor-pointer text-xs border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 gap-1"
                         title="Eliminar tarea"
                       >
@@ -27847,6 +28361,11 @@ export function Actividades({ user }: ActividadesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }
@@ -27882,6 +28401,7 @@ import {
   type EstudianteEvaluacion,
 } from "../../../services/profesorEvaluacionApi";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Input } from "@/components/ui/input";
 
 interface EvaluacionesProps {
@@ -27911,6 +28431,8 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
   const [nota, setNota] = useState("");
   const [observacion, setObservacion] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [campoAEliminar, setCampoAEliminar] = useState<"nota" | "observacion" | null>(null);
+  const [isDeleteSaveConfirmOpen, setIsDeleteSaveConfirmOpen] = useState(false);
 
   // Cargar estudiantes del profesor
   const cargarEstudiantes = async () => {
@@ -27951,7 +28473,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
   };
 
   // Guardar evaluación (crear, actualizar o eliminar nota/observación en la BD)
-  const handleGuardarEvaluacion = async () => {
+  const handleGuardarEvaluacion = async (confirmedDelete = false) => {
     if (!selectedStudent) return;
 
     let puntajeFinal: number | null = null;
@@ -27980,6 +28502,14 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         title: "Formulario vacío",
         description: "Debes ingresar al menos una calificación o una observación pedagógica.",
       });
+      return;
+    }
+
+    const eliminaContenidoExistente =
+      (selectedStudent.nota != null && puntajeFinal === null) ||
+      (!!selectedStudent.observacion && obsFinal === null);
+    if (eliminaContenidoExistente && !confirmedDelete) {
+      setIsDeleteSaveConfirmOpen(true);
       return;
     }
 
@@ -28657,7 +29187,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       {nota.trim() !== "" && (
                         <button
                           type="button"
-                          onClick={handleQuitarNota}
+                          onClick={() => setCampoAEliminar("nota")}
                           disabled={isSaving}
                           className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
                         >
@@ -28710,7 +29240,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       {observacion.trim() !== "" && (
                         <button
                           type="button"
-                          onClick={handleQuitarObservacion}
+                          onClick={() => setCampoAEliminar("observacion")}
                           disabled={isSaving}
                           className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
                         >
@@ -28747,7 +29277,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
               </Button>
               <Button
                 size="sm"
-                onClick={handleGuardarEvaluacion}
+                onClick={() => handleGuardarEvaluacion()}
                 disabled={
                   isSaving ||
                   (nota === (selectedStudent.nota != null ? String(selectedStudent.nota) : "") &&
@@ -28772,6 +29302,19 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={!!campoAEliminar}
+        onOpenChange={(open) => !open && setCampoAEliminar(null)}
+        onConfirm={() => {
+          if (campoAEliminar === "nota") handleQuitarNota();
+          if (campoAEliminar === "observacion") handleQuitarObservacion();
+        }}
+      />
+      <ConfirmDeleteDialog
+        open={isDeleteSaveConfirmOpen}
+        onOpenChange={setIsDeleteSaveConfirmOpen}
+        onConfirm={() => handleGuardarEvaluacion(true)}
+      />
     </div>
   );
 }
@@ -28822,6 +29365,7 @@ export function RevisionModal({
   const [retroalimentacion, setRetroalimentacion] = useState("");
   const [estadoRevision, setEstadoRevision] = useState<"REVISADO" | "OBSERVADO">("REVISADO");
   const [fechaRevision, setFechaRevision] = useState<Date>(() => new Date());
+  const [archivoRevision, setArchivoRevision] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -28829,6 +29373,7 @@ export function RevisionModal({
       setCalificacion(student.calificacion ? String(student.calificacion) : "");
       setRetroalimentacion(student.retroalimentacion || "");
       setEstadoRevision(student.estadoRevision === "OBSERVADO" ? "OBSERVADO" : "REVISADO");
+      setArchivoRevision(null);
       if (student.fechaRevision) {
         const d = new Date(student.fechaRevision);
         if (!isNaN(d.getTime())) {
@@ -28861,15 +29406,16 @@ export function RevisionModal({
 
     try {
       if (student.idEvidencia) {
-        const res = await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar`, {
+        const formData = new FormData();
+        formData.append("rutProfesor", profesorRut || "11111111-1");
+        formData.append("retroalimentacion", retroalimentacion);
+        formData.append("estado", estadoRevision);
+        if (notaNum !== null) formData.append("calificacion", String(notaNum));
+        if (archivoRevision) formData.append("archivoRevision", archivoRevision);
+
+        const res = await fetch(`http://localhost:8080/api/evidencias/${student.idEvidencia}/revisar-con-archivo`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            rutProfesor: profesorRut || "11111111-1",
-            retroalimentacion,
-            calificacion: notaNum,
-            estado: estadoRevision,
-          }),
+          body: formData,
         });
 
         if (!res.ok) {
@@ -28985,6 +29531,21 @@ export function RevisionModal({
                   <option value="OBSERVADO">Con Observaciones</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Archivo de revisión (opcional)
+              </label>
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.zip"
+                onChange={(e) => setArchivoRevision(e.target.files?.[0] || null)}
+                className="text-xs h-9 cursor-pointer"
+              />
+              {archivoRevision && (
+                <p className="mt-1 text-[11px] text-slate-500">Se adjuntará: {archivoRevision.name}</p>
+              )}
             </div>
 
             {/* Calendario compacto integrado con Retroalimentación */}
@@ -30474,6 +31035,28 @@ public class EvidenciaController {
         }
     }
 
+    /**
+     * Guarda la revisión y, opcionalmente, un archivo de retroalimentación del profesor.
+     */
+    @PutMapping("/{id}/revisar-con-archivo")
+    public ResponseEntity<?> revisarEvidenciaConArchivo(
+            @PathVariable Long id,
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @RequestParam(value = "retroalimentacion", required = false) String retroalimentacion,
+            @RequestParam(value = "calificacion", required = false) Double calificacion,
+            @RequestParam(value = "estado", required = false) String estado,
+            @RequestParam(value = "archivoRevision", required = false) MultipartFile archivoRevision) {
+        try {
+            RevisionEvidenciaDTO dto = new RevisionEvidenciaDTO(rutProfesor, retroalimentacion, calificacion, estado);
+            return ResponseEntity.ok(evidenciaService.revisarEvidenciaConArchivo(id, dto, archivoRevision));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error al guardar revisión de evidencia {}: {}", id, e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "No se pudo guardar la revisión."));
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id) {
         try {
@@ -31470,6 +32053,8 @@ import com.backend.repository.ActividadRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.ProfesorRepository;
+import org.springframework.core.io.Resource;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class EvidenciaService {
@@ -31478,15 +32063,21 @@ public class EvidenciaService {
     private final ActividadRepository actividadRepository;
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
+    private final FileStorageService fileStorageService;
+    private final AvanceAcademicoService avanceAcademicoService;
 
     public EvidenciaService(EvidenciaRepository evidenciaRepository,
                             ActividadRepository actividadRepository,
                             EstudianteRepository estudianteRepository,
-                            ProfesorRepository profesorRepository) {
+                            ProfesorRepository profesorRepository,
+                            FileStorageService fileStorageService,
+                            AvanceAcademicoService avanceAcademicoService) {
         this.evidenciaRepository = evidenciaRepository;
         this.actividadRepository = actividadRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
+        this.fileStorageService = fileStorageService;
+        this.avanceAcademicoService = avanceAcademicoService;
     }
 
     public List<Evidencia> obtenerTodas() {
@@ -31641,7 +32232,37 @@ public class EvidenciaService {
     @Transactional
     public Evidencia revisarEvidencia(Long idEvidencia, RevisionEvidenciaDTO dto) {
         Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
-                .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+
+        aplicarRevision(evidencia, dto);
+        Evidencia guardada = evidenciaRepository.save(evidencia);
+        actualizarAvanceCurso(guardada);
+        return guardada;
+    }
+
+    @Transactional
+    public Evidencia revisarEvidenciaConArchivo(Long idEvidencia, RevisionEvidenciaDTO dto, MultipartFile archivoRevision) {
+        Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+
+        if (archivoRevision != null && !archivoRevision.isEmpty()) {
+            FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+                archivoRevision,
+                "revisiones-evidencias",
+                List.of("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "png", "jpg", "jpeg", "zip")
+            );
+            fileStorageService.deleteFile(evidencia.getArchivoRevisionUrl());
+            evidencia.setNombreArchivoRevision(stored.originalFilename());
+            evidencia.setArchivoRevisionUrl(stored.relativePath());
+        }
+
+        aplicarRevision(evidencia, dto);
+        Evidencia guardada = evidenciaRepository.save(evidencia);
+        actualizarAvanceCurso(guardada);
+        return guardada;
+    }
+
+    private void aplicarRevision(Evidencia evidencia, RevisionEvidenciaDTO dto) {
 
         if (dto.getRutProfesor() != null) {
             Profesor profesor = profesorRepository.findByUsuarioRut(dto.getRutProfesor()).orElse(null);
@@ -31656,8 +32277,23 @@ public class EvidenciaService {
                 ? dto.getEstado().toUpperCase()
                 : "REVISADO";
         evidencia.setEstado(nuevoEstado);
+    }
 
-        return evidenciaRepository.save(evidencia);
+    private void actualizarAvanceCurso(Evidencia evidencia) {
+        if (evidencia.getEstudiante() == null || evidencia.getActividad() == null) return;
+        var asignatura = evidencia.getActividad().getAsignatura();
+        if (asignatura == null) return;
+        avanceAcademicoService.recalcularYGuardar(evidencia.getEstudiante(), asignatura);
+    }
+
+    public Resource obtenerRecursoArchivo(Long idEvidencia, boolean revision) {
+        Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+        String ruta = revision ? evidencia.getArchivoRevisionUrl() : evidencia.getArchivoUrl();
+        if (ruta == null || ruta.isBlank()) {
+            throw new IllegalArgumentException("El archivo solicitado no está disponible.");
+        }
+        return fileStorageService.loadFileAsResource(ruta);
     }
 
     @Transactional
@@ -32347,6 +32983,7 @@ import {
   type ActividadEstudiante,
 } from "../../../services/actividadEstudianteApi";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface EvaluacionesProps {
   user?: UserSession;
@@ -32456,6 +33093,7 @@ function estadoEvidenciaBadge(act: ActividadEstudiante) {
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const rutEstudiante = user?.rut ?? "";
 
   // Datos
@@ -32964,7 +33602,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                       {!isPlazoVencido(selectedActividad.fechaLimite) && (
                         <button
                           type="button"
-                          onClick={handleEliminarEvidencia}
+                          onClick={() => setIsDeleteConfirmOpen(true)}
                           disabled={isDeletingEvidencia || isUploading}
                           className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                         >
@@ -33226,6 +33864,11 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        onConfirm={handleEliminarEvidencia}
+      />
     </div>
   );
 }
@@ -33267,6 +33910,7 @@ import {
   AttachmentAction,
 } from "@/components/ui/attachment";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface PortafolioProps {
   user?: UserSession;
@@ -33275,13 +33919,14 @@ interface PortafolioProps {
 
 const CATEGORIAS_CONFIG: { key: CategoriaPortafolio; label: string }[] = [
   { key: "TODOS", label: "Todos los archivos" },
-  { key: "EVIDENCIA", label: "Evidencias pedagógicas" },
-  { key: "REFLEXION", label: "Reflexiones y diarios" },
-  { key: "RETROALIMENTACION", label: "Retroalimentaciones" },
-  { key: "OTRO", label: "Otros documentos" },
+  { key: "DOCUMENTO", label: "Documentos" },
+  { key: "EVIDENCIA", label: "Evidencias" },
+  { key: "INFORME", label: "Informes" },
+  { key: "OTRO", label: "Otros" },
 ];
 
 export function Portafolio({ user, onBack }: PortafolioProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const { hasPermission } = usePermissions(user);
   const puedeSubir = hasPermission("PORTAFOLIO_SUBIR");
 
@@ -33289,8 +33934,6 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   const [cargando, setCargando] = useState<boolean>(true);
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaPortafolio>("TODOS");
   const [modalAbierto, setModalAbierto] = useState<boolean>(false);
-  const [tipoParaSubir, setTipoParaSubir] = useState<string>("EVIDENCIA");
-
   const rutEstudiante = user?.rut || "";
 
   const cargarDocumentos = useCallback(async () => {
@@ -33353,10 +33996,10 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   };
 
   const formatearTipo = (tipo: string) => {
-    if (tipo.includes("REFLEXION")) return "Reflexión";
-    if (tipo.includes("RETROALIMENTACION")) return "Retroalimentación";
-    if (tipo.includes("PAUTA")) return "Pauta de evaluación";
-    return "Evidencia pedagógica";
+    if (tipo.includes("DOCUMENTO")) return "Documento";
+    if (tipo.includes("INFORME")) return "Informe";
+    if (tipo.includes("OTRO")) return "Otro";
+    return "Evidencia";
   };
 
   const formatearFecha = (fechaStr: string) => {
@@ -33374,10 +34017,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
 
   const docsFiltrados = documentos.filter((doc) => {
     if (filtroCategoria === "TODOS") return true;
-    if (filtroCategoria === "EVIDENCIA") return doc.tipo.includes("EVIDENCIA");
-    if (filtroCategoria === "REFLEXION") return doc.tipo.includes("REFLEXION");
-    if (filtroCategoria === "RETROALIMENTACION") return doc.tipo.includes("RETROALIMENTACION");
-    return !doc.tipo.includes("EVIDENCIA") && !doc.tipo.includes("REFLEXION") && !doc.tipo.includes("RETROALIMENTACION");
+    return doc.tipo.includes(filtroCategoria);
   });
 
   return (
@@ -33423,7 +34063,6 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             <button
               type="button"
               onClick={() => {
-                setTipoParaSubir("EVIDENCIA");
                 setModalAbierto(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 shadow-xs hover:shadow transition-all cursor-pointer"
@@ -33485,7 +34124,6 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             <button
               type="button"
               onClick={() => {
-                setTipoParaSubir("EVIDENCIA");
                 setModalAbierto(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer"
@@ -33539,7 +34177,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                   {/* Eliminar (si tiene permiso) */}
                   {puedeSubir && (
                     <AttachmentAction
-                      onClick={() => handleEliminar(doc.idDocumento, doc.nombre)}
+                      onClick={() => setDeleteAction(() => () => handleEliminar(doc.idDocumento, doc.nombre))}
                       title="Eliminar de portafolio"
                       className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
                     >
@@ -33560,9 +34198,11 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         title="Subir Archivo al Portafolio"
         description="Selecciona o arrastra tu evidencia o documento pedagógico (Límite: 20 MB • PDF, Word, PowerPoint, Excel, ZIP o Imágenes)."
         endpoint="/api/portafolio/subir"
+        showCategorySelect={true}
+        categoryOptions={["Documento", "Evidencia", "Informe", "Otro"]}
+        defaultCategory="Documento"
         additionalData={{
           rutEstudiante: rutEstudiante,
-          tipo: tipoParaSubir,
           rutUsuarioSubio: user?.rut,
         }}
         allowedExtensions={[".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".zip", ".rar", ".png", ".jpg", ".jpeg"]}
@@ -33570,6 +34210,11 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         onSuccess={() => {
           cargarDocumentos();
         }}
+      />
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
       />
     </div>
   );
@@ -35121,7 +35766,7 @@ import { CentrosPracticaView } from "@/components/admin/centros_practica";
 import { EvaluacionesView } from "@/components/admin/Evaluaciones";
 import { PerfilProfesor } from "@/components/home/Profesor/PerfilProfesor";
 import { Portafolio } from "@/components/home/Profesor/Portafolio";
-import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
+import { DocumentosView } from "@/components/admin/documentos";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
@@ -35186,8 +35831,9 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
         return <CentrosPracticaView />;
       case "evaluaciones":
         return <EvaluacionesView onBack={() => setActiveMenu("inicio")} />;
+      case "documentos":
       case "documentos-practica":
-        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
+        return <DocumentosView />;
       case "portafolio":
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
@@ -35260,6 +35906,7 @@ import {
 } from "lucide-react";
 import type { UserSession } from "@/types/auth";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { sileo } from "sileo";
 
 interface PlanificacionProps {
@@ -35341,6 +35988,7 @@ const CATEGORIAS: {
   ];
 
 export function Planificacion({ user, onBack }: PlanificacionProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const [planificaciones, setPlanificaciones] = useState<PlanificacionItem[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<PlanificacionItem | null>(null);
   const [archivos, setArchivos] = useState<ArchivoPlanificacionDTO[]>([]);
@@ -35600,7 +36248,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                           {/* Botón Eliminar */}
                           <button
                             type="button"
-                            onClick={() => handleDeleteArchivo(arch.idDocumento, arch.nombre)}
+                            onClick={() => setDeleteAction(() => () => handleDeleteArchivo(arch.idDocumento, arch.nombre))}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Eliminar de la planificación"
                           >
@@ -35653,6 +36301,11 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
           }}
         />
       )}
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }
@@ -35698,6 +36351,7 @@ import {
   AttachmentAction,
 } from "@/components/ui/attachment";
 import { FileUploadModal } from "@/components/ui/FileUploadModal";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface PortafolioProps {
   user?: UserSession;
@@ -35711,6 +36365,7 @@ interface AsignaturaOption {
 }
 
 export function Portafolio({ user, onBack }: PortafolioProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const { hasPermission } = usePermissions(user);
   const puedeSubir = hasPermission("PORTAFOLIO_SUBIR");
 
@@ -35898,6 +36553,13 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
     } catch {
       return fechaStr;
     }
+  };
+
+  const formatearCategoria = (tipo: string) => {
+    if (tipo.includes("DOCUMENTO")) return "Documento";
+    if (tipo.includes("INFORME")) return "Informe";
+    if (tipo.includes("OTRO")) return "Otro";
+    return "Evidencia";
   };
 
   const estudiantesFiltrados = estudiantes.filter((est) => {
@@ -36092,7 +36754,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                   <AttachmentContent>
                     <AttachmentTitle>{doc.nombre}</AttachmentTitle>
                     <AttachmentDescription>
-                      {doc.tipo && <span className="capitalize">{doc.tipo}</span>}
+                      {doc.tipo && <span>{formatearCategoria(doc.tipo)}</span>}
                       {doc.fechaCarga && <span> • {formatearFecha(doc.fechaCarga)}</span>}
                     </AttachmentDescription>
                   </AttachmentContent>
@@ -36105,7 +36767,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                       <Download className="size-3.5" />
                     </AttachmentAction>
                     <AttachmentAction
-                      onClick={() => handleEliminarPropio(doc.idDocumento, doc.nombre)}
+                      onClick={() => setDeleteAction(() => () => handleEliminarPropio(doc.idDocumento, doc.nombre))}
                       title="Eliminar archivo"
                       className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
                     >
@@ -36217,6 +36879,8 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                         <span>•</span>
                         <span>{formatearFecha(doc.fechaCarga)}</span>
                         <span>•</span>
+                        <span className="font-medium text-sky-700">{formatearCategoria(doc.tipo)}</span>
+                        <span>•</span>
                         <span className="text-slate-600 truncate max-w-[120px]">
                           Por: {doc.subidoPorNombre}
                         </span>
@@ -36235,7 +36899,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
 
                     {puedeSubir && (
                       <AttachmentAction
-                        onClick={() => handleEliminar(doc.idDocumento, doc.nombre)}
+                        onClick={() => setDeleteAction(() => () => handleEliminar(doc.idDocumento, doc.nombre))}
                         title="Eliminar archivo"
                         className="hover:bg-rose-50 hover:text-rose-600 text-slate-400 rounded-lg"
                       >
@@ -36342,6 +37006,11 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         </div>
       ) : null
       }
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }
@@ -38542,7 +39211,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Permitir peticiones preflight CORS OPTIONS sin autenticacion
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                // Solamente la ruta /admin y sus subrutas requieren autenticacion con popup nativo
+                // Permitir acceso a consulta y descarga de expedientes de documentos para admin y coordinador
+                .requestMatchers("/admin/documentos", "/admin/documentos/**").permitAll()
+                // Solamente la ruta /admin y sus demas subrutas requieren autenticacion con popup nativo
                 .requestMatchers("/admin", "/admin/**").authenticated()
                 // Todas las demas rutas (/api/**, /, etc.) permanecen publicas
                 .anyRequest().permitAll()
@@ -38637,7 +39308,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, BookOpen, ShieldCheck, Building2, FolderArchive, ClipboardCheck } from "lucide-react";
+import { Users, BookOpen, ShieldCheck, Building2, FolderArchive, ClipboardCheck, LogOut } from "lucide-react";
 
 export type AdminSection = "usuarios" | "asignaturas" | "centros_practica" | "permisos" | "documentos" | "evaluaciones";
 
@@ -38650,7 +39321,9 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({
   activeSection = "usuarios",
-  onSelectSection
+  onSelectSection,
+  onLogout,
+  onGoHome: _onGoHome,
 }: AdminSidebarProps) {
 
   return (
@@ -38750,11 +39423,25 @@ export function AdminSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground border-t border-sidebar-border">
+      <SidebarFooter className="p-3 border-t border-sidebar-border mt-auto space-y-2">
+        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
           <div className="size-2 rounded-full bg-emerald-500" />
           <span>Conectado como Admin</span>
         </div>
+        {onLogout && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={onLogout}
+                className="w-full justify-start text-rose-600 hover:text-rose-700 hover:bg-rose-50 cursor-pointer font-medium text-sm transition-colors gap-2"
+                title="Cerrar sesión e ir al login principal"
+              >
+                <LogOut className="size-4 text-rose-600" />
+                <span>Cerrar sesión</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
@@ -38776,9 +39463,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup } from "@/components/ui/field";
+import { ArrowLeft } from "lucide-react";
 import { formatRut, formatRutStandard, validateRut, cleanRut } from "@/lib/rutUtils";
-import { verificarEstudianteEsPractica, setStoredEsPractica } from "@/lib/authSession";
-import { setAdminAuthHeader } from "@/lib/adminAuth";
+import { clearStoredUserSession, verificarEstudianteEsPractica, setStoredEsPractica } from "@/lib/authSession";
+import { clearAdminAuth, setAdminAuthHeader } from "@/lib/adminAuth";
 import type { UserSession } from "@/types/auth";
 
 interface LoginFormProps {
@@ -39043,10 +39731,25 @@ export function LoginForm({ onLoginSuccess, context, onAdminLoginSuccess }: Logi
             type="submit"
             form="admin-login-form"
             size="lg"
-            className="w-full"
+            className="w-full cursor-pointer"
             disabled={loading}
           >
             {loading ? "Verificando…" : "Acceder al panel"}
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              clearAdminAuth();
+              clearStoredUserSession();
+              window.location.href = "/";
+            }}
+            className="w-full text-xs text-slate-500 hover:text-slate-800 gap-1.5 cursor-pointer"
+          >
+            <ArrowLeft className="size-3.5" />
+            <span>Volver al login principal</span>
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
@@ -44064,6 +44767,7 @@ public class AdminController {
 <file path="frontend/src/components/admin/page.tsx">
 import { useState } from "react";
 import { clearAdminAuth } from "@/lib/adminAuth";
+import { clearStoredUserSession } from "@/lib/authSession";
 import { LoginForm } from "@/components/login/LoginForm";
 import { DataTable } from "./data-table";
 import { userColumns } from "./columns";
@@ -44080,6 +44784,7 @@ import { CentrosPracticaView } from "./centros_practica";
 import { PermisosConfigView } from "./config";
 import { EvaluacionesView } from "./Evaluaciones";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -44133,8 +44838,25 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState<UsuarioRow | null>(null);
 
   const nextInvoiceId = `INV${String(data.length + 1).padStart(3, "0")}`;
+
+  const handleConfirmarEliminarUsuario = async () => {
+    if (!usuarioAEliminar) return;
+    const res = await deleteUsuario(usuarioAEliminar.rut);
+    if (res.success) {
+      sileo.success({
+        title: "Usuario eliminado",
+        description: `${usuarioAEliminar.nombre} (${usuarioAEliminar.rut}) fue eliminado correctamente de la base de datos.`,
+      });
+    } else {
+      sileo.error({
+        title: "Error al eliminar usuario",
+        description: res.error || "No se pudo eliminar el usuario del servidor.",
+      });
+    }
+  };
 
   const handleRowAction = async (action: string, item: UsuarioRow) => {
     switch (action) {
@@ -44143,18 +44865,7 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
         setIsEditModalOpen(true);
         break;
       case "delete": {
-        const res = await deleteUsuario(item.rut);
-        if (res.success) {
-          sileo.success({
-            title: "Usuario eliminado",
-            description: `${item.nombre} (${item.rut}) fue eliminado correctamente de la base de datos.`,
-          });
-        } else {
-          sileo.error({
-            title: "Error al eliminar usuario",
-            description: res.error || "No se pudo eliminar el usuario del servidor.",
-          });
-        }
+        setUsuarioAEliminar(item);
         break;
       }
       case "toggle-estado": {
@@ -44228,9 +44939,9 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
 
   const handleLogout = () => {
     clearAdminAuth();
-    // Notificar al guard (AdminPage) para resetear el estado sin recargar la página.
-    // AdminPage mostrará nuevamente el LoginForm con context="admin".
-    onLogout();
+    clearStoredUserSession();
+    onLogout?.();
+    window.location.href = "/";
   };
 
   const handleGoHome = () => {
@@ -44438,6 +45149,11 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
             </div>
           )}
         </SidebarInset>
+        <ConfirmDeleteDialog
+          open={!!usuarioAEliminar}
+          onOpenChange={(open) => !open && setUsuarioAEliminar(null)}
+          onConfirm={handleConfirmarEliminarUsuario}
+        />
       </SidebarProvider>
     </TooltipProvider>
   );
@@ -44475,9 +45191,9 @@ export default function AdminPage() {
   });
 
   const handleAdminLogout = () => {
-    // clearAdminAuth() ya fue llamado por AdminPanel antes de invocar esta función.
-    // Solo reseteamos el estado para mostrar el LoginForm nuevamente.
-    setAdminAuthenticated(false);
+    clearAdminAuth();
+    clearStoredUserSession();
+    window.location.href = "/";
   };
 
   if (!adminAuthenticated) {

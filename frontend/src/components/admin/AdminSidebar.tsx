@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, BookOpen, ShieldCheck, Building2, FolderArchive, ClipboardCheck } from "lucide-react";
+import { Users, BookOpen, ShieldCheck, Building2, FolderArchive, ClipboardCheck, LogOut } from "lucide-react";
 
 export type AdminSection = "usuarios" | "asignaturas" | "centros_practica" | "permisos" | "documentos" | "evaluaciones";
 
@@ -23,7 +23,9 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({
   activeSection = "usuarios",
-  onSelectSection
+  onSelectSection,
+  onLogout,
+  onGoHome: _onGoHome,
 }: AdminSidebarProps) {
 
   return (
@@ -123,11 +125,25 @@ export function AdminSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground border-t border-sidebar-border">
+      <SidebarFooter className="p-3 border-t border-sidebar-border mt-auto space-y-2">
+        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
           <div className="size-2 rounded-full bg-emerald-500" />
           <span>Conectado como Admin</span>
         </div>
+        {onLogout && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={onLogout}
+                className="w-full justify-start text-rose-600 hover:text-rose-700 hover:bg-rose-50 cursor-pointer font-medium text-sm transition-colors gap-2"
+                title="Cerrar sesión e ir al login principal"
+              >
+                <LogOut className="size-4 text-rose-600" />
+                <span>Cerrar sesión</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

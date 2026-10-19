@@ -17,7 +17,7 @@ import {
   UserPlus,
   Building2,
   ClipboardCheck,
-  FolderGit2,
+  FolderArchive,
   Briefcase,
   LogOut,
 } from "lucide-react";
@@ -140,19 +140,19 @@ export function HomeSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Documentos de Práctica */}
+              {/* Documentos */}
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  isActive={activeMenu === "documentos-practica"}
-                  onClick={() => onSelectMenu("documentos-practica")}
+                  isActive={activeMenu === "documentos" || activeMenu === "documentos-practica"}
+                  onClick={() => onSelectMenu("documentos")}
                   className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "documentos-practica"
+                    activeMenu === "documentos" || activeMenu === "documentos-practica"
                       ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  <FolderGit2 className="size-4 mr-2" />
-                  <span>Documentos de Práctica</span>
+                  <FolderArchive className="size-4 mr-2" />
+                  <span>Documentos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 

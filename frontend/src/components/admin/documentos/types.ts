@@ -45,6 +45,22 @@ export interface EstudianteDetalleDocumentos {
   documentosRequeridos: number;
   profesores: ProfesorContacto[];
   documentos: DocumentoItem[];
+  tareas: TareaSeguimiento[];
+}
+
+export interface TareaSeguimiento {
+  idEvidencia: number;
+  idActividad: number | null;
+  tituloActividad: string;
+  asignatura: string;
+  semestre: string;
+  estado: string;
+  calificacion: number | null;
+  fechaEntrega: string | null;
+  nombreArchivoEstudiante: string | null;
+  nombreArchivoRevision: string | null;
+  tieneArchivoEstudiante: boolean;
+  tieneArchivoRevision: boolean;
 }
 
 export type SortDirection = "asc" | "desc" | null;

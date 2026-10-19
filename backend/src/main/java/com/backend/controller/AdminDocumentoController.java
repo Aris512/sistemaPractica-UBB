@@ -20,7 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.backend.dto.DetalleEstudianteDocumentosDTO;
 import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.model.DocumentoPractica;
+import com.backend.model.Evidencia;
 import com.backend.service.DocumentoPracticaService;
+import com.backend.service.EvidenciaService;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -32,9 +34,36 @@ public class AdminDocumentoController {
     private static final Logger logger = LoggerFactory.getLogger(AdminDocumentoController.class);
 
     private final DocumentoPracticaService documentoPracticaService;
+    private final EvidenciaService evidenciaService;
 
-    public AdminDocumentoController(DocumentoPracticaService documentoPracticaService) {
+    public AdminDocumentoController(DocumentoPracticaService documentoPracticaService,
+                                   EvidenciaService evidenciaService) {
         this.documentoPracticaService = documentoPracticaService;
+        this.evidenciaService = evidenciaService;
+    }
+
+    /** Descarga el archivo entregado o la revisión adjunta de una evidencia real. */
+    @GetMapping("/evidencias/{idEvidencia}/archivo")
+    public ResponseEntity<Resource> descargarArchivoEvidencia(
+            @PathVariable Long idEvidencia,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "ESTUDIANTE") String tipo) {
+        Evidencia evidencia = evidenciaService.obtenerPorId(idEvidencia);
+        if (evidencia == null) return ResponseEntity.notFound().build();
+
+        boolean esRevision = "PROFESOR".equalsIgnoreCase(tipo);
+        String nombre = esRevision ? evidencia.getNombreArchivoRevision() : evidencia.getNombreArchivo();
+        if (nombre == null || nombre.isBlank()) return ResponseEntity.notFound().build();
+
+        try {
+            Resource recurso = evidenciaService.obtenerRecursoArchivo(idEvidencia, esRevision);
+            String encodedFilename = URLEncoder.encode(nombre, StandardCharsets.UTF_8).replace("+", "%20");
+            return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"; filename*=UTF-8''" + encodedFilename)
+                .body(recurso);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**

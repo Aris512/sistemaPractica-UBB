@@ -46,7 +46,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Permitir peticiones preflight CORS OPTIONS sin autenticacion
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                // Solamente la ruta /admin y sus subrutas requieren autenticacion con popup nativo
+                // Permitir acceso a consulta y descarga de expedientes de documentos para admin y coordinador
+                .requestMatchers("/admin/documentos", "/admin/documentos/**").permitAll()
+                // Solamente la ruta /admin y sus demas subrutas requieren autenticacion con popup nativo
                 .requestMatchers("/admin", "/admin/**").authenticated()
                 // Todas las demas rutas (/api/**, /, etc.) permanecen publicas
                 .anyRequest().permitAll()
