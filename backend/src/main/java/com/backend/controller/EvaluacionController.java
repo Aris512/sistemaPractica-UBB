@@ -67,6 +67,11 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.obtenerEstudiantesParaProfesor(rutProfesor));
     }
 
+    @GetMapping("/estudiante/rut/{rutEstudiante}")
+    public ResponseEntity<List<EstudianteEvaluacionDTO>> obtenerEvaluacionesParaEstudiante(@PathVariable String rutEstudiante) {
+        return ResponseEntity.ok(evaluacionService.obtenerEvaluacionesParaEstudiante(rutEstudiante));
+    }
+
     @PostMapping("/guardar")
     public ResponseEntity<EstudianteEvaluacionDTO> guardarEvaluacionProfesor(@RequestBody GuardarEvaluacionProfesorRequest req) {
         return ResponseEntity.ok(evaluacionService.guardarEvaluacionProfesor(req));

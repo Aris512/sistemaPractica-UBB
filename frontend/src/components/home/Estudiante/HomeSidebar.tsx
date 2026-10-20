@@ -133,7 +133,7 @@ export function HomeSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "evaluaciones"}
-                    onClick={() => handleSelectMockup("evaluaciones", "Evaluaciones")}
+                    onClick={() => onSelectMenu("evaluaciones")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "evaluaciones"
                         ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
@@ -153,7 +153,7 @@ export function HomeSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "observaciones"}
-                    onClick={() => handleSelectMockup("observaciones", "Observaciones")}
+                    onClick={() => onSelectMenu("observaciones")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "observaciones"
                         ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"

@@ -50,6 +50,17 @@ export const getEstudiantesProfesor = async (
   return response.json();
 };
 
+export const getEvaluacionesEstudiante = async (
+  rutEstudiante: string
+): Promise<EstudianteEvaluacion[]> => {
+  const response = await fetch(`${API_URL}/estudiante/rut/${encodeURIComponent(rutEstudiante)}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Error al obtener las evaluaciones del estudiante");
+  }
+  return response.json();
+};
+
 export const guardarEvaluacionProfesor = async (
   data: GuardarEvaluacionRequest
 ): Promise<EstudianteEvaluacion> => {

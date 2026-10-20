@@ -455,8 +455,44 @@ public class EvaluacionService {
                 dto.setEvaluadorNombre(u.getNombre() + " " + u.getApellido());
             });
         }
+        if (dto.getEvaluadorNombre() == null && estudiante.getAsignatura() != null) {
+            List<Profesor> profesores = profesorRepository.findAllByAsignaturaId(estudiante.getAsignatura().getIdAsignatura());
+            if (!profesores.isEmpty() && profesores.get(0).getUsuario() != null) {
+                dto.setEvaluadorNombre(profesores.get(0).getUsuario().getNombre() + " " + profesores.get(0).getUsuario().getApellido());
+                dto.setEvaluadorRut(profesores.get(0).getUsuario().getRut());
+            }
+        }
 
         return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<EstudianteEvaluacionDTO> obtenerEvaluacionesParaEstudiante(String rutEstudiante) {
+        List<Estudiante> estudiantes = estudianteRepository.findAllByUsuarioRut(rutEstudiante);
+        if (estudiantes.isEmpty()) {
+            estudianteRepository.findByUsuarioRut(rutEstudiante).ifPresent(estudiantes::add);
+        }
+        List<EstudianteEvaluacionDTO> resultado = new ArrayList<>();
+        Set<Long> notasProcesadas = new HashSet<>();
+
+        for (Estudiante est : estudiantes) {
+            List<Nota> notas = notaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
+            for (Nota n : notas) {
+                if (!notasProcesadas.add(n.getIdNota())) {
+                    continue;
+                }
+                // Solamente debe aparecer una vez que el profesor cree la nota Y la observación
+                if (n.getPuntajeObtenido() == null) {
+                    continue;
+                }
+                Evaluacion ev = n.getEvaluacion();
+                if (ev == null || ev.getObservacion() == null || ev.getObservacion().trim().isEmpty()) {
+                    continue;
+                }
+                resultado.add(construirDTO(est, ev, n));
+            }
+        }
+        return resultado;
     }
 
     @Transactional(readOnly = true)

@@ -77,7 +77,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         if (!hasPermission("OBSERVACIONES_CONSULTAR")) {
           return <MallaCurricular userRut={user?.rut} />;
         }
-        return <Observaciones onBack={() => setActiveMenu("inicio")} />;
+        return <Observaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "asistentes-ia":
         if (!hasPermission("IA_ACCESO")) {
           return <MallaCurricular userRut={user?.rut} />;

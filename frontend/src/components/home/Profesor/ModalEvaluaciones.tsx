@@ -259,7 +259,7 @@ export function ModalEvaluaciones({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-slate-900 text-lg">
-                  {student.nota != null ? "Detalle y Modificación de Evaluación" : "Emitir Evaluación de Práctica"}
+                  {student.nota != null ? "Detalle y Modificación de Evaluación" : "Emitir Evaluación"}
                 </h3>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-800 bg-sky-100/80 px-2.5 py-0.5 rounded-full border border-sky-200">
                   {student.asignatura}
