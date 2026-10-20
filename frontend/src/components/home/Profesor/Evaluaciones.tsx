@@ -11,24 +11,19 @@ import {
   MessageSquare,
   AlertCircle,
   RefreshCw,
-  X,
-  Send,
-  GraduationCap,
   BookOpen,
-  Calendar,
   ChevronDown,
-  Trash2,
+  Paperclip,
 } from "lucide-react";
 import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
 import {
   getEstudiantesProfesor,
-  guardarEvaluacionProfesor,
   type EstudianteEvaluacion,
 } from "../../../services/profesorEvaluacionApi";
 import { Button } from "@/components/ui/button";
-import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Input } from "@/components/ui/input";
+import { ModalEvaluaciones } from "./ModalEvaluaciones";
 
 interface EvaluacionesProps {
   user?: UserSession;
@@ -53,12 +48,6 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
 
   // ── Modal de Evaluación ──
   const [selectedStudent, setSelectedStudent] = useState<EstudianteEvaluacion | null>(null);
-  const [tipoEvaluacion, setTipoEvaluacion] = useState("Evaluación Docente");
-  const [nota, setNota] = useState("");
-  const [observacion, setObservacion] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [campoAEliminar, setCampoAEliminar] = useState<"nota" | "observacion" | null>(null);
-  const [isDeleteSaveConfirmOpen, setIsDeleteSaveConfirmOpen] = useState(false);
 
   // Cargar estudiantes del profesor
   const cargarEstudiantes = async () => {
@@ -83,137 +72,23 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
     cargarEstudiantes();
   }, [profesorRut]);
 
-  // Abrir modal con los datos del estudiante
+  // Abrir y cerrar modal
   const handleOpenModal = (student: EstudianteEvaluacion) => {
     setSelectedStudent(student);
-    setNota(student.nota != null ? String(student.nota) : "");
-    setObservacion(student.observacion || "");
-    setTipoEvaluacion(student.tipoEvaluacion || "Evaluación Docente");
   };
 
   const handleCloseModal = () => {
     setSelectedStudent(null);
-    setNota("");
-    setObservacion("");
-    setIsSaving(false);
   };
 
-  // Guardar evaluación (crear, actualizar o eliminar nota/observación en la BD)
-  const handleGuardarEvaluacion = async (confirmedDelete = false) => {
-    if (!selectedStudent) return;
-
-    let puntajeFinal: number | null = null;
-    if (nota.trim()) {
-      const notaNum = parseFloat(nota.replace(",", "."));
-      if (isNaN(notaNum) || notaNum < 1.0 || notaNum > 7.0) {
-        sileo.error({
-          title: "Nota inválida",
-          description: "La nota debe ser un valor numérico entre 1.0 y 7.0.",
-        });
-        return;
-      }
-      puntajeFinal = Number(notaNum.toFixed(1));
-    }
-
-    const obsFinal = observacion.trim() || null;
-
-    // Si el estudiante no tenía evaluación y ambos campos se dejan vacíos
-    if (
-      puntajeFinal === null &&
-      obsFinal === null &&
-      selectedStudent.nota == null &&
-      !selectedStudent.observacion
-    ) {
-      sileo.warning({
-        title: "Formulario vacío",
-        description: "Debes ingresar al menos una calificación o una observación pedagógica.",
-      });
-      return;
-    }
-
-    const eliminaContenidoExistente =
-      (selectedStudent.nota != null && puntajeFinal === null) ||
-      (!!selectedStudent.observacion && obsFinal === null);
-    if (eliminaContenidoExistente && !confirmedDelete) {
-      setIsDeleteSaveConfirmOpen(true);
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const updated = await guardarEvaluacionProfesor({
-        idEstudiante: selectedStudent.idEstudiante,
-        idEvaluacion: selectedStudent.idEvaluacion ?? null,
-        rutProfesor: profesorRut,
-        tipoEvaluacion: tipoEvaluacion.trim() || "Evaluación Docente",
-        puntajeMinimo: 1.0,
-        puntajeMaximo: 7.0,
-        puntajeObtenido: puntajeFinal,
-        observacion: obsFinal,
-      });
-
-      // Actualizar la lista local
-      setEstudiantes((prev) =>
-        prev.map((est) => (est.idEstudiante === updated.idEstudiante ? updated : est))
-      );
-
-      // Mensaje personalizado según los cambios realizados
-      if (
-        selectedStudent.nota != null &&
-        puntajeFinal === null &&
-        selectedStudent.observacion &&
-        obsFinal === null
-      ) {
-        sileo.success({
-          title: "Evaluación eliminada",
-          description: `Se eliminaron la nota y observación de ${updated.nombre} ${updated.apellido}.`,
-        });
-      } else if (selectedStudent.nota != null && puntajeFinal === null) {
-        sileo.success({
-          title: "Nota eliminada",
-          description: `Se eliminó la calificación de ${updated.nombre} ${updated.apellido} y se guardaron los cambios.`,
-        });
-      } else if (selectedStudent.observacion && obsFinal === null) {
-        sileo.success({
-          title: "Observación eliminada",
-          description: `Se eliminó la observación pedagógica de ${updated.nombre} ${updated.apellido} y se guardaron los cambios.`,
-        });
-      } else {
-        sileo.success({
-          title: "Evaluación guardada",
-          description: `Se guardaron los cambios para ${updated.nombre} ${updated.apellido} en la base de datos.`,
-        });
-      }
-
-      handleCloseModal();
-    } catch (err: any) {
-      console.error("Error al guardar evaluación:", err);
-      sileo.error({
-        title: "Error al guardar",
-        description: err?.message || "No se pudo registrar la evaluación en el sistema.",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+  // Actualizar la lista cuando se guarda una evaluación en el modal
+  const handleStudentUpdated = (updated: EstudianteEvaluacion) => {
+    setEstudiantes((prev) =>
+      prev.map((est) => (est.idEstudiante === updated.idEstudiante ? updated : est))
+    );
   };
 
-  // Quitar nota del formulario (se persiste al presionar Guardar Evaluación)
-  const handleQuitarNota = () => {
-    setNota("");
-    sileo.info({
-      title: "Nota eliminada del formulario",
-      description: "Presiona 'Guardar Evaluación' para confirmar y aplicar los cambios en la base de datos.",
-    });
-  };
 
-  // Quitar observación del formulario (se persiste al presionar Guardar Evaluación)
-  const handleQuitarObservacion = () => {
-    setObservacion("");
-    sileo.info({
-      title: "Observación eliminada del formulario",
-      description: "Presiona 'Guardar Evaluación' para confirmar y aplicar los cambios en la base de datos.",
-    });
-  };
 
   // Filtrado de estudiantes
   const filteredEstudiantes = useMemo(() => {
@@ -553,9 +428,20 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                         {/* Estudiante */}
                         <td className="py-3.5 px-4">
                           <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 truncate">
-                              {student.nombre} {student.apellido}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-slate-900 truncate">
+                                {student.nombre} {student.apellido}
+                              </p>
+                              {student.tieneArchivo && (
+                                <span
+                                  title={`Pauta adjunta: ${student.nombreArchivo || "Documento"}`}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-medium bg-sky-100 text-sky-800 border border-sky-200 shrink-0"
+                                >
+                                  <Paperclip className="size-2.5" />
+                                  Pauta
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-slate-400 truncate">{student.correo}</p>
                           </div>
                         </td>
@@ -695,251 +581,13 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         )}
       </div>
 
-      {/* ── MODAL: Detalles y Emisión de Evaluación ── */}
-      {selectedStudent && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            {/* Cabecera del Modal */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-linear-to-r from-sky-50 to-indigo-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="size-9 rounded-xl bg-sky-600 flex items-center justify-center text-white shadow-xs">
-                  <Award className="size-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    {selectedStudent.nota != null ? "Detalles de Evaluación" : "Emitir Evaluación"}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-mono">
-                    RUT {selectedStudent.rut}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="size-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white/80 flex items-center justify-center cursor-pointer transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            {/* Contenido del Modal */}
-            <div className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto text-sm">
-              {/* Tarjeta de información del alumno */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <GraduationCap className="size-4 text-sky-600" /> Información del Alumno
-                  </span>
-                  {selectedStudent.estadoEntrega === "ENTREGADO" ? (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                      <FileCheck2 className="size-3" /> Documentos entregados
-                    </span>
-                  ) : (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 flex items-center gap-1">
-                      <FileX className="size-3" /> Sin entrega en plataforma
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                  <div>
-                    <span className="text-slate-400 block">Nombre Completo:</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedStudent.nombre} {selectedStudent.apellido}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Correo Electrónico:</span>
-                    <span className="font-semibold text-slate-800 truncate block">
-                      {selectedStudent.correo}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Asignatura:</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedStudent.asignatura}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block">Centro de Práctica:</span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedStudent.centroPractica || "No asignado / En gestión"}
-                    </span>
-                  </div>
-                </div>
-
-                {selectedStudent.fechaEvaluacion && (
-                  <div className="pt-2 border-t border-slate-200/60 text-2xs text-slate-400 flex items-center gap-1">
-                    <Calendar className="size-3" />
-                    Última evaluación registrada:{" "}
-                    <span className="font-medium text-slate-600">
-                      {new Date(selectedStudent.fechaEvaluacion).toLocaleDateString("es-CL", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Formulario de Calificación y Retroalimentación */}
-              <div className="space-y-4 pt-1">
-                {/* Tipo de Evaluación */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Tipo de Evaluación
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Evaluación Final, Evaluación Intermedia..."
-                    value={tipoEvaluacion}
-                    onChange={(e) => setTipoEvaluacion(e.target.value)}
-                    className="w-full h-9 border border-slate-200 rounded-lg px-3 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                  />
-                </div>
-
-                {/* Nota / Puntaje Obtenido */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Nota de la Evaluación <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {nota.trim() !== "" && (
-                        <button
-                          type="button"
-                          onClick={() => setCampoAEliminar("nota")}
-                          disabled={isSaving}
-                          className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
-                        >
-                          <Trash2 className="size-3" />
-                          Eliminar nota
-                        </button>
-                      )}
-                      <span className="text-2xs text-slate-400 font-mono">
-                        Escala chilena: 1.0 a 7.0
-                      </span>
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="1.0"
-                      max="7.0"
-                      placeholder="Ej: 6.5"
-                      value={nota}
-                      onChange={(e) => setNota(e.target.value)}
-                      className="text-base font-mono font-bold h-10 pl-3 pr-10 border-slate-200"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-slate-400">
-                      / 7.0
-                    </div>
-                  </div>
-                  {nota && (
-                    <p className="text-2xs">
-                      {parseFloat(nota) >= 4.0 ? (
-                        <span className="text-emerald-700 font-medium">
-                          ✓ Aprobado (calificación satisfactoria)
-                        </span>
-                      ) : (
-                        <span className="text-rose-600 font-medium">
-                          ⚠ Reprobado (calificación inferior a 4.0)
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-
-                {/* Observación y Retroalimentación */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Observación / Retroalimentación Pedagógica
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {observacion.trim() !== "" && (
-                        <button
-                          type="button"
-                          onClick={() => setCampoAEliminar("observacion")}
-                          disabled={isSaving}
-                          className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
-                        >
-                          <Trash2 className="size-3" />
-                          Eliminar observación
-                        </button>
-                      )}
-                      <span className="text-2xs text-slate-400">
-                        {observacion.length} caracteres
-                      </span>
-                    </div>
-                  </div>
-                  <textarea
-                    rows={4}
-                    placeholder="Escriba aquí los comentarios cualitativos, fortalezas y sugerencias de mejora pedagógica para el estudiante..."
-                    value={observacion}
-                    onChange={(e) => setObservacion(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl p-3 text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-sky-500/20 leading-relaxed"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Pie del Modal: Acciones */}
-            <div className="flex items-center justify-end gap-2.5 p-4 sm:px-6 bg-slate-50 border-t border-slate-100">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCloseModal}
-                disabled={isSaving}
-                className="text-xs cursor-pointer"
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleGuardarEvaluacion()}
-                disabled={
-                  isSaving ||
-                  (nota === (selectedStudent.nota != null ? String(selectedStudent.nota) : "") &&
-                    observacion === (selectedStudent.observacion || "") &&
-                    tipoEvaluacion === (selectedStudent.tipoEvaluacion || "Evaluación Docente"))
-                }
-                className="text-xs gap-1.5 bg-sky-700 hover:bg-sky-800 text-white cursor-pointer shadow-xs"
-              >
-                {isSaving ? (
-                  <>
-                    <RefreshCw className="size-3.5 animate-spin" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Send className="size-3.5" />
-                    Guardar Evaluación
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      <ConfirmDeleteDialog
-        open={!!campoAEliminar}
-        onOpenChange={(open) => !open && setCampoAEliminar(null)}
-        onConfirm={() => {
-          if (campoAEliminar === "nota") handleQuitarNota();
-          if (campoAEliminar === "observacion") handleQuitarObservacion();
-        }}
-      />
-      <ConfirmDeleteDialog
-        open={isDeleteSaveConfirmOpen}
-        onOpenChange={setIsDeleteSaveConfirmOpen}
-        onConfirm={() => handleGuardarEvaluacion(true)}
+      {/* ── MODAL: Detalles y Emisión de Evaluación (Pantalla Completa & Subida de Documentos) ── */}
+      <ModalEvaluaciones
+        isOpen={!!selectedStudent}
+        student={selectedStudent}
+        profesorRut={profesorRut}
+        onClose={handleCloseModal}
+        onSaved={handleStudentUpdated}
       />
     </div>
   );
