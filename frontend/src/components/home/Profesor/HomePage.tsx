@@ -54,21 +54,12 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           setEsProfesorOctavoONoveno(false);
           return;
         }
-        const listaAsignaturas: any[] = [];
-        if (Array.isArray(profesorData.asignaturas)) {
-          listaAsignaturas.push(...profesorData.asignaturas);
-        }
-        if (
-          profesorData.asignatura &&
-          !listaAsignaturas.some((a) => a.idAsignatura === profesorData.asignatura.idAsignatura)
-        ) {
-          listaAsignaturas.push(profesorData.asignatura);
-        }
-
-        const tieneOctavoONoveno = listaAsignaturas.some((asig) => {
-          const sem = String(asig.semestre ?? "").trim();
-          return sem === "8" || sem === "9";
-        });
+        // Asignatura del profesor (tabla profesor, columna id_asignatura)
+        const sem = String(profesorData.asignatura?.semestre ?? "").trim().toUpperCase();
+        const num = parseInt(sem.replace(/\D/g, ""), 10);
+        const tieneOctavoONoveno = !Number.isNaN(num)
+          ? num >= 8
+          : ["VIII", "IX", "X", "OCTAVO", "NOVENO", "DECIMO", "DÉCIMO"].includes(sem);
         setEsProfesorOctavoONoveno(tieneOctavoONoveno);
       })
       .catch((err) => {
@@ -79,6 +70,15 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         setCargandoProfesor(false);
       });
   }, [user?.rut]);
+
+  // Si el profesor no es de 8.º/9.º semestre, sacarlo de los módulos exclusivos
+  useEffect(() => {
+    if (cargandoProfesor || esProfesorOctavoONoveno) return;
+    const exclusivos: ProfesorMenuKey[] = ["documentos-practica", "revision-retroalimentacion", "planificacion"];
+    if (exclusivos.includes(activeMenu)) {
+      setActiveMenu("inicio");
+    }
+  }, [cargandoProfesor, esProfesorOctavoONoveno, activeMenu]);
 
   useEffect(() => {
     try {
@@ -109,7 +109,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "revision-retroalimentacion":
-        if (!cargandoProfesor && !esProfesorOctavoONoveno) {
+        if (cargandoProfesor || !esProfesorOctavoONoveno) {
           return null;
         }
         return (
@@ -119,7 +119,8 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "documentos-practica":
-        if (!cargandoProfesor && !esProfesorOctavoONoveno) {
+        // Gestión de Documentos y Archivos: solo profesores de 8.º y 9.º semestre
+        if (cargandoProfesor || !esProfesorOctavoONoveno) {
           return null;
         }
         return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
@@ -131,7 +132,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "cursos-practica":
         return null;
       case "planificacion":
-        if (!cargandoProfesor && !esProfesorOctavoONoveno) {
+        if (cargandoProfesor || !esProfesorOctavoONoveno) {
           return null;
         }
         return <Planificacion onBack={() => setActiveMenu("inicio")} />;

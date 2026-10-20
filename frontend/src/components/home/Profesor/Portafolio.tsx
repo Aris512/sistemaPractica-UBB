@@ -85,21 +85,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
       .then((profData) => {
         if (!profData) return;
         const list: AsignaturaOption[] = [];
-        if (Array.isArray(profData.asignaturas)) {
-          for (const a of profData.asignaturas) {
-            if (a?.idAsignatura && !list.some((item) => item.idAsignatura === a.idAsignatura)) {
-              list.push({
-                idAsignatura: a.idAsignatura,
-                nombre: a.nombre,
-                semestre: a.semestre,
-              });
-            }
-          }
-        }
-        if (
-          profData.asignatura &&
-          !list.some((item) => item.idAsignatura === profData.asignatura.idAsignatura)
-        ) {
+        if (profData.asignatura?.idAsignatura) {
           list.push({
             idAsignatura: profData.asignatura.idAsignatura,
             nombre: profData.asignatura.nombre,

@@ -70,6 +70,11 @@ export function HomeSidebar({
 }: HomeSidebarProps) {
   const { hasPermission } = usePermissions(user);
 
+  const esProfesor = [user?.rol, ...(user?.roles ?? [])]
+    .some((r) => String(r ?? "").toUpperCase().includes("PROFESOR"));
+  // Documentos de Práctica: solo profesores con asignatura de semestre >= 8
+  const puedeVerDocumentosPractica = esProfesor && esProfesorOctavoONoveno;
+
   const handleSelectMockup = (menu: ProfesorMenuKey, modulo: string) => {
     onSelectMenu(menu);
     sileo.warning({
@@ -147,8 +152,8 @@ export function HomeSidebar({
                 </SidebarMenuItem>
               )}
 
-              {/* Documentos de Práctica (Solo para profesores de 8.º y 9.º semestre) */}
-              {esProfesorOctavoONoveno && (
+              {/* Documentos de Práctica (Solo profesores con semestre >= 8) */}
+              {puedeVerDocumentosPractica && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "documentos-practica"}

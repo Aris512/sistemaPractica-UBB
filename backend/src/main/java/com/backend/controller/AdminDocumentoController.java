@@ -67,6 +67,31 @@ public class AdminDocumentoController {
     }
 
     /**
+     * Descarga los archivos de una tarea/evidencia específica (archivo del estudiante + revisión del profesor) en formato .zip.
+     */
+    @GetMapping("/evidencias/{idEvidencia}/zip")
+    public void descargarZipTarea(@PathVariable Long idEvidencia, HttpServletResponse response) {
+        try {
+            Evidencia evidencia = evidenciaService.obtenerPorId(idEvidencia);
+            String zipFilename = "tarea_evidencia_" + idEvidencia + ".zip";
+            if (evidencia != null && evidencia.getActividad() != null && evidencia.getActividad().getTitulo() != null) {
+                String tituloLimpio = evidencia.getActividad().getTitulo().replaceAll("[^a-zA-Z0-9_-]", "_");
+                zipFilename = "tarea_" + tituloLimpio + "_" + idEvidencia + ".zip";
+            }
+            String encodedFilename = URLEncoder.encode(zipFilename, StandardCharsets.UTF_8).replace("+", "%20");
+
+            response.setContentType("application/zip");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipFilename + "\"; filename*=UTF-8''" + encodedFilename);
+
+            documentoPracticaService.escribirZipTarea(idEvidencia, response.getOutputStream());
+            response.flushBuffer();
+        } catch (Exception e) {
+            logger.error("Error al generar archivo ZIP para la tarea {}: {}", idEvidencia, e.getMessage());
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
      * Obtiene el listado consolidado de estudiantes con su progreso de documentación.
      */
     @GetMapping("/estudiantes")

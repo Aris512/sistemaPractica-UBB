@@ -382,27 +382,12 @@ public class DataSeeder implements CommandLineRunner {
                 Optional<Profesor> profesorExistente = profesorRepository.findByUsuario(usuario);
                 if (profesorExistente.isEmpty()) {
                     Profesor nuevoProfesor = new Profesor(usuario, asignatura);
-                    if (nuevoProfesor.getAsignaturas() == null) {
-                        nuevoProfesor.setAsignaturas(new HashSet<>());
-                    }
-                    nuevoProfesor.getAsignaturas().add(asignatura);
                     profesorRepository.save(nuevoProfesor);
                     logger.info("Profesor vinculado: RUT {} con Asignatura '{}'", info.rut(), asignatura.getNombre());
                 } else {
                     Profesor prof = profesorExistente.get();
-                    boolean modificado = false;
                     if (prof.getAsignatura() == null) {
                         prof.setAsignatura(asignatura);
-                        modificado = true;
-                    }
-                    if (prof.getAsignaturas() == null) {
-                        prof.setAsignaturas(new HashSet<>());
-                    }
-                    if (!prof.getAsignaturas().contains(asignatura)) {
-                        prof.getAsignaturas().add(asignatura);
-                        modificado = true;
-                    }
-                    if (modificado) {
                         profesorRepository.save(prof);
                         logger.info("Profesor RUT {} actualizado con Asignatura '{}'", info.rut(), asignatura.getNombre());
                     }

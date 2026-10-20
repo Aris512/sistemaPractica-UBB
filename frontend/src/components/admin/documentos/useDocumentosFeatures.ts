@@ -301,6 +301,116 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     }
   };
 
+  // Descargar archivo de evidencia individual (entrega de estudiante o revisión de profesor)
+  const downloadEvidenciaArchivo = async (
+    idEvidencia: number,
+    tipo: "ESTUDIANTE" | "PROFESOR",
+    nombreArchivoFallback?: string
+  ) => {
+    try {
+      const etiqueta = tipo === "ESTUDIANTE" ? "archivo del estudiante" : "revisión del profesor";
+      sileo.show({
+        title: "Descargando archivo",
+        description: `Preparando ${etiqueta}...`,
+      });
+
+      const res = await fetch(
+        `http://localhost:8080/admin/documentos/evidencias/${idEvidencia}/archivo?tipo=${tipo}`,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: No se pudo descargar el archivo.`);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const disposition = res.headers.get("Content-Disposition");
+      let filename = nombreArchivoFallback || (tipo === "ESTUDIANTE" ? `entrega_${idEvidencia}` : `revision_${idEvidencia}`);
+      if (disposition && disposition.includes("filename=")) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, "");
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      sileo.success({
+        title: "Descarga completada",
+        description: `Se descargó "${filename}" con éxito.`,
+      });
+    } catch (err: any) {
+      console.error("Error al descargar archivo de evidencia:", err);
+      sileo.error({
+        title: "Error de descarga",
+        description: err.message || "No se pudo descargar el archivo solicitado.",
+      });
+    }
+  };
+
+  // Descargar paquete ZIP con todos los archivos de una tarea
+  const downloadTareaZip = async (idEvidencia: number, tituloTarea?: string) => {
+    try {
+      const etiquetaTarea = tituloTarea ? `"${tituloTarea}"` : `ID ${idEvidencia}`;
+      sileo.show({
+        title: "Generando ZIP de tarea",
+        description: `Comprimiendo expediente de ${etiquetaTarea}...`,
+      });
+
+      const res = await fetch(
+        `http://localhost:8080/admin/documentos/evidencias/${idEvidencia}/zip`,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: No se pudo generar el archivo ZIP de la tarea.`);
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const disposition = res.headers.get("Content-Disposition");
+      let filename = `tarea_${idEvidencia}_expediente.zip`;
+      if (disposition && disposition.includes("filename=")) {
+        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, "");
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      sileo.success({
+        title: "ZIP de tarea descargado",
+        description: `Se guardó "${filename}" correctamente.`,
+      });
+    } catch (err: any) {
+      console.error("Error al descargar ZIP de tarea:", err);
+      sileo.error({
+        title: "Error al generar ZIP",
+        description: err.message || "Ocurrió un problema al descargar los archivos de la tarea.",
+      });
+    }
+  };
+
   return {
     data,
     paginatedData,
@@ -330,5 +440,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     fetchStudentDetail,
     downloadSingleFile,
     downloadStudentZip,
+    downloadEvidenciaArchivo,
+    downloadTareaZip,
   };
 }

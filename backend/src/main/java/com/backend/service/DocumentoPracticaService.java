@@ -32,12 +32,20 @@ import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Profesor;
 import com.backend.model.Usuario;
+import com.backend.model.Actividad;
+import com.backend.model.Evidencia;
+import com.backend.repository.ActividadRepository;
 import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
+
+import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.stream.Collectors;
 
 @Service
 public class DocumentoPracticaService {
@@ -53,6 +61,7 @@ public class DocumentoPracticaService {
     private final FileStorageService fileStorageService;
     private final EvidenciaRepository evidenciaRepository;
     private final AvanceAcademicoService avanceAcademicoService;
+    private final ActividadRepository actividadRepository;
 
     public DocumentoPracticaService(DocumentoPracticaRepository documentoPracticaRepository,
                                    EstudianteRepository estudianteRepository,
@@ -61,7 +70,8 @@ public class DocumentoPracticaService {
                                    com.backend.repository.AsignaturaRepository asignaturaRepository,
                                    FileStorageService fileStorageService,
                                    EvidenciaRepository evidenciaRepository,
-                                   AvanceAcademicoService avanceAcademicoService) {
+                                   AvanceAcademicoService avanceAcademicoService,
+                                   ActividadRepository actividadRepository) {
         this.documentoPracticaRepository = documentoPracticaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
@@ -70,6 +80,7 @@ public class DocumentoPracticaService {
         this.fileStorageService = fileStorageService;
         this.evidenciaRepository = evidenciaRepository;
         this.avanceAcademicoService = avanceAcademicoService;
+        this.actividadRepository = actividadRepository;
         initUploadsDirectory();
     }
 
@@ -307,25 +318,140 @@ public class DocumentoPracticaService {
             profesoresDTO,
             documentosList
         );
-        List<com.backend.model.Evidencia> evidencias = estOpt
-            .map(estudiante -> evidenciaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante()))
-            .orElseGet(List::of);
-        detalle.setTareas(evidencias.stream()
-            .map(e -> new TareaSeguimientoDTO(
-                e.getIdEvidencia(),
-                e.getActividad() != null ? e.getActividad().getIdActividad() : null,
-                e.getActividad() != null ? e.getActividad().getTitulo() : "Actividad",
-                e.getActividad() != null && e.getActividad().getAsignatura() != null ? e.getActividad().getAsignatura().getNombre() : "—",
-                e.getActividad() != null && e.getActividad().getAsignatura() != null ? e.getActividad().getAsignatura().getSemestre() : "—",
-                e.getEstado(),
-                e.getCalificacion(),
-                e.getFechaEntrega(),
-                e.getNombreArchivo(),
-                e.getNombreArchivoRevision(),
-                e.getArchivoUrl() != null && !e.getArchivoUrl().isBlank(),
-                e.getArchivoRevisionUrl() != null && !e.getArchivoRevisionUrl().isBlank()
-            ))
-            .toList());
+        List<TareaSeguimientoDTO> tareasDTO = new ArrayList<>();
+        if (estOpt.isPresent()) {
+            Estudiante estudiante = estOpt.get();
+            List<Evidencia> evidencias = evidenciaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante());
+            Map<Long, Evidencia> evidenciaPorActividad = evidencias.stream()
+                .filter(e -> e.getActividad() != null)
+                .collect(Collectors.toMap(e -> e.getActividad().getIdActividad(), e -> e, (a, b) -> a));
+
+            Set<Long> asignaturasRelevantes = new HashSet<>();
+            if (estudiante.getAsignatura() != null && estudiante.getAsignatura().getIdAsignatura() != null) {
+                asignaturasRelevantes.add(estudiante.getAsignatura().getIdAsignatura());
+            }
+            evidencias.stream()
+                .filter(e -> e.getActividad() != null && e.getActividad().getAsignatura() != null)
+                .forEach(e -> asignaturasRelevantes.add(e.getActividad().getAsignatura().getIdAsignatura()));
+
+            List<Actividad> todasActividades = new ArrayList<>();
+            for (Long idAsig : asignaturasRelevantes) {
+                todasActividades.addAll(actividadRepository.findByAsignaturaIdAsignaturaOrderByFechaCreacionDesc(idAsig));
+            }
+
+            Set<Long> actividadesProcesadas = new HashSet<>();
+            for (Actividad act : todasActividades) {
+                actividadesProcesadas.add(act.getIdActividad());
+                Evidencia ev = evidenciaPorActividad.get(act.getIdActividad());
+                Asignatura asigAct = act.getAsignatura();
+                String nombreAsig = asigAct != null ? asigAct.getNombre() : asignaturaNombre;
+                Long idAsigAct = asigAct != null ? asigAct.getIdAsignatura() : idAsignatura;
+                String semAct = asigAct != null ? asigAct.getSemestre() : semestre;
+
+                if (ev != null) {
+                    Double nota = ev.getCalificacion();
+                    String estadoAprobacion = nota != null ? (nota >= 4.0 ? "APROBADO" : "REPROBADO") : "PENDIENTE";
+                    String profRevisorNombre = null;
+                    String profRevisorRut = null;
+                    if (ev.getRevisadoPor() != null && ev.getRevisadoPor().getUsuario() != null) {
+                        profRevisorNombre = ev.getRevisadoPor().getUsuario().getNombre() + " " + ev.getRevisadoPor().getUsuario().getApellido();
+                        profRevisorRut = ev.getRevisadoPor().getUsuario().getRut();
+                    } else if (act.getProfesor() != null && act.getProfesor().getUsuario() != null) {
+                        profRevisorNombre = act.getProfesor().getUsuario().getNombre() + " " + act.getProfesor().getUsuario().getApellido();
+                        profRevisorRut = act.getProfesor().getUsuario().getRut();
+                    }
+
+                    tareasDTO.add(new TareaSeguimientoDTO(
+                        ev.getIdEvidencia(),
+                        act.getIdActividad(),
+                        act.getTitulo(),
+                        act.getDescripcion(),
+                        nombreAsig,
+                        idAsigAct,
+                        semAct,
+                        ev.getEstado() != null ? ev.getEstado() : "ENTREGADO",
+                        nota,
+                        estadoAprobacion,
+                        ev.getFechaEntrega(),
+                        ev.getFechaRevision(),
+                        ev.getRetroalimentacion(),
+                        profRevisorNombre,
+                        profRevisorRut,
+                        ev.getNombreArchivo(),
+                        ev.getNombreArchivoRevision(),
+                        ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank(),
+                        ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()
+                    ));
+                } else {
+                    String profNombre = act.getProfesor() != null && act.getProfesor().getUsuario() != null
+                        ? act.getProfesor().getUsuario().getNombre() + " " + act.getProfesor().getUsuario().getApellido()
+                        : null;
+                    String profRut = act.getProfesor() != null && act.getProfesor().getUsuario() != null
+                        ? act.getProfesor().getUsuario().getRut()
+                        : null;
+
+                    tareasDTO.add(new TareaSeguimientoDTO(
+                        null,
+                        act.getIdActividad(),
+                        act.getTitulo(),
+                        act.getDescripcion(),
+                        nombreAsig,
+                        idAsigAct,
+                        semAct,
+                        "NO_ENTREGADO",
+                        null,
+                        "PENDIENTE",
+                        null,
+                        null,
+                        null,
+                        profNombre,
+                        profRut,
+                        null,
+                        null,
+                        false,
+                        false
+                    ));
+                }
+            }
+
+            for (Evidencia ev : evidencias) {
+                if (ev.getActividad() != null && !actividadesProcesadas.contains(ev.getActividad().getIdActividad())) {
+                    Actividad act = ev.getActividad();
+                    Asignatura asigAct = act.getAsignatura();
+                    Double nota = ev.getCalificacion();
+                    String estadoAprobacion = nota != null ? (nota >= 4.0 ? "APROBADO" : "REPROBADO") : "PENDIENTE";
+                    String profRevisorNombre = null;
+                    String profRevisorRut = null;
+                    if (ev.getRevisadoPor() != null && ev.getRevisadoPor().getUsuario() != null) {
+                        profRevisorNombre = ev.getRevisadoPor().getUsuario().getNombre() + " " + ev.getRevisadoPor().getUsuario().getApellido();
+                        profRevisorRut = ev.getRevisadoPor().getUsuario().getRut();
+                    }
+
+                    tareasDTO.add(new TareaSeguimientoDTO(
+                        ev.getIdEvidencia(),
+                        act.getIdActividad(),
+                        act.getTitulo(),
+                        act.getDescripcion(),
+                        asigAct != null ? asigAct.getNombre() : "—",
+                        asigAct != null ? asigAct.getIdAsignatura() : null,
+                        asigAct != null ? asigAct.getSemestre() : "—",
+                        ev.getEstado() != null ? ev.getEstado() : "ENTREGADO",
+                        nota,
+                        estadoAprobacion,
+                        ev.getFechaEntrega(),
+                        ev.getFechaRevision(),
+                        ev.getRetroalimentacion(),
+                        profRevisorNombre,
+                        profRevisorRut,
+                        ev.getNombreArchivo(),
+                        ev.getNombreArchivoRevision(),
+                        ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank(),
+                        ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()
+                    ));
+                }
+            }
+        }
+        detalle.setTareas(tareasDTO);
         return detalle;
     }
 
@@ -469,6 +595,62 @@ public class DocumentoPracticaService {
 
 
     @Transactional(readOnly = true)
+    public void escribirZipTarea(Long idEvidencia, OutputStream out) throws IOException {
+        Evidencia ev = evidenciaRepository.findById(idEvidencia)
+            .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
+
+        try (ZipOutputStream zos = new ZipOutputStream(out)) {
+            boolean hayArchivos = false;
+
+            if (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank()) {
+                try {
+                    Resource resEst = fileStorageService.loadFileAsResource(ev.getArchivoUrl());
+                    if (resEst != null && resEst.exists() && resEst.isReadable()) {
+                        String originalName = ev.getNombreArchivo() != null ? ev.getNombreArchivo() : "entrega_estudiante.pdf";
+                        ZipEntry entry = new ZipEntry("[ESTUDIANTE]_" + sanitizarNombre(originalName));
+                        zos.putNextEntry(entry);
+                        try (var is = resEst.getInputStream()) {
+                            is.transferTo(zos);
+                        }
+                        zos.closeEntry();
+                        hayArchivos = true;
+                    }
+                } catch (Exception e) {
+                    logger.warn("No se pudo agregar archivo estudiante al zip de tarea {}: {}", idEvidencia, e.getMessage());
+                }
+            }
+
+            if (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()) {
+                try {
+                    Resource resRev = fileStorageService.loadFileAsResource(ev.getArchivoRevisionUrl());
+                    if (resRev != null && resRev.exists() && resRev.isReadable()) {
+                        String originalName = ev.getNombreArchivoRevision() != null ? ev.getNombreArchivoRevision() : "revision_profesor.pdf";
+                        ZipEntry entry = new ZipEntry("[PROFESOR_REVISION]_" + sanitizarNombre(originalName));
+                        zos.putNextEntry(entry);
+                        try (var is = resRev.getInputStream()) {
+                            is.transferTo(zos);
+                        }
+                        zos.closeEntry();
+                        hayArchivos = true;
+                    }
+                } catch (Exception e) {
+                    logger.warn("No se pudo agregar archivo de revisión al zip de tarea {}: {}", idEvidencia, e.getMessage());
+                }
+            }
+
+            if (!hayArchivos) {
+                ZipEntry entry = new ZipEntry("sin_archivos.txt");
+                zos.putNextEntry(entry);
+                String msg = "No hay archivos físicos disponibles para la tarea seleccionada (ID: " + idEvidencia + ").";
+                zos.write(msg.getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+
+            zos.finish();
+        }
+    }
+
+    @Transactional(readOnly = true)
     public void escribirZipEstudiante(String rutRaw, OutputStream out) throws IOException {
         String rut = RutUtils.clean(rutRaw);
         Usuario usuario = usuarioRepository.findAll().stream()
@@ -477,34 +659,86 @@ public class DocumentoPracticaService {
             .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado para RUT: " + rutRaw));
 
         List<DocumentoPractica> documentos = documentoPracticaRepository.findByEstudianteRut(usuario.getRut());
+        List<Evidencia> evidencias = evidenciaRepository.findByEstudianteUsuarioRutOrderByFechaEntregaDesc(usuario.getRut());
 
         try (ZipOutputStream zos = new ZipOutputStream(out)) {
-            if (documentos.isEmpty()) {
-                // Agregar un archivo informativo en el zip si no hay documentos entregados aún
-                ZipEntry entry = new ZipEntry("sin_documentos.txt");
-                zos.putNextEntry(entry);
-                String mensaje = "El estudiante " + usuario.getNombre() + " " + usuario.getApellido() +
-                                 " (RUT " + usuario.getRut() + ") aún no tiene documentos entregados.";
-                zos.write(mensaje.getBytes(StandardCharsets.UTF_8));
-                zos.closeEntry();
-            } else {
-                for (DocumentoPractica doc : documentos) {
-                    String asigNombre = doc.getAsignatura() != null ? doc.getAsignatura().getNombre() : "General";
-                    String carpeta = sanitizarNombre(asigNombre);
-                    String prefijo = "ESTUDIANTE".equalsIgnoreCase(doc.getTipoDocumento()) ? "[ESTUDIANTE]" : "[PROFESOR]";
-                    String nombreArchivo = prefijo + "_" + sanitizarNombre(doc.getNombreArchivo());
+            boolean hayArchivos = false;
 
-                    Path localPath = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
-                    if (localPath != null && Files.exists(localPath)) {
-                        ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
-                        zos.putNextEntry(entry);
-                        Files.copy(localPath, zos);
-                        zos.closeEntry();
-                    } else {
-                        logger.warn("Se omitió del ZIP el archivo inexistente: {}", doc.getUbicacion());
+            // 1. Documentos de práctica
+            for (DocumentoPractica doc : documentos) {
+                String asigNombre = doc.getAsignatura() != null ? doc.getAsignatura().getNombre() : "Practica_General";
+                String carpeta = sanitizarNombre(asigNombre) + "/Documentos_Practica";
+                String prefijo = "ESTUDIANTE".equalsIgnoreCase(doc.getTipoDocumento()) ? "[ESTUDIANTE]" : "[PROFESOR]";
+                String nombreArchivo = prefijo + "_" + sanitizarNombre(doc.getNombreArchivo());
+
+                Path rutaArchivo = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
+                if (rutaArchivo != null && Files.exists(rutaArchivo) && Files.isReadable(rutaArchivo)) {
+                    ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
+                    zos.putNextEntry(entry);
+                    Files.copy(rutaArchivo, zos);
+                    zos.closeEntry();
+                    hayArchivos = true;
+                } else {
+                    logger.warn("Se omitió del ZIP el archivo inexistente: {}", doc.getUbicacion());
+                }
+            }
+
+            // 2. Entregas y revisiones de tareas por asignatura
+            for (Evidencia ev : evidencias) {
+                String asigNombre = ev.getActividad() != null && ev.getActividad().getAsignatura() != null
+                    ? ev.getActividad().getAsignatura().getNombre()
+                    : "Asignatura_General";
+                String tituloTarea = ev.getActividad() != null ? sanitizarNombre(ev.getActividad().getTitulo()) : "Tarea_" + ev.getIdEvidencia();
+                String carpeta = sanitizarNombre(asigNombre) + "/Tareas/" + tituloTarea;
+
+                // Archivo entregado por estudiante
+                if (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank()) {
+                    try {
+                        Resource resEst = fileStorageService.loadFileAsResource(ev.getArchivoUrl());
+                        if (resEst != null && resEst.exists() && resEst.isReadable()) {
+                            String nomEst = ev.getNombreArchivo() != null ? ev.getNombreArchivo() : "entrega_estudiante";
+                            ZipEntry entry = new ZipEntry(carpeta + "/[ESTUDIANTE]_" + sanitizarNombre(nomEst));
+                            zos.putNextEntry(entry);
+                            try (var is = resEst.getInputStream()) {
+                                is.transferTo(zos);
+                            }
+                            zos.closeEntry();
+                            hayArchivos = true;
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Error leyendo archivo estudiante {}: {}", ev.getArchivoUrl(), e.getMessage());
+                    }
+                }
+
+                // Archivo de revisión subido por profesor
+                if (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()) {
+                    try {
+                        Resource resProf = fileStorageService.loadFileAsResource(ev.getArchivoRevisionUrl());
+                        if (resProf != null && resProf.exists() && resProf.isReadable()) {
+                            String nomRev = ev.getNombreArchivoRevision() != null ? ev.getNombreArchivoRevision() : "revision_profesor";
+                            ZipEntry entry = new ZipEntry(carpeta + "/[PROFESOR_REVISION]_" + sanitizarNombre(nomRev));
+                            zos.putNextEntry(entry);
+                            try (var is = resProf.getInputStream()) {
+                                is.transferTo(zos);
+                            }
+                            zos.closeEntry();
+                            hayArchivos = true;
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Error leyendo archivo revisión {}: {}", ev.getArchivoRevisionUrl(), e.getMessage());
                     }
                 }
             }
+
+            if (!hayArchivos) {
+                ZipEntry entry = new ZipEntry("sin_documentos.txt");
+                zos.putNextEntry(entry);
+                String mensaje = "El estudiante " + usuario.getNombre() + " " + usuario.getApellido() +
+                                 " (RUT " + usuario.getRut() + ") aún no tiene documentos o entregas archivadas en el servidor.";
+                zos.write(mensaje.getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+
             zos.finish();
         }
     }

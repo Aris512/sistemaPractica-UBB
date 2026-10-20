@@ -45,15 +45,18 @@ public class AvanceAcademicoService {
     private final ActividadRepository actividadRepository;
     private final EvidenciaRepository evidenciaRepository;
     private final AsignaturaRepository asignaturaRepository;
+    private final com.backend.repository.EstudianteRepository estudianteRepository;
 
     public AvanceAcademicoService(CursoAprobadoRepository cursoAprobadoRepository,
                                   ActividadRepository actividadRepository,
                                   EvidenciaRepository evidenciaRepository,
-                                  AsignaturaRepository asignaturaRepository) {
+                                  AsignaturaRepository asignaturaRepository,
+                                  com.backend.repository.EstudianteRepository estudianteRepository) {
         this.cursoAprobadoRepository = cursoAprobadoRepository;
         this.actividadRepository = actividadRepository;
         this.evidenciaRepository = evidenciaRepository;
         this.asignaturaRepository = asignaturaRepository;
+        this.estudianteRepository = estudianteRepository;
     }
 
     /** Resultado del cálculo para un estudiante en una asignatura. */
@@ -105,6 +108,7 @@ public class AvanceAcademicoService {
     /**
      * Recalcula y persiste en cursos_aprobados el estado del estudiante en la asignatura.
      * Se invoca cada vez que un profesor registra/actualiza una nota.
+     * Si aprueba su asignatura actual, avanza a la siguiente asignatura habilitada en el plan.
      */
     @Transactional
     public CursoAprobado recalcularYGuardar(Estudiante estudiante, Asignatura asignatura) {
@@ -124,6 +128,22 @@ public class AvanceAcademicoService {
         logger.info("Curso recalculado: estudiante={} asignatura={} estado={} promedio={} ({}/{} tareas calificadas)",
             estudiante.getIdEstudiante(), asignatura.getNombre(), resultado.estado(), resultado.promedio(),
             resultado.tareasCalificadas(), resultado.tareasTotales());
+
+        // Si aprueba la asignatura en la que está matriculado actualmente, avanzar a la siguiente del plan
+        if (CursoAprobado.APROBADO.equals(resultado.estado())) {
+            Asignatura actual = estudiante.getAsignatura();
+            if (actual != null && actual.getIdAsignatura().equals(asignatura.getIdAsignatura())) {
+                List<Asignatura> plan = obtenerPlanOrdenado();
+                ResumenAvance avance = calcularAvance(estudiante, plan);
+                if (avance.siguienteAsignatura() != null && !avance.siguienteAsignatura().getIdAsignatura().equals(actual.getIdAsignatura())) {
+                    estudiante.setAsignatura(avance.siguienteAsignatura());
+                    estudianteRepository.save(estudiante);
+                    logger.info("Estudiante {} avanzó a la siguiente asignatura: {} (Semestre {})",
+                        estudiante.getIdEstudiante(), avance.siguienteAsignatura().getNombre(), avance.siguienteAsignatura().getSemestre());
+                }
+            }
+        }
+
         return guardado;
     }
 

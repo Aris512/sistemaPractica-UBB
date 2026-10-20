@@ -16,6 +16,6 @@ public interface ProfesorRepository extends JpaRepository<Profesor, Long> {
     Optional<Profesor> findByUsuario(Usuario usuario);
     Optional<Profesor> findByUsuarioRut(String rut);
 
-    @Query("SELECT DISTINCT p FROM Profesor p LEFT JOIN p.asignaturas a WHERE p.asignatura.idAsignatura = :idAsignatura OR a.idAsignatura = :idAsignatura")
+    @Query("SELECT p FROM Profesor p WHERE p.asignatura.idAsignatura = :idAsignatura")
     List<Profesor> findAllByAsignaturaId(@Param("idAsignatura") Long idAsignatura);
 }

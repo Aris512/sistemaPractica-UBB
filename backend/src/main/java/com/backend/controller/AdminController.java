@@ -755,7 +755,6 @@ public class AdminController {
             Object[] profArgs = idsProfesor.toArray();
 
             jdbcTemplate.update("UPDATE evidencia SET id_profesor_revisor = NULL WHERE id_profesor_revisor IN (" + inProfClause + ")", profArgs);
-            jdbcTemplate.update("DELETE FROM profesor_asignatura WHERE id_profesor IN (" + inProfClause + ")", profArgs);
 
             List<Long> idsActividad = jdbcTemplate.query(
                 "SELECT id_actividad FROM actividad WHERE id_profesor IN (" + inProfClause + ")",

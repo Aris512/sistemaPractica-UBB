@@ -46,6 +46,12 @@ public class Evaluacion {
     @Column(name = "fecha_limite")
     private LocalDateTime fechaLimite;
 
+    @Column(name = "archivo_url")
+    private String archivoUrl;
+
+    @Column(name = "nombre_archivo")
+    private String nombreArchivo;
+
     public Evaluacion() {
     }
 
@@ -152,5 +158,21 @@ public class Evaluacion {
 
     public void setFechaLimite(LocalDateTime fechaLimite) {
         this.fechaLimite = fechaLimite;
+    }
+
+    public String getArchivoUrl() {
+        return archivoUrl;
+    }
+
+    public void setArchivoUrl(String archivoUrl) {
+        this.archivoUrl = archivoUrl;
+    }
+
+    public String getNombreArchivo() {
+        return nombreArchivo;
+    }
+
+    public void setNombreArchivo(String nombreArchivo) {
+        this.nombreArchivo = nombreArchivo;
     }
 }

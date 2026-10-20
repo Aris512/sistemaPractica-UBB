@@ -38,6 +38,8 @@ export function DocumentosView() {
     fetchStudentDetail,
     downloadSingleFile,
     downloadStudentZip,
+    downloadEvidenciaArchivo,
+    downloadTareaZip,
   } = useDocumentosFeatures();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -180,6 +182,8 @@ export function DocumentosView() {
         loading={detailLoading}
         onDownloadFile={downloadSingleFile}
         onDownloadZip={downloadStudentZip}
+        onDownloadEvidenciaArchivo={downloadEvidenciaArchivo}
+        onDownloadTareaZip={downloadTareaZip}
       />
     </div>
   );

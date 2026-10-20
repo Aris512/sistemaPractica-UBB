@@ -52,11 +52,18 @@ export interface TareaSeguimiento {
   idEvidencia: number;
   idActividad: number | null;
   tituloActividad: string;
+  descripcionActividad?: string | null;
   asignatura: string;
+  idAsignatura?: number | null;
   semestre: string;
   estado: string;
   calificacion: number | null;
+  estadoAprobacion?: string | null;
   fechaEntrega: string | null;
+  fechaRevision?: string | null;
+  retroalimentacion?: string | null;
+  revisadoPorNombre?: string | null;
+  revisadoPorRut?: string | null;
   nombreArchivoEstudiante: string | null;
   nombreArchivoRevision: string | null;
   tieneArchivoEstudiante: boolean;

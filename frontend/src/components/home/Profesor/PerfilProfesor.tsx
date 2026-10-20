@@ -22,8 +22,6 @@ export function PerfilProfesor({ user, onBack }: PerfilProfesorProps) {
       .then((data) => {
         if (data?.asignatura?.nombre) {
           setRamo(data.asignatura.nombre);
-        } else if (data?.asignaturas && data.asignaturas.length > 0) {
-          setRamo(data.asignaturas[0].nombre);
         }
       })
       .catch((err) => console.warn("No se pudo obtener la asignatura del profesor:", err));
