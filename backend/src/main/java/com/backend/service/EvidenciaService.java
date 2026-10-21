@@ -2,8 +2,11 @@ package com.backend.service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +15,7 @@ import com.backend.dto.RevisionEvidenciaDTO;
 import com.backend.dto.SeguimientoEstudianteDTO;
 import com.backend.dto.SubirEvidenciaDTO;
 import com.backend.model.Actividad;
+import com.backend.model.Asignatura;
 import com.backend.model.Documento;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
@@ -307,7 +311,6 @@ public class EvidenciaService {
         evidencia.setRevisadoPor(profesor);
         evidencia.setRetroalimentacion(observacion);
         evidencia.setFechaRevision(LocalDateTime.now());
-        evidencia.setCalificacion(calificacion);
         Evidencia guardada = evidenciaRepository.save(evidencia);
         actualizarAvanceCurso(guardada);
         return guardada;
@@ -373,13 +376,44 @@ public class EvidenciaService {
         }
 
         evidencia.setRetroalimentacion(dto.getRetroalimentacion());
-        evidencia.setCalificacion(dto.getCalificacion());
         evidencia.setFechaRevision(LocalDateTime.now());
+        aplicarCalificacion(evidencia, dto.getCalificacion(), dto.getRutProfesor());
 
-        String nuevoEstado = dto.getEstado() != null && !dto.getEstado().isBlank()
-                ? dto.getEstado().toUpperCase()
-                : "REVISADO";
-        evidencia.setEstado(nuevoEstado);
+        if (dto.getEstado() != null && !dto.getEstado().isBlank()) {
+            evidencia.setEstado(dto.getEstado().toUpperCase());
+        } else if (evidencia.getCalificacion() == null) {
+            evidencia.setEstado("REVISADO");
+        }
+    }
+
+    /**
+     * La calificación vive solo en la tabla nota: se crea/actualiza la Nota de la evidencia,
+     * o se elimina si la calificación viene vacía.
+     */
+    private void aplicarCalificacion(Evidencia evidencia, Double calificacion, String rutProfesor) {
+        Nota nota = evidencia.getNota();
+        if (calificacion == null) {
+            if (nota != null) {
+                evidencia.setNota(null);
+                evidenciaRepository.saveAndFlush(evidencia);
+                if (nota.getEvaluacion() == null) {
+                    notaRepository.delete(nota);
+                }
+            }
+            return;
+        }
+        if (calificacion < 1.0 || calificacion > 7.0) {
+            throw new IllegalArgumentException("La calificación debe estar entre 1.0 y 7.0.");
+        }
+        if (nota == null) {
+            nota = new Nota();
+            nota.setEstudiante(evidencia.getEstudiante());
+        }
+        nota.setPuntajeObtenido(calificacion);
+        if (rutProfesor != null) {
+            nota.setRutEvaluador(rutProfesor);
+        }
+        evidencia.setNota(notaRepository.save(nota));
     }
 
     private void actualizarAvanceCurso(Evidencia evidencia) {
@@ -439,6 +473,8 @@ public class EvidenciaService {
      * y si ningún otro registro los sigue usando.
      */
     private void eliminarEvidenciaConArchivos(Evidencia evidencia) {
+        Estudiante estudiante = evidencia.getEstudiante();
+        Asignatura asignatura = evidencia.getActividad() != null ? evidencia.getActividad().getAsignatura() : null;
         String urlAlumno = evidencia.getArchivoUrl();
         String urlRevision = evidencia.getArchivoRevisionUrl();
         Documento docAlumno = evidencia.getArchivoAlumno();
@@ -456,14 +492,30 @@ public class EvidenciaService {
 
         fileStorageService.deleteFile(urlAlumno);
         fileStorageService.deleteFile(urlRevision);
+
+        // Sin la entrega la tarea deja de estar calificada: la asignatura no puede seguir aprobada.
+        if (estudiante != null && asignatura != null) {
+            avanceAcademicoService.recalcularYGuardar(estudiante, asignatura);
+        }
+    }
+
+    /** Recalcula el avance de los estudiantes en la asignatura (p. ej. tras eliminar una actividad). */
+    @Transactional
+    public void recalcularAvance(Collection<Estudiante> estudiantes, Asignatura asignatura) {
+        if (asignatura == null) return;
+        for (Estudiante estudiante : estudiantes) {
+            avanceAcademicoService.recalcularYGuardar(estudiante, asignatura);
+        }
     }
 
     /** Elimina todas las entregas de una actividad (con sus documentos y archivos) antes de borrar la actividad. */
     @Transactional
-    public void eliminarPorActividad(Long idActividad) {
+    public Set<Estudiante> eliminarPorActividad(Long idActividad) {
         List<Evidencia> evidencias = new java.util.ArrayList<>(
                 evidenciaRepository.findByActividadIdActividadOrderByFechaEntregaDesc(idActividad));
+        Set<Estudiante> afectados = new HashSet<>();
         for (Evidencia evidencia : evidencias) {
+            if (evidencia.getEstudiante() != null) afectados.add(evidencia.getEstudiante());
             eliminarEvidenciaConArchivos(evidencia);
         }
         // Documentos sueltos ligados a la actividad (FK id_actividad) sin evidencia viva.
@@ -472,5 +524,6 @@ public class EvidenciaService {
             fileStorageService.deleteFile(doc.getUbicacion());
         }
         documentoRepository.flush();
+        return afectados;
     }
 }

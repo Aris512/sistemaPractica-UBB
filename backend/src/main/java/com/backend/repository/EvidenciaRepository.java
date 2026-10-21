@@ -29,9 +29,7 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
 
     List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignatura(Long idEstudiante, Long idAsignatura);
 
-    List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignaturaAndCalificacionIsNotNull(
-        Long idEstudiante, Long idAsignatura
-    );
+    List<Evidencia> findByNotaIdNota(Long idNota);
 
     boolean existsByEstudianteIdEstudianteAndActividadProfesorUsuarioRutAndActividadAsignaturaIdAsignatura(
         Long idEstudiante, String rutProfesor, Long idAsignatura
