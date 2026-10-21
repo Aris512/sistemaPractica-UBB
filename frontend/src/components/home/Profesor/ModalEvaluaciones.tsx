@@ -19,6 +19,8 @@ import {
   Send,
   Building2,
   Paperclip,
+  ExternalLink,
+  Eye,
 } from "lucide-react";
 import { sileo } from "sileo";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,7 @@ import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
   guardarEvaluacionProfesor,
   descargarArchivoEvaluacion,
+  obtenerArchivoEntregaAlumno,
   type EstudianteEvaluacion,
 } from "../../../services/profesorEvaluacionApi";
 
@@ -57,7 +60,12 @@ export function ModalEvaluaciones({
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [campoAEliminar, setCampoAEliminar] = useState<"nota" | "observacion" | "archivo" | null>(null);
-  const [isDeleteSaveConfirmOpen, setIsDeleteSaveConfirmOpen] = useState(false);
+  const [pestanaActiva, setPestanaActiva] = useState<"evaluacion" | "entrega">("evaluacion");
+  const [entregaUrl, setEntregaUrl] = useState<string | null>(null);
+  const [entregaTipo, setEntregaTipo] = useState("");
+  const [entregaCargando, setEntregaCargando] = useState(false);
+  const [entregaError, setEntregaError] = useState<string | null>(null);
+  const [entregaIntento, setEntregaIntento] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +79,43 @@ export function ModalEvaluaciones({
       setEliminarArchivoActual(false);
     }
   }, [student]);
+
+  // Al cambiar de estudiante se vuelve a la pestaña de evaluación y se descarta la vista previa anterior
+  useEffect(() => {
+    setPestanaActiva("evaluacion");
+    setEntregaUrl(null);
+    setEntregaError(null);
+  }, [student?.idEstudiante, student?.idEvidencia]);
+
+  // Carga la entrega del alumno solo cuando se abre su pestaña
+  useEffect(() => {
+    if (pestanaActiva !== "entrega" || entregaUrl || !student?.idEvidencia || !student.tieneArchivoEntrega) return;
+    let cancelado = false;
+    setEntregaCargando(true);
+    setEntregaError(null);
+    obtenerArchivoEntregaAlumno(student.idEvidencia, student.nombreArchivoEntrega)
+      .then((blob) => {
+        if (cancelado) return;
+        setEntregaTipo(blob.type);
+        setEntregaUrl(URL.createObjectURL(blob));
+      })
+      .catch((err: any) => {
+        if (!cancelado) setEntregaError(err?.message || "No se pudo cargar el archivo del alumno.");
+      })
+      .finally(() => {
+        if (!cancelado) setEntregaCargando(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [pestanaActiva, entregaUrl, entregaIntento, student?.idEvidencia, student?.tieneArchivoEntrega, student?.nombreArchivoEntrega]);
+
+  // Libera la URL temporal de la vista previa
+  useEffect(() => {
+    return () => {
+      if (entregaUrl) URL.revokeObjectURL(entregaUrl);
+    };
+  }, [entregaUrl]);
 
   if (!isOpen || !student) return null;
 
@@ -129,8 +174,18 @@ export function ModalEvaluaciones({
     }
   };
 
+  const handleDescargarEntrega = () => {
+    if (!entregaUrl) return;
+    const a = document.createElement("a");
+    a.href = entregaUrl;
+    a.download = student.nombreArchivoEntrega || `entrega_${student.idEvidencia}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   // Guardar evaluación con nota, observación y documento adjunto
-  const handleGuardarEvaluacion = async (confirmedDelete = false) => {
+  const handleGuardarEvaluacion = async () => {
     let puntajeFinal: number | null = null;
     if (nota.trim()) {
       const notaNum = parseFloat(nota.replace(",", "."));
@@ -159,17 +214,6 @@ export function ModalEvaluaciones({
         title: "Formulario vacío",
         description: "Debes ingresar al menos una calificación, una observación pedagógica o adjuntar un documento.",
       });
-      return;
-    }
-
-    // Advertencia si se está borrando contenido previo existente
-    const eliminaContenidoExistente =
-      (student.nota != null && puntajeFinal === null) ||
-      (!!student.observacion && obsFinal === null) ||
-      (student.tieneArchivo && eliminarArchivoActual);
-
-    if (eliminaContenidoExistente && !confirmedDelete) {
-      setIsDeleteSaveConfirmOpen(true);
       return;
     }
 
@@ -299,7 +343,147 @@ export function ModalEvaluaciones({
           </div>
         </div>
 
-        {/* Contenido del Modal (Scrollable) */}
+        {/* Pestañas estilo navegador: evaluación y entrega del alumno */}
+        <div className="flex items-end gap-1 px-4 pt-2 bg-slate-100 border-b border-slate-200 shrink-0 overflow-x-auto" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={pestanaActiva === "evaluacion"}
+            onClick={() => setPestanaActiva("evaluacion")}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 cursor-pointer transition-colors -mb-px ${
+              pestanaActiva === "evaluacion"
+                ? "bg-white text-slate-900 border-slate-200"
+                : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/70 hover:text-slate-700"
+            }`}
+          >
+            <Award className="size-3.5 text-sky-700 shrink-0" />
+            <span className="truncate">Evaluación</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={pestanaActiva === "entrega"}
+            onClick={() => setPestanaActiva("entrega")}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 cursor-pointer transition-colors -mb-px ${
+              pestanaActiva === "entrega"
+                ? "bg-white text-slate-900 border-slate-200"
+                : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/70 hover:text-slate-700"
+            }`}
+            title={student.nombreArchivoEntrega || "Entrega del alumno"}
+          >
+            <Eye className="size-3.5 text-emerald-700 shrink-0" />
+            <span className="truncate max-w-56">
+              {student.nombreArchivoEntrega || "Entrega del alumno"}
+            </span>
+          </button>
+        </div>
+
+        {pestanaActiva === "entrega" ? (
+          <div className="flex-1 flex flex-col min-h-0 bg-slate-50">
+            {/* Barra tipo dirección con los datos de la entrega */}
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-white border-b border-slate-200 shrink-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-600">
+                <FileText className="size-3.5 text-slate-400 shrink-0" />
+                <span className="truncate font-medium">
+                  {student.nombreArchivoEntrega || "Sin archivo"}
+                </span>
+                {student.tituloActividad && (
+                  <span className="truncate text-slate-400 hidden sm:inline">• {student.tituloActividad}</span>
+                )}
+                {student.fechaEntrega && (
+                  <span className="text-slate-400 font-mono shrink-0 hidden md:inline">
+                    • {new Date(student.fechaEntrega).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+              {entregaUrl && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(entregaUrl, "_blank", "noopener")}
+                    className="text-xs h-8 gap-1.5 bg-white cursor-pointer"
+                    title="Abrir en una pestaña nueva del navegador"
+                  >
+                    <ExternalLink className="size-3" />
+                    <span className="hidden sm:inline">Abrir</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDescargarEntrega}
+                    className="text-xs h-8 gap-1.5 bg-white cursor-pointer"
+                  >
+                    <Download className="size-3" />
+                    <span className="hidden sm:inline">Descargar</span>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className={`flex-1 min-h-0 ${isFullscreen ? "" : "h-[60vh]"}`}>
+              {!student.idEvidencia || !student.tieneArchivoEntrega ? (
+                <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-500 p-6 text-center">
+                  <FileX className="size-8 text-slate-300" />
+                  <p className="text-sm font-semibold text-slate-700">El alumno aún no ha subido un archivo</p>
+                  <p className="text-xs">Cuando entregue la actividad podrás revisarlo aquí.</p>
+                </div>
+              ) : entregaCargando ? (
+                <div className="h-full flex items-center justify-center gap-2 text-xs text-slate-500">
+                  <RefreshCw className="size-4 animate-spin" />
+                  Cargando archivo del alumno...
+                </div>
+              ) : entregaError ? (
+                <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <p className="text-xs text-rose-600 font-medium">{entregaError}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEntregaError(null);
+                      setEntregaIntento((n) => n + 1);
+                    }}
+                    className="text-xs h-8 gap-1.5 cursor-pointer"
+                  >
+                    <RefreshCw className="size-3" />
+                    Reintentar
+                  </Button>
+                </div>
+              ) : entregaUrl && entregaTipo.startsWith("image/") ? (
+                <div className="h-full overflow-auto flex items-start justify-center p-4">
+                  <img
+                    src={entregaUrl}
+                    alt={student.nombreArchivoEntrega || "Entrega del alumno"}
+                    className="max-w-full rounded-lg border border-slate-200 shadow-xs bg-white"
+                  />
+                </div>
+              ) : entregaUrl && (entregaTipo === "application/pdf" || entregaTipo.startsWith("text/")) ? (
+                <iframe
+                  src={entregaUrl}
+                  title={student.nombreArchivoEntrega || "Entrega del alumno"}
+                  className="w-full h-full border-0 bg-white"
+                />
+              ) : entregaUrl ? (
+                <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                  <FileText className="size-8 text-slate-300" />
+                  <p className="text-sm font-semibold text-slate-700">Este tipo de archivo no se puede previsualizar</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleDescargarEntrega}
+                    className="text-xs h-8 gap-1.5 bg-sky-700 hover:bg-sky-800 text-white cursor-pointer"
+                  >
+                    <Download className="size-3" />
+                    Descargar archivo
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Columna Izquierda: Información Académica del Estudiante */}
@@ -660,6 +844,7 @@ export function ModalEvaluaciones({
             </div>
           </div>
         </div>
+        )}
 
         {/* Footer del Modal */}
         <div className="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
@@ -711,13 +896,6 @@ export function ModalEvaluaciones({
           if (campoAEliminar === "archivo") handleQuitarArchivo();
           setCampoAEliminar(null);
         }}
-      />
-
-      {/* Confirmación al guardar si se borran datos previos */}
-      <ConfirmDeleteDialog
-        open={isDeleteSaveConfirmOpen}
-        onOpenChange={setIsDeleteSaveConfirmOpen}
-        onConfirm={() => handleGuardarEvaluacion(true)}
       />
     </div>
   );

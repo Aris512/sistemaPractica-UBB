@@ -20,4 +20,6 @@ public interface NotaRepository extends JpaRepository<Nota, Long> {
     Optional<Nota> findFirstByEstudianteIdEstudianteOrderByIdNotaDesc(Long idEstudiante);
 
     Optional<Nota> findFirstByEvaluacionIdEvaluacion(Long idEvaluacion);
+
+    List<Nota> findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(Long idEstudiante, String rutEvaluador);
 }

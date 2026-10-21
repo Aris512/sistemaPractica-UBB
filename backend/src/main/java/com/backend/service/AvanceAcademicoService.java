@@ -45,18 +45,15 @@ public class AvanceAcademicoService {
     private final ActividadRepository actividadRepository;
     private final EvidenciaRepository evidenciaRepository;
     private final AsignaturaRepository asignaturaRepository;
-    private final com.backend.repository.EstudianteRepository estudianteRepository;
 
     public AvanceAcademicoService(CursoAprobadoRepository cursoAprobadoRepository,
                                   ActividadRepository actividadRepository,
                                   EvidenciaRepository evidenciaRepository,
-                                  AsignaturaRepository asignaturaRepository,
-                                  com.backend.repository.EstudianteRepository estudianteRepository) {
+                                  AsignaturaRepository asignaturaRepository) {
         this.cursoAprobadoRepository = cursoAprobadoRepository;
         this.actividadRepository = actividadRepository;
         this.evidenciaRepository = evidenciaRepository;
         this.asignaturaRepository = asignaturaRepository;
-        this.estudianteRepository = estudianteRepository;
     }
 
     /** Resultado del cálculo para un estudiante en una asignatura. */
@@ -108,7 +105,8 @@ public class AvanceAcademicoService {
     /**
      * Recalcula y persiste en cursos_aprobados el estado del estudiante en la asignatura.
      * Se invoca cada vez que un profesor registra/actualiza una nota.
-     * Si aprueba su asignatura actual, avanza a la siguiente asignatura habilitada en el plan.
+     * No cambia la asignatura que cursa el estudiante: aprobar solo suma avance académico; el paso
+     * a otra asignatura lo asigna manualmente el administrador.
      */
     @Transactional
     public CursoAprobado recalcularYGuardar(Estudiante estudiante, Asignatura asignatura) {
@@ -128,21 +126,6 @@ public class AvanceAcademicoService {
         logger.info("Curso recalculado: estudiante={} asignatura={} estado={} promedio={} ({}/{} tareas calificadas)",
             estudiante.getIdEstudiante(), asignatura.getNombre(), resultado.estado(), registro.getPromedio(),
             resultado.tareasCalificadas(), resultado.tareasTotales());
-
-        // Si aprueba la asignatura en la que está matriculado actualmente, avanzar a la siguiente del plan
-        if (CursoAprobado.APROBADO.equals(resultado.estado())) {
-            Asignatura actual = estudiante.getAsignatura();
-            if (actual != null && actual.getIdAsignatura().equals(asignatura.getIdAsignatura())) {
-                List<Asignatura> plan = obtenerPlanOrdenado();
-                ResumenAvance avance = calcularAvance(estudiante, plan);
-                if (avance.siguienteAsignatura() != null && !avance.siguienteAsignatura().getIdAsignatura().equals(actual.getIdAsignatura())) {
-                    estudiante.setAsignatura(avance.siguienteAsignatura());
-                    estudianteRepository.save(estudiante);
-                    logger.info("Estudiante {} avanzó a la siguiente asignatura: {} (Semestre {})",
-                        estudiante.getIdEstudiante(), avance.siguienteAsignatura().getNombre(), avance.siguienteAsignatura().getSemestre());
-                }
-            }
-        }
 
         return guardado;
     }
@@ -166,12 +149,21 @@ public class AvanceAcademicoService {
     }
 
     /**
-     * Progreso real = asignaturas APROBADAS (persistidas en cursos_aprobados) / total del plan.
+     * Progreso real = asignaturas APROBADAS / total del plan.
+     * Una asignatura cuenta solo si el estudiante la aprobó con las notas vigentes: se exige que esté
+     * registrada en cursos_aprobados y que el cálculo actual sobre sus notas lo confirme, para que una
+     * nota eliminada por el profesor deje de sumar avance aunque el registro guardado esté desactualizado.
      * La siguiente asignatura habilitada es la primera del plan (por semestre) aún no aprobada.
      */
     @Transactional(readOnly = true)
     public ResumenAvance calcularAvance(Estudiante estudiante, List<Asignatura> plan) {
-        Map<Long, String> estados = obtenerEstadosPersistidos(estudiante);
+        Map<Long, String> persistidos = obtenerEstadosPersistidos(estudiante);
+        Map<Long, String> estados = new java.util.HashMap<>();
+        for (Asignatura a : plan) {
+            if (CursoAprobado.APROBADO.equals(persistidos.get(a.getIdAsignatura()))) {
+                estados.put(a.getIdAsignatura(), calcularCurso(estudiante, a).estado());
+            }
+        }
         int total = plan.size();
         int aprobadas = (int) plan.stream()
             .filter(a -> CursoAprobado.APROBADO.equals(estados.get(a.getIdAsignatura())))
