@@ -22,10 +22,14 @@ export interface ActividadEstudiante {
 
   // Evidencia del estudiante (null si no ha entregado)
   idEvidencia?: number;
-  estadoEvidencia?: "PENDIENTE" | "REVISADO" | "OBSERVADO";
+  estadoEvidencia?: "PENDIENTE" | "REVISADO" | "OBSERVADO" | "APROBADO" | "REPROBADO";
   fechaEntrega?: string;
   nombreArchivo?: string;
   archivoUrl?: string;
+  idArchivoAlumno?: number;
+  idArchivoProfesor?: number;
+  idNota?: number;
+  aprobado?: boolean;
   comentarioEstudiante?: string;
   calificacion?: number;
   retroalimentacion?: string;
@@ -90,11 +94,21 @@ export const getArchivoDownloadUrl = (relativePath: string): string => {
 };
 
 /** Elimina la evidencia entregada por el estudiante para una actividad */
-export const eliminarEvidencia = async (idEvidencia: number): Promise<void> => {
-  const response = await fetch(
-    `http://localhost:8080/api/evidencias/${idEvidencia}`,
-    { method: "DELETE" }
-  );
+export const eliminarEvidencia = async (
+  idEvidencia?: number | null,
+  idActividad?: number | null,
+  rutEstudiante?: string | null
+): Promise<void> => {
+  let url = "";
+  if (idEvidencia) {
+    url = `http://localhost:8080/api/evidencias/${idEvidencia}`;
+  } else if (idActividad && rutEstudiante) {
+    url = `http://localhost:8080/api/evidencias/actividad/${idActividad}/estudiante/${encodeURIComponent(rutEstudiante)}`;
+  } else {
+    throw new Error("Se requiere ID de evidencia o actividad para eliminar");
+  }
+
+  const response = await fetch(url, { method: "DELETE" });
   if (!response.ok) {
     let errorMsg = "Error al eliminar la entrega";
     try {

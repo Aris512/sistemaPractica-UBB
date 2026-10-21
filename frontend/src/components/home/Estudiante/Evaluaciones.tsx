@@ -99,7 +99,23 @@ function formatFechaHora(iso?: string): string {
 function estadoEvidenciaBadge(act: ActividadEstudiante) {
   const vencida = isPlazoVencido(act.fechaLimite);
 
-  if (!act.idEvidencia) {
+  if (act.estadoEvidencia === "APROBADO") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <CheckCircle2 className="size-3 text-emerald-600" />
+        Aprobado {act.calificacion != null ? `(${act.calificacion.toFixed(1)})` : ""}
+      </span>
+    );
+  }
+  if (act.estadoEvidencia === "REPROBADO") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+        <X className="size-3 text-rose-600" />
+        Reprobado {act.calificacion != null ? `(${act.calificacion.toFixed(1)})` : ""}
+      </span>
+    );
+  }
+  if (!act.idEvidencia && !act.nombreArchivo) {
     return vencida ? (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
         <X className="size-3" />
@@ -207,10 +223,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
   // ── Eliminar evidencia ────────────────────────────────────────────────────
 
   const handleEliminarEvidencia = async () => {
-    if (!selectedActividad?.idEvidencia) return;
+    if (!selectedActividad) return;
     setIsDeletingEvidencia(true);
     try {
-      await eliminarEvidencia(selectedActividad.idEvidencia);
+      await eliminarEvidencia(selectedActividad.idEvidencia, selectedActividad.idActividad, rutEstudiante);
       sileo.success({
         title: "Entrega eliminada",
         description: "Tu entrega fue eliminada correctamente.",
@@ -636,7 +652,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
               </div>
 
               {/* ── Sección: Mi entrega actual ── */}
-              {selectedActividad.idEvidencia ? (
+              {(selectedActividad.idEvidencia || selectedActividad.fechaEntrega || selectedActividad.nombreArchivo) ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
@@ -775,9 +791,9 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                     <Upload className="size-4" />
-                    {selectedActividad.idEvidencia
-                      ? "Actualizar mi entrega"
-                      : "Subir entrega"}
+                    {(selectedActividad.idEvidencia || selectedActividad.fechaEntrega || selectedActividad.nombreArchivo)
+                    ? "Actualizar mi entrega"
+                    : "Subir entrega"}
                   </p>
 
                   {/* Drop zone / selector de archivo */}
@@ -884,7 +900,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                   title="El plazo de entrega ha vencido"
                 >
                   <Upload className="size-3.5" />
-                  {selectedActividad.idEvidencia ? "Actualizar entrega (Deshabilitado)" : "Entregar actividad (Deshabilitado)"}
+                  {(selectedActividad.idEvidencia || selectedActividad.fechaEntrega || selectedActividad.nombreArchivo) ? "Actualizar entrega (Deshabilitado)" : "Entregar actividad (Deshabilitado)"}
                 </Button>
               ) : selectedActividad.estado === "ACTIVA" ? (
                 <Button
@@ -901,7 +917,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                   ) : (
                     <>
                       <Upload className="size-3.5" />
-                      {selectedActividad.idEvidencia ? "Actualizar" : "Entregar"}
+                      {(selectedActividad.idEvidencia || selectedActividad.fechaEntrega || selectedActividad.nombreArchivo) ? "Actualizar" : "Entregar"}
                     </>
                   )}
                 </Button>

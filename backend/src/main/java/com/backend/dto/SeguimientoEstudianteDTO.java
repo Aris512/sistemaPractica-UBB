@@ -16,6 +16,10 @@ public class SeguimientoEstudianteDTO {
     private LocalDateTime fechaSubida;
     private String nombreArchivo;
     private String archivoUrl;
+    private Long idArchivoAlumno;
+    private Long idArchivoProfesor;
+    private Long idNota;
+    private Boolean aprobado;
     private String comentarioEstudiante;
     private Double calificacion;
     private String retroalimentacion;
@@ -141,6 +145,38 @@ public class SeguimientoEstudianteDTO {
 
     public void setArchivoUrl(String archivoUrl) {
         this.archivoUrl = archivoUrl;
+    }
+
+    public Long getIdArchivoAlumno() {
+        return idArchivoAlumno;
+    }
+
+    public void setIdArchivoAlumno(Long idArchivoAlumno) {
+        this.idArchivoAlumno = idArchivoAlumno;
+    }
+
+    public Long getIdArchivoProfesor() {
+        return idArchivoProfesor;
+    }
+
+    public void setIdArchivoProfesor(Long idArchivoProfesor) {
+        this.idArchivoProfesor = idArchivoProfesor;
+    }
+
+    public Long getIdNota() {
+        return idNota;
+    }
+
+    public void setIdNota(Long idNota) {
+        this.idNota = idNota;
+    }
+
+    public Boolean getAprobado() {
+        return aprobado;
+    }
+
+    public void setAprobado(Boolean aprobado) {
+        this.aprobado = aprobado;
     }
 
     public String getComentarioEstudiante() {

@@ -32,4 +32,12 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
     List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignaturaAndCalificacionIsNotNull(
         Long idEstudiante, Long idAsignatura
     );
+
+    boolean existsByEstudianteIdEstudianteAndActividadProfesorUsuarioRutAndActividadAsignaturaIdAsignatura(
+        Long idEstudiante, String rutProfesor, Long idAsignatura
+    );
+
+    Optional<Evidencia> findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(
+        Long idEstudiante, String rutProfesor
+    );
 }

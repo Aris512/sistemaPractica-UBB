@@ -12,13 +12,17 @@ import com.backend.dto.RevisionEvidenciaDTO;
 import com.backend.dto.SeguimientoEstudianteDTO;
 import com.backend.dto.SubirEvidenciaDTO;
 import com.backend.model.Actividad;
+import com.backend.model.Documento;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
+import com.backend.model.Nota;
 import com.backend.model.Profesor;
 import com.backend.model.Usuario;
 import com.backend.repository.ActividadRepository;
+import com.backend.repository.DocumentoRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.NotaRepository;
 import com.backend.repository.ProfesorRepository;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +34,8 @@ public class EvidenciaService {
     private final ActividadRepository actividadRepository;
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
+    private final DocumentoRepository documentoRepository;
+    private final NotaRepository notaRepository;
     private final FileStorageService fileStorageService;
     private final AvanceAcademicoService avanceAcademicoService;
 
@@ -37,12 +43,16 @@ public class EvidenciaService {
                             ActividadRepository actividadRepository,
                             EstudianteRepository estudianteRepository,
                             ProfesorRepository profesorRepository,
+                            DocumentoRepository documentoRepository,
+                            NotaRepository notaRepository,
                             FileStorageService fileStorageService,
                             AvanceAcademicoService avanceAcademicoService) {
         this.evidenciaRepository = evidenciaRepository;
         this.actividadRepository = actividadRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
+        this.documentoRepository = documentoRepository;
+        this.notaRepository = notaRepository;
         this.fileStorageService = fileStorageService;
         this.avanceAcademicoService = avanceAcademicoService;
     }
@@ -103,7 +113,7 @@ public class EvidenciaService {
 
             if (ev != null) {
                 String estadoRevision = ev.getEstado() != null ? ev.getEstado() : "PENDIENTE_REVISION";
-                resultado.add(new SeguimientoEstudianteDTO(
+                SeguimientoEstudianteDTO dto = new SeguimientoEstudianteDTO(
                         est.getIdEstudiante(),
                         ev.getIdEvidencia(),
                         ev.getActividad() != null ? ev.getActividad().getIdActividad() : null,
@@ -120,7 +130,12 @@ public class EvidenciaService {
                         ev.getCalificacion(),
                         ev.getRetroalimentacion(),
                         ev.getFechaRevision()
-                ));
+                );
+                dto.setIdArchivoAlumno(ev.getIdArchivoAlumno());
+                dto.setIdArchivoProfesor(ev.getIdArchivoProfesor());
+                dto.setIdNota(ev.getIdNota());
+                dto.setAprobado(ev.getAprobado());
+                resultado.add(dto);
             } else {
                 resultado.add(new SeguimientoEstudianteDTO(
                         est.getIdEstudiante(),
@@ -196,6 +211,98 @@ public class EvidenciaService {
         return evidenciaRepository.save(evidencia);
     }
 
+    /**
+     * Guarda el archivo de entrega y lo asocia tanto al documento como a la
+     * evidencia de la actividad. Si el estudiante ya entregó, se reemplaza su
+     * archivo mientras el plazo permanezca vigente.
+     */
+    @Transactional
+    public Documento subirArchivoEstudiante(Long idActividad, String rutEstudiante,
+                                             String comentario, MultipartFile archivo) {
+        Actividad actividad = actividadRepository.findById(idActividad)
+                .orElseThrow(() -> new IllegalArgumentException("Actividad no encontrada con ID: " + idActividad));
+        validarPlazoEntrega(actividad);
+
+        Estudiante estudiante = estudianteRepository.findByUsuarioRut(rutEstudiante)
+                .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado con RUT: " + rutEstudiante));
+
+        FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+                archivo,
+                "evidencias-estudiantes",
+                List.of("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "png", "jpg", "jpeg", "zip")
+        );
+
+        Documento documento = crearDocumento(stored, estudiante.getUsuario(), estudiante, actividad,
+                "EVIDENCIA_ESTUDIANTE");
+        Documento guardado = documentoRepository.save(documento);
+
+        Evidencia evidencia = evidenciaRepository
+                .findByActividadIdActividadAndEstudianteUsuarioRut(idActividad, rutEstudiante)
+                .orElseGet(() -> new Evidencia(actividad, estudiante, guardado, null, null));
+
+        String archivoAnterior = evidencia.getArchivoUrl();
+        evidencia.setArchivoAlumno(guardado);
+        evidencia.setNombreArchivo(guardado.getNombre());
+        evidencia.setArchivoUrl(guardado.getUbicacion());
+        evidencia.setComentarioEstudiante(comentario);
+        evidencia.setFechaEntrega(LocalDateTime.now());
+        evidencia.setEstado("PENDIENTE");
+        evidenciaRepository.save(evidencia);
+
+        if (archivoAnterior != null && !archivoAnterior.equals(guardado.getUbicacion())) {
+            fileStorageService.deleteFile(archivoAnterior);
+        }
+        return guardado;
+    }
+
+    /** Califica una entrega existente y permite adjuntar una revisión del profesor. */
+    @Transactional
+    public Evidencia calificarORevisarActividad(Long idActividad, String rutEstudiante,
+                                                 String rutProfesor, Double calificacion,
+                                                 String observacion, MultipartFile archivoRevision) {
+        if (calificacion == null || calificacion < 1.0 || calificacion > 7.0) {
+            throw new IllegalArgumentException("La calificación debe estar entre 1.0 y 7.0.");
+        }
+
+        Estudiante estudiante = estudianteRepository.findByUsuarioRut(rutEstudiante)
+                .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado con RUT: " + rutEstudiante));
+        Profesor profesor = profesorRepository.findByUsuarioRut(rutProfesor)
+                .orElseThrow(() -> new IllegalArgumentException("Profesor no encontrado con RUT: " + rutProfesor));
+        Evidencia evidencia = evidenciaRepository
+                .findByActividadIdActividadAndEstudianteUsuarioRut(idActividad, rutEstudiante)
+                .orElseThrow(() -> new IllegalArgumentException("El estudiante no tiene una entrega para esta actividad."));
+
+        if (archivoRevision != null && !archivoRevision.isEmpty()) {
+            FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+                    archivoRevision,
+                    "revisiones-evidencias",
+                    List.of("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "png", "jpg", "jpeg", "zip")
+            );
+            Documento documento = documentoRepository.save(crearDocumento(
+                    stored, profesor.getUsuario(), estudiante, evidencia.getActividad(), "EVIDENCIA_REVISION"));
+            String archivoAnterior = evidencia.getArchivoRevisionUrl();
+            evidencia.setArchivoProfesor(documento);
+            evidencia.setNombreArchivoRevision(documento.getNombre());
+            evidencia.setArchivoRevisionUrl(documento.getUbicacion());
+            if (archivoAnterior != null && !archivoAnterior.equals(documento.getUbicacion())) {
+                fileStorageService.deleteFile(archivoAnterior);
+            }
+        }
+
+        Nota nota = evidencia.getNota() != null ? evidencia.getNota() : new Nota();
+        nota.setEstudiante(estudiante);
+        nota.setPuntajeObtenido(calificacion);
+        nota.setRutEvaluador(rutProfesor);
+        evidencia.setNota(notaRepository.save(nota));
+        evidencia.setRevisadoPor(profesor);
+        evidencia.setRetroalimentacion(observacion);
+        evidencia.setFechaRevision(LocalDateTime.now());
+        evidencia.setCalificacion(calificacion);
+        Evidencia guardada = evidenciaRepository.save(evidencia);
+        actualizarAvanceCurso(guardada);
+        return guardada;
+    }
+
     @Transactional
     public Evidencia revisarEvidencia(Long idEvidencia, RevisionEvidenciaDTO dto) {
         Evidencia evidencia = evidenciaRepository.findById(idEvidencia)
@@ -267,11 +374,35 @@ public class EvidenciaService {
     public void eliminar(Long id) {
         Evidencia evidencia = evidenciaRepository.findById(id).orElse(null);
         if (evidencia != null) {
-            Actividad actividad = evidencia.getActividad();
-            if (actividad != null && actividad.getFechaLimite() != null && LocalDateTime.now().isAfter(actividad.getFechaLimite())) {
-                throw new IllegalArgumentException("El plazo de entrega ha vencido. No se permiten modificaciones ni eliminar la entrega.");
-            }
-            evidenciaRepository.delete(evidencia);
+            eliminarEvidencia(evidencia);
         }
+    }
+
+    @Transactional
+    public void eliminarEntregaEstudiante(Long idActividad, String rutEstudiante) {
+        Evidencia evidencia = evidenciaRepository
+                .findByActividadIdActividadAndEstudianteUsuarioRut(idActividad, rutEstudiante)
+                .orElseThrow(() -> new IllegalArgumentException("No existe una entrega para la actividad y estudiante indicados."));
+        eliminarEvidencia(evidencia);
+    }
+
+    private Documento crearDocumento(FileStorageService.StoredFileResult stored, Usuario usuario,
+                                     Estudiante estudiante, Actividad actividad, String tipo) {
+        Documento documento = new Documento(stored.originalFilename(), tipo, stored.relativePath(), usuario);
+        documento.setTamanioBytes(stored.sizeBytes());
+        documento.setRutEstudiante(estudiante.getUsuario().getRut());
+        documento.setAsignatura(actividad.getAsignatura());
+        documento.setActividad(actividad);
+        return documento;
+    }
+
+    private void eliminarEvidencia(Evidencia evidencia) {
+        Actividad actividad = evidencia.getActividad();
+        if (actividad != null) {
+            validarPlazoEntrega(actividad);
+        }
+        fileStorageService.deleteFile(evidencia.getArchivoUrl());
+        fileStorageService.deleteFile(evidencia.getArchivoRevisionUrl());
+        evidenciaRepository.delete(evidencia);
     }
 }

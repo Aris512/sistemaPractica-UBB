@@ -17,17 +17,22 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.dto.EstudianteEvaluacionDTO;
 import com.backend.dto.GuardarEvaluacionProfesorRequest;
 import com.backend.model.Asignatura;
+import com.backend.model.Documento;
 import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
+import com.backend.model.Evidencia;
 import com.backend.model.Nota;
 import com.backend.model.ObservacionEvaluacion;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
 import com.backend.model.Usuario;
 import com.backend.repository.DocumentoPracticaRepository;
+import com.backend.repository.DocumentoRepository;
+import com.backend.repository.ActividadRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
+import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionEvaluacionRepository;
 import com.backend.repository.PracticaRepository;
@@ -48,6 +53,10 @@ public class EvaluacionService {
     private final UsuarioRepository usuarioRepository;
     private final ObservacionEvaluacionRepository observacionEvaluacionRepository;
     private final FileStorageService fileStorageService;
+    private final DocumentoRepository documentoRepository;
+    private final EvidenciaRepository evidenciaRepository;
+    private final AvanceAcademicoService avanceAcademicoService;
+    private final ActividadRepository actividadRepository;
 
     public EvaluacionService(
             EvaluacionRepository evaluacionRepository,
@@ -58,7 +67,11 @@ public class EvaluacionService {
             DocumentoPracticaRepository documentoPracticaRepository,
             UsuarioRepository usuarioRepository,
             ObservacionEvaluacionRepository observacionEvaluacionRepository,
-            FileStorageService fileStorageService) {
+            FileStorageService fileStorageService,
+            DocumentoRepository documentoRepository,
+            EvidenciaRepository evidenciaRepository,
+            AvanceAcademicoService avanceAcademicoService,
+            ActividadRepository actividadRepository) {
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
         this.profesorRepository = profesorRepository;
@@ -68,6 +81,10 @@ public class EvaluacionService {
         this.usuarioRepository = usuarioRepository;
         this.observacionEvaluacionRepository = observacionEvaluacionRepository;
         this.fileStorageService = fileStorageService;
+        this.documentoRepository = documentoRepository;
+        this.evidenciaRepository = evidenciaRepository;
+        this.avanceAcademicoService = avanceAcademicoService;
+        this.actividadRepository = actividadRepository;
     }
 
     public List<Evaluacion> obtenerTodos() {
@@ -100,20 +117,26 @@ public class EvaluacionService {
         Set<Long> estudiantesProcesados = new HashSet<>();
 
         for (Asignatura asignatura : asignaturas) {
+            boolean tieneActividadCreada = actividadRepository
+                    .existsByProfesorUsuarioRutAndAsignaturaIdAsignatura(
+                            rutProfesor, asignatura.getIdAsignatura());
+            if (!tieneActividadCreada) {
+                continue;
+            }
+
             List<Estudiante> estudiantes = estudianteRepository.findByAsignaturaIdAsignatura(asignatura.getIdAsignatura());
             for (Estudiante estudiante : estudiantes) {
                 if (!estudiantesProcesados.add(estudiante.getIdEstudiante())) {
                     continue;
                 }
 
-                // Estado de entrega (Documentos)
-                long docCount = 0;
-                if (estudiante.getUsuario() != null) {
-                    docCount = documentoPracticaRepository.countByEstudianteRutAndAsignaturaIdAsignatura(
-                            estudiante.getUsuario().getRut(), asignatura.getIdAsignatura()
-                    );
-                }
-                String estadoEntrega = docCount > 0 ? "ENTREGADO" : "NO_ENTREGADO";
+                // Las tareas se entregan como Evidencia, no como DocumentoPractica.
+                // Se limita al mismo profesor y asignatura para no mezclar entregas
+                // de otras actividades del estudiante.
+                boolean tieneEntrega = evidenciaRepository
+                        .existsByEstudianteIdEstudianteAndActividadProfesorUsuarioRutAndActividadAsignaturaIdAsignatura(
+                                estudiante.getIdEstudiante(), rutProfesor, asignatura.getIdAsignatura());
+                String estadoEntrega = tieneEntrega ? "ENTREGADO" : "NO_ENTREGADO";
 
                 // Práctica asociada
                 List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante());
@@ -245,7 +268,8 @@ public class EvaluacionService {
                 : null;
 
         // CASO A: Se eliminaron tanto la nota como la observación (ambos null)
-        if (req.getPuntajeObtenido() == null && obsLimpia == null) {
+        if (req.getPuntajeObtenido() == null && obsLimpia == null
+                && !Boolean.TRUE.equals(req.getConservarEvaluacionPorArchivo())) {
             if (notaExistente != null) {
                 notaRepository.delete(notaExistente);
                 notaRepository.flush();
@@ -305,6 +329,8 @@ public class EvaluacionService {
             notaExistente = new Nota(evaluacion, estudiante, req.getPuntajeObtenido(), profesor.getUsuario().getRut());
             notaExistente = notaRepository.save(notaExistente);
         }
+
+        sincronizarRevisionEnEvidencia(estudiante, profesor, notaExistente, obsLimpia);
 
         return construirDTO(estudiante, evaluacion, notaExistente);
     }
@@ -378,6 +404,144 @@ public class EvaluacionService {
         }
 
         return construirDTO(estudiante, evaluacion, nota);
+    }
+
+    @Transactional
+    public EstudianteEvaluacionDTO eliminarEvaluacionYEntregasCompletas(Long idEstudiante) {
+        Estudiante estudiante = estudianteRepository.findById(idEstudiante)
+                .orElseThrow(() -> new RuntimeException("Estudiante no encontrado con ID: " + idEstudiante));
+
+        String rutEstudiante = estudiante.getUsuario() != null ? estudiante.getUsuario().getRut() : null;
+        Asignatura asignatura = estudiante.getAsignatura();
+
+        // 1. Eliminar evidencias vinculadas al estudiante y sus documentos físicos asociados
+        List<Evidencia> evidencias = new ArrayList<>(evidenciaRepository.findByEstudianteIdEstudiante(idEstudiante));
+        if (rutEstudiante != null) {
+            List<Evidencia> evsRut = evidenciaRepository.findByEstudianteUsuarioRutOrderByFechaEntregaDesc(rutEstudiante);
+            for (Evidencia er : evsRut) {
+                if (!evidencias.contains(er)) {
+                    evidencias.add(er);
+                }
+            }
+        }
+
+        Set<Documento> docsFisicosParaBorrar = new HashSet<>();
+        for (Evidencia ev : evidencias) {
+            if (ev.getArchivoAlumno() != null) {
+                docsFisicosParaBorrar.add(ev.getArchivoAlumno());
+                ev.setArchivoAlumno(null);
+            }
+            if (ev.getArchivoProfesor() != null) {
+                docsFisicosParaBorrar.add(ev.getArchivoProfesor());
+                ev.setArchivoProfesor(null);
+            }
+            ev.setNota(null);
+        }
+        evidenciaRepository.saveAllAndFlush(evidencias);
+        evidenciaRepository.deleteAll(evidencias);
+        evidenciaRepository.flush();
+
+        for (Documento doc : docsFisicosParaBorrar) {
+            if (doc.getUbicacion() != null) {
+                fileStorageService.deleteFile(doc.getUbicacion());
+            }
+            try {
+                documentoRepository.delete(doc);
+            } catch (Exception ex) {
+                logger.warn("No se pudo eliminar documento de evidencia {}: {}", doc.getIdDocumento(), ex.getMessage());
+            }
+        }
+        documentoRepository.flush();
+
+        // 2. Eliminar documentos del estudiante en la tabla Documento asociados a actividades o entregas
+        if (rutEstudiante != null) {
+            List<Documento> docsEstudiante = documentoRepository.findByRutEstudiante(rutEstudiante);
+            for (Documento d : docsEstudiante) {
+                if (d.getActividad() != null || "ACTIVIDAD_ALUMNO".equalsIgnoreCase(d.getTipo()) || (d.getTipo() != null && d.getTipo().startsWith("ACTIVIDAD"))) {
+                    if (d.getUbicacion() != null) {
+                        fileStorageService.deleteFile(d.getUbicacion());
+                    }
+                    try {
+                        documentoRepository.delete(d);
+                    } catch (Exception ex) {
+                        logger.warn("No se pudo eliminar documento de actividad {}: {}", d.getIdDocumento(), ex.getMessage());
+                    }
+                }
+            }
+            documentoRepository.flush();
+        }
+
+        // 3. Eliminar documentos de práctica del estudiante en la tabla DocumentoPractica
+        if (rutEstudiante != null) {
+            List<DocumentoPractica> docPracticas = documentoPracticaRepository.findByEstudianteRut(rutEstudiante);
+            for (DocumentoPractica dp : docPracticas) {
+                if (dp.getUbicacion() != null) {
+                    fileStorageService.deleteFile(dp.getUbicacion());
+                }
+                try {
+                    documentoPracticaRepository.delete(dp);
+                } catch (Exception ex) {
+                    logger.warn("No se pudo eliminar DocumentoPractica {}: {}", dp.getIdDocumentoPractica(), ex.getMessage());
+                }
+            }
+            documentoPracticaRepository.flush();
+        }
+
+        // 4. Eliminar Notas y Evaluaciones del estudiante
+        List<Nota> notas = notaRepository.findByEstudianteIdEstudiante(idEstudiante);
+        Set<Long> evaluacionesProcesadas = new HashSet<>();
+
+        for (Nota nota : notas) {
+            Evaluacion evaluacion = nota.getEvaluacion();
+            notaRepository.delete(nota);
+            notaRepository.flush();
+
+            if (evaluacion != null && evaluacionesProcesadas.add(evaluacion.getIdEvaluacion())) {
+                limpiarOEliminarEvaluacion(evaluacion);
+            }
+        }
+
+        List<Evaluacion> evsEstudiante = evaluacionRepository.findByPracticaEstudianteIdEstudiante(idEstudiante);
+        for (Evaluacion ev : evsEstudiante) {
+            if (evaluacionesProcesadas.add(ev.getIdEvaluacion())) {
+                limpiarOEliminarEvaluacion(ev);
+            }
+        }
+
+        // 5. Recalcular progreso en AvanceAcademico
+        if (asignatura != null) {
+            try {
+                avanceAcademicoService.recalcularYGuardar(estudiante, asignatura);
+            } catch (Exception e) {
+                logger.warn("No se pudo recalcular avance académico tras eliminación: {}", e.getMessage());
+            }
+        }
+
+        return construirDTO(estudiante, null, null);
+    }
+
+    private void limpiarOEliminarEvaluacion(Evaluacion evaluacion) {
+        if (evaluacion == null) return;
+        if (evaluacion.getPractica() == null) {
+            List<ObservacionEvaluacion> obsHijas = observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(evaluacion.getIdEvaluacion());
+            if (!obsHijas.isEmpty()) {
+                observacionEvaluacionRepository.deleteAll(obsHijas);
+                observacionEvaluacionRepository.flush();
+            }
+            if (evaluacion.getArchivoUrl() != null) {
+                fileStorageService.deleteFile(evaluacion.getArchivoUrl());
+            }
+            evaluacionRepository.delete(evaluacion);
+            evaluacionRepository.flush();
+        } else {
+            evaluacion.setObservacion(null);
+            if (evaluacion.getArchivoUrl() != null) {
+                fileStorageService.deleteFile(evaluacion.getArchivoUrl());
+                evaluacion.setArchivoUrl(null);
+                evaluacion.setNombreArchivo(null);
+            }
+            evaluacionRepository.save(evaluacion);
+        }
     }
 
     private EstudianteEvaluacionDTO construirDTO(Estudiante estudiante, Evaluacion evaluacion, Nota nota) {
@@ -518,6 +682,7 @@ public class EvaluacionService {
         req.setTipoEvaluacion(tipoEvaluacion);
         req.setPuntajeObtenido(puntajeObtenido);
         req.setObservacion(observacion);
+        req.setConservarEvaluacionPorArchivo(file != null && !file.isEmpty());
 
         EstudianteEvaluacionDTO dto = guardarEvaluacionProfesor(req);
 
@@ -534,6 +699,7 @@ public class EvaluacionService {
                     evaluacion.setNombreArchivo(null);
                     evaluacion = evaluacionRepository.save(evaluacion);
                 }
+                limpiarArchivoRevisionEnEvidencia(idEstudiante, rutProfesor);
             } else if (file != null && !file.isEmpty()) {
                 if (evaluacion.getArchivoUrl() != null) {
                     fileStorageService.deleteFile(evaluacion.getArchivoUrl());
@@ -546,6 +712,7 @@ public class EvaluacionService {
                 evaluacion.setArchivoUrl(stored.relativePath());
                 evaluacion.setNombreArchivo(stored.originalFilename());
                 evaluacion = evaluacionRepository.save(evaluacion);
+                sincronizarArchivoRevisionEnEvidencia(idEstudiante, rutProfesor, stored);
 
                 // Sincronizar como DocumentoPractica del profesor para que aparezca en el expediente
                 try {
@@ -576,6 +743,79 @@ public class EvaluacionService {
         }
 
         return dto;
+    }
+
+    private void sincronizarRevisionEnEvidencia(Estudiante estudiante, Profesor profesor,
+                                                Nota nota, String observacion) {
+        evidenciaRepository
+                .findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(
+                        estudiante.getIdEstudiante(), profesor.getUsuario().getRut())
+                .ifPresent(evidencia -> {
+                    evidencia.setNota(nota);
+                    evidencia.setRevisadoPor(profesor);
+                    evidencia.setRetroalimentacion(observacion);
+                    evidencia.setFechaRevision(LocalDateTime.now());
+                    if (nota.getPuntajeObtenido() != null) {
+                        evidencia.setCalificacion(nota.getPuntajeObtenido());
+                    } else {
+                        evidencia.setEstado("REVISADO");
+                    }
+                    evidenciaRepository.save(evidencia);
+                    actualizarAvanceDesdeEvidencia(evidencia);
+                });
+    }
+
+    private void sincronizarArchivoRevisionEnEvidencia(Long idEstudiante, String rutProfesor,
+                                                        FileStorageService.StoredFileResult stored) {
+        Estudiante estudiante = estudianteRepository.findById(idEstudiante).orElse(null);
+        Profesor profesor = profesorRepository.findByUsuarioRut(rutProfesor).orElse(null);
+        if (estudiante == null || profesor == null || estudiante.getUsuario() == null) {
+            return;
+        }
+
+        evidenciaRepository
+                .findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(
+                        idEstudiante, rutProfesor)
+                .ifPresent(evidencia -> {
+                    Documento documento = new Documento(
+                            stored.originalFilename(), "EVIDENCIA_REVISION", stored.relativePath(), profesor.getUsuario());
+                    documento.setTamanioBytes(stored.sizeBytes());
+                    documento.setRutEstudiante(estudiante.getUsuario().getRut());
+                    documento.setAsignatura(evidencia.getAsignatura());
+                    documento.setActividad(evidencia.getActividad());
+
+                    Documento guardado = documentoRepository.save(documento);
+                    evidencia.setArchivoProfesor(guardado);
+                    evidencia.setNombreArchivoRevision(guardado.getNombre());
+                    evidencia.setArchivoRevisionUrl(guardado.getUbicacion());
+                    evidencia.setRevisadoPor(profesor);
+                    evidencia.setFechaRevision(LocalDateTime.now());
+                    if (evidencia.getCalificacion() == null) {
+                        evidencia.setEstado("REVISADO");
+                    }
+                    evidenciaRepository.save(evidencia);
+                });
+    }
+
+    private void limpiarArchivoRevisionEnEvidencia(Long idEstudiante, String rutProfesor) {
+        evidenciaRepository
+                .findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(
+                        idEstudiante, rutProfesor)
+                .ifPresent(evidencia -> {
+                    evidencia.setArchivoProfesor(null);
+                    evidencia.setNombreArchivoRevision(null);
+                    evidencia.setArchivoRevisionUrl(null);
+                    evidenciaRepository.save(evidencia);
+                });
+    }
+
+    private void actualizarAvanceDesdeEvidencia(Evidencia evidencia) {
+        if (evidencia.getEstudiante() != null
+                && evidencia.getActividad() != null
+                && evidencia.getActividad().getAsignatura() != null) {
+            avanceAcademicoService.recalcularYGuardar(
+                    evidencia.getEstudiante(), evidencia.getActividad().getAsignatura());
+        }
     }
 
     public Resource obtenerRecursoArchivo(Long idEvaluacion) {

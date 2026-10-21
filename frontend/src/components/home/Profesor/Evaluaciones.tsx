@@ -14,16 +14,19 @@ import {
   BookOpen,
   ChevronDown,
   Paperclip,
+  Trash2,
 } from "lucide-react";
 import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
 import {
   getEstudiantesProfesor,
+  eliminarEvaluacionCompleta,
   type EstudianteEvaluacion,
 } from "../../../services/profesorEvaluacionApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalEvaluaciones } from "./ModalEvaluaciones";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 
 interface EvaluacionesProps {
   user?: UserSession;
@@ -48,6 +51,9 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
 
   // ── Modal de Evaluación ──
   const [selectedStudent, setSelectedStudent] = useState<EstudianteEvaluacion | null>(null);
+
+  // ── Modal de Confirmación de Eliminación ──
+  const [studentToDelete, setStudentToDelete] = useState<EstudianteEvaluacion | null>(null);
 
   // Cargar estudiantes del profesor
   const cargarEstudiantes = async () => {
@@ -86,6 +92,28 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
     setEstudiantes((prev) =>
       prev.map((est) => (est.idEstudiante === updated.idEstudiante ? updated : est))
     );
+  };
+
+  // Eliminar completamente entrega, nota y observación directamente desde la tabla
+  const handleConfirmDelete = async () => {
+    if (!studentToDelete) return;
+    try {
+      const updated = await eliminarEvaluacionCompleta(studentToDelete.idEstudiante);
+      setEstudiantes((prev) =>
+        prev.map((est) => (est.idEstudiante === updated.idEstudiante ? updated : est))
+      );
+      sileo.success({
+        title: "Evaluación eliminada",
+        description: `Se eliminaron las entregas, la nota y la observación de ${studentToDelete.nombre} ${studentToDelete.apellido}.`,
+      });
+      setStudentToDelete(null);
+    } catch (err: any) {
+      console.error("Error al eliminar evaluación completa:", err);
+      sileo.error({
+        title: "Error al eliminar",
+        description: err?.message || "No se pudo eliminar la entrega, nota y observación del estudiante.",
+      });
+    }
   };
 
 
@@ -515,15 +543,45 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
 
                         {/* Botón de acción */}
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenModal(student)}
-                            className="h-8 px-3 text-xs gap-1.5 font-medium border-sky-200 text-sky-800 bg-sky-50/50 hover:bg-sky-100 hover:border-sky-300 transition-all cursor-pointer shadow-2xs"
-                          >
-                            <Award className="size-3.5" />
-                            {student.nota != null ? "Ver detalles" : "Evaluar"}
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenModal(student)}
+                              className="h-8 px-3 text-xs gap-1.5 font-medium border-sky-200 text-sky-800 bg-sky-50/50 hover:bg-sky-100 hover:border-sky-300 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <Award className="size-3.5" />
+                              {student.nota != null ? "Ver detalles" : "Evaluar"}
+                            </Button>
+
+                            {(() => {
+                              const tieneContenido =
+                                student.estadoEntrega === "ENTREGADO" ||
+                                student.nota != null ||
+                                !!student.observacion ||
+                                !!student.tieneArchivo;
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setStudentToDelete(student)}
+                                  disabled={!tieneContenido}
+                                  title={
+                                    tieneContenido
+                                      ? "Eliminar entrega, nota y observación del estudiante"
+                                      : "Sin entregas ni evaluaciones para eliminar"
+                                  }
+                                  className={`p-2 rounded-lg border transition-all inline-flex items-center justify-center ${
+                                    tieneContenido
+                                      ? "text-rose-600 bg-rose-50/60 hover:bg-rose-100 hover:text-rose-700 border-rose-200/80 hover:border-rose-300 cursor-pointer shadow-2xs"
+                                      : "text-slate-300 bg-slate-50 border-slate-200/50 cursor-not-allowed opacity-50"
+                                  }`}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </button>
+                              );
+                            })()}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -588,6 +646,23 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         profesorRut={profesorRut}
         onClose={handleCloseModal}
         onSaved={handleStudentUpdated}
+      />
+
+      {/* ── MODAL DE CONFIRMACIÓN DE ELIMINACIÓN COMPLETA ── */}
+      <ConfirmDeleteDialog
+        open={!!studentToDelete}
+        onOpenChange={(open) => {
+          if (!open) setStudentToDelete(null);
+        }}
+        title="Eliminar entrega, nota y observación"
+        description={
+          studentToDelete
+            ? `¿Estás seguro de que deseas eliminar la evaluación de ${studentToDelete.nombre} ${studentToDelete.apellido}? Se eliminarán los archivos entregados por el alumno, la calificación asignada (${
+                studentToDelete.nota != null ? studentToDelete.nota.toFixed(1) : "sin nota"
+              }) y la observación pedagógica. Esta acción no se puede deshacer.`
+            : "Esta acción no se puede deshacer."
+        }
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

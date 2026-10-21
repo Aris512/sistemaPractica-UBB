@@ -63,6 +63,23 @@ export function filterEstudiantes(
   });
 }
 
+function extractFilenameFromHeader(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback;
+  const utf8Match = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition);
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch {
+      return utf8Match[1].trim();
+    }
+  }
+  const match = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i.exec(disposition);
+  if (match && match[1]) {
+    return match[1].replace(/['"]/g, "").trim();
+  }
+  return fallback;
+}
+
 export function useDocumentosFeatures(initialPageSize = 10) {
   const [data, setData] = useState<EstudianteDocumentoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,14 +290,10 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       a.href = url;
 
       // Extraer nombre de archivo si viene en el header Content-Disposition
-      const disposition = res.headers.get("Content-Disposition");
-      let filename = fallbackFilename;
-      if (disposition && disposition.includes("filename=")) {
-        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-        if (matches != null && matches[1]) {
-          filename = matches[1].replace(/['"]/g, "");
-        }
-      }
+      const filename = extractFilenameFromHeader(
+        res.headers.get("Content-Disposition"),
+        fallbackFilename
+      );
 
       a.download = filename;
       document.body.appendChild(a);
@@ -330,14 +343,8 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       const a = document.createElement("a");
       a.href = url;
 
-      const disposition = res.headers.get("Content-Disposition");
-      let filename = nombreArchivoFallback || (tipo === "ESTUDIANTE" ? `entrega_${idEvidencia}` : `revision_${idEvidencia}`);
-      if (disposition && disposition.includes("filename=")) {
-        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-        if (matches != null && matches[1]) {
-          filename = matches[1].replace(/['"]/g, "");
-        }
-      }
+      const fallbackName = nombreArchivoFallback || (tipo === "ESTUDIANTE" ? `entrega_${idEvidencia}` : `revision_${idEvidencia}`);
+      const filename = extractFilenameFromHeader(res.headers.get("Content-Disposition"), fallbackName);
 
       a.download = filename;
       document.body.appendChild(a);
@@ -383,14 +390,8 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       const a = document.createElement("a");
       a.href = url;
 
-      const disposition = res.headers.get("Content-Disposition");
-      let filename = `tarea_${idEvidencia}_expediente.zip`;
-      if (disposition && disposition.includes("filename=")) {
-        const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
-        if (matches != null && matches[1]) {
-          filename = matches[1].replace(/['"]/g, "");
-        }
-      }
+      const fallbackTaskZip = `tarea_${idEvidencia}_expediente.zip`;
+      const filename = extractFilenameFromHeader(res.headers.get("Content-Disposition"), fallbackTaskZip);
 
       a.download = filename;
       document.body.appendChild(a);

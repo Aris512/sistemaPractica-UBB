@@ -7,11 +7,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Normalizer;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -27,25 +30,21 @@ import com.backend.dto.DocumentoItemDTO;
 import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.dto.ProfesorContactoDTO;
 import com.backend.dto.TareaSeguimientoDTO;
+import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
 import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
+import com.backend.model.Evidencia;
 import com.backend.model.Profesor;
 import com.backend.model.Usuario;
-import com.backend.model.Actividad;
-import com.backend.model.Evidencia;
 import com.backend.repository.ActividadRepository;
+import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.EstudianteRepository;
-import com.backend.repository.ProfesorRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.ProfesorRepository;
 import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
-
-import java.util.Map;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.stream.Collectors;
 
 @Service
 public class DocumentoPracticaService {
@@ -57,7 +56,7 @@ public class DocumentoPracticaService {
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
     private final UsuarioRepository usuarioRepository;
-    private final com.backend.repository.AsignaturaRepository asignaturaRepository;
+    private final AsignaturaRepository asignaturaRepository;
     private final FileStorageService fileStorageService;
     private final EvidenciaRepository evidenciaRepository;
     private final AvanceAcademicoService avanceAcademicoService;
@@ -67,7 +66,7 @@ public class DocumentoPracticaService {
                                    EstudianteRepository estudianteRepository,
                                    ProfesorRepository profesorRepository,
                                    UsuarioRepository usuarioRepository,
-                                   com.backend.repository.AsignaturaRepository asignaturaRepository,
+                                   AsignaturaRepository asignaturaRepository,
                                    FileStorageService fileStorageService,
                                    EvidenciaRepository evidenciaRepository,
                                    AvanceAcademicoService avanceAcademicoService,
@@ -83,7 +82,6 @@ public class DocumentoPracticaService {
         this.actividadRepository = actividadRepository;
         initUploadsDirectory();
     }
-
 
     private void initUploadsDirectory() {
         try {
@@ -361,6 +359,13 @@ public class DocumentoPracticaService {
                         profRevisorRut = act.getProfesor().getUsuario().getRut();
                     }
 
+                    boolean tieneArchivoEst = (ev.getNombreArchivo() != null && !ev.getNombreArchivo().isBlank())
+                        || (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank())
+                        || ev.getArchivoAlumno() != null;
+                    boolean tieneArchivoRev = (ev.getNombreArchivoRevision() != null && !ev.getNombreArchivoRevision().isBlank())
+                        || (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank())
+                        || ev.getArchivoProfesor() != null;
+
                     tareasDTO.add(new TareaSeguimientoDTO(
                         ev.getIdEvidencia(),
                         act.getIdActividad(),
@@ -379,8 +384,8 @@ public class DocumentoPracticaService {
                         profRevisorRut,
                         ev.getNombreArchivo(),
                         ev.getNombreArchivoRevision(),
-                        ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank(),
-                        ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()
+                        tieneArchivoEst,
+                        tieneArchivoRev
                     ));
                 } else {
                     String profNombre = act.getProfesor() != null && act.getProfesor().getUsuario() != null
@@ -427,6 +432,13 @@ public class DocumentoPracticaService {
                         profRevisorRut = ev.getRevisadoPor().getUsuario().getRut();
                     }
 
+                    boolean tieneArchivoEst = (ev.getNombreArchivo() != null && !ev.getNombreArchivo().isBlank())
+                        || (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank())
+                        || ev.getArchivoAlumno() != null;
+                    boolean tieneArchivoRev = (ev.getNombreArchivoRevision() != null && !ev.getNombreArchivoRevision().isBlank())
+                        || (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank())
+                        || ev.getArchivoProfesor() != null;
+
                     tareasDTO.add(new TareaSeguimientoDTO(
                         ev.getIdEvidencia(),
                         act.getIdActividad(),
@@ -445,8 +457,8 @@ public class DocumentoPracticaService {
                         profRevisorRut,
                         ev.getNombreArchivo(),
                         ev.getNombreArchivoRevision(),
-                        ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank(),
-                        ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()
+                        tieneArchivoEst,
+                        tieneArchivoRev
                     ));
                 }
             }
@@ -589,57 +601,33 @@ public class DocumentoPracticaService {
             return new FileSystemResource(path.toFile());
         }
 
-        // Si el archivo físico no existe en disco, generar un PDF legible en memoria
         throw new IOException("El archivo físico no está disponible en el servidor.");
     }
 
-
+    /**
+     * Escribe un paquete ZIP con los archivos de la tarea seleccionada.
+     * Crea una subcarpeta con el nombre de la asignatura y dentro las carpetas Alumnos/ y Profesor/.
+     */
     @Transactional(readOnly = true)
     public void escribirZipTarea(Long idEvidencia, OutputStream out) throws IOException {
         Evidencia ev = evidenciaRepository.findById(idEvidencia)
             .orElseThrow(() -> new IllegalArgumentException("Evidencia no encontrada con ID: " + idEvidencia));
 
-        try (ZipOutputStream zos = new ZipOutputStream(out)) {
-            boolean hayArchivos = false;
+        try (ZipOutputStream zos = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
+            Set<String> carpetasCreadas = new HashSet<>();
+            Set<String> rutasEnZip = new HashSet<>();
+            Set<String> archivosFisicosPorCarpeta = new HashSet<>();
 
-            if (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank()) {
-                try {
-                    Resource resEst = fileStorageService.loadFileAsResource(ev.getArchivoUrl());
-                    if (resEst != null && resEst.exists() && resEst.isReadable()) {
-                        String originalName = ev.getNombreArchivo() != null ? ev.getNombreArchivo() : "entrega_estudiante.pdf";
-                        ZipEntry entry = new ZipEntry("[ESTUDIANTE]_" + sanitizarNombre(originalName));
-                        zos.putNextEntry(entry);
-                        try (var is = resEst.getInputStream()) {
-                            is.transferTo(zos);
-                        }
-                        zos.closeEntry();
-                        hayArchivos = true;
-                    }
-                } catch (Exception e) {
-                    logger.warn("No se pudo agregar archivo estudiante al zip de tarea {}: {}", idEvidencia, e.getMessage());
-                }
-            }
+            String carpetaAsignatura = obtenerCarpetaAsignatura(ev);
+            crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura);
+            crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Alumnos/");
+            crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Profesor/");
 
-            if (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()) {
-                try {
-                    Resource resRev = fileStorageService.loadFileAsResource(ev.getArchivoRevisionUrl());
-                    if (resRev != null && resRev.exists() && resRev.isReadable()) {
-                        String originalName = ev.getNombreArchivoRevision() != null ? ev.getNombreArchivoRevision() : "revision_profesor.pdf";
-                        ZipEntry entry = new ZipEntry("[PROFESOR_REVISION]_" + sanitizarNombre(originalName));
-                        zos.putNextEntry(entry);
-                        try (var is = resRev.getInputStream()) {
-                            is.transferTo(zos);
-                        }
-                        zos.closeEntry();
-                        hayArchivos = true;
-                    }
-                } catch (Exception e) {
-                    logger.warn("No se pudo agregar archivo de revisión al zip de tarea {}: {}", idEvidencia, e.getMessage());
-                }
-            }
+            boolean hayArchivos = agregarArchivosEvidencia(
+                    zos, ev, carpetaAsignatura + "Alumnos/", carpetaAsignatura + "Profesor/", rutasEnZip, archivosFisicosPorCarpeta);
 
             if (!hayArchivos) {
-                ZipEntry entry = new ZipEntry("sin_archivos.txt");
+                ZipEntry entry = new ZipEntry(carpetaAsignatura + "sin_archivos.txt");
                 zos.putNextEntry(entry);
                 String msg = "No hay archivos físicos disponibles para la tarea seleccionada (ID: " + idEvidencia + ").";
                 zos.write(msg.getBytes(StandardCharsets.UTF_8));
@@ -650,6 +638,13 @@ public class DocumentoPracticaService {
         }
     }
 
+    /**
+     * Escribe un paquete ZIP con todos los documentos y actividades del estudiante organizados por asignatura.
+     * Estructura:
+     * {Nombre_Asignatura}/
+     *    ├── Alumnos/
+     *    └── Profesor/
+     */
     @Transactional(readOnly = true)
     public void escribirZipEstudiante(String rutRaw, OutputStream out) throws IOException {
         String rut = RutUtils.clean(rutRaw);
@@ -658,80 +653,86 @@ public class DocumentoPracticaService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Estudiante no encontrado para RUT: " + rutRaw));
 
-        List<DocumentoPractica> documentos = documentoPracticaRepository.findByEstudianteRut(usuario.getRut());
-        List<Evidencia> evidencias = evidenciaRepository.findByEstudianteUsuarioRutOrderByFechaEntregaDesc(usuario.getRut());
+        Estudiante estudiante = estudianteRepository.findByUsuarioRut(usuario.getRut()).orElse(null);
 
-        try (ZipOutputStream zos = new ZipOutputStream(out)) {
+        // Consultar todas las evidencias del estudiante
+        List<Evidencia> evidencias = (estudiante != null)
+            ? evidenciaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante())
+            : evidenciaRepository.findByEstudianteUsuarioRutOrderByFechaEntregaDesc(usuario.getRut());
+
+        // Consultar también documentos de práctica si los hubiera
+        List<DocumentoPractica> documentos = documentoPracticaRepository.findByEstudianteRut(usuario.getRut());
+
+        try (ZipOutputStream zos = new ZipOutputStream(out, StandardCharsets.UTF_8)) {
+            Set<String> carpetasCreadas = new HashSet<>();
+            Set<String> rutasEnZip = new HashSet<>();
+            Set<String> archivosFisicosPorCarpeta = new HashSet<>();
             boolean hayArchivos = false;
 
-            // 1. Documentos de práctica
-            for (DocumentoPractica doc : documentos) {
-                String asigNombre = doc.getAsignatura() != null ? doc.getAsignatura().getNombre() : "Practica_General";
-                String carpeta = sanitizarNombre(asigNombre) + "/Documentos_Practica";
-                String prefijo = "ESTUDIANTE".equalsIgnoreCase(doc.getTipoDocumento()) ? "[ESTUDIANTE]" : "[PROFESOR]";
-                String nombreArchivo = prefijo + "_" + sanitizarNombre(doc.getNombreArchivo());
-
-                Path rutaArchivo = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
-                if (rutaArchivo != null && Files.exists(rutaArchivo) && Files.isReadable(rutaArchivo)) {
-                    ZipEntry entry = new ZipEntry(carpeta + "/" + nombreArchivo);
-                    zos.putNextEntry(entry);
-                    Files.copy(rutaArchivo, zos);
-                    zos.closeEntry();
-                    hayArchivos = true;
-                } else {
-                    logger.warn("Se omitió del ZIP el archivo inexistente: {}", doc.getUbicacion());
-                }
-            }
-
-            // 2. Entregas y revisiones de tareas por asignatura
+            // 1. Procesar evidencias de actividades de la tabla evidencia
             for (Evidencia ev : evidencias) {
-                String asigNombre = ev.getActividad() != null && ev.getActividad().getAsignatura() != null
-                    ? ev.getActividad().getAsignatura().getNombre()
-                    : "Asignatura_General";
-                String tituloTarea = ev.getActividad() != null ? sanitizarNombre(ev.getActividad().getTitulo()) : "Tarea_" + ev.getIdEvidencia();
-                String carpeta = sanitizarNombre(asigNombre) + "/Tareas/" + tituloTarea;
+                String carpetaAsignatura = obtenerCarpetaAsignatura(ev);
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura);
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Alumnos/");
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Profesor/");
 
-                // Archivo entregado por estudiante
-                if (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank()) {
-                    try {
-                        Resource resEst = fileStorageService.loadFileAsResource(ev.getArchivoUrl());
-                        if (resEst != null && resEst.exists() && resEst.isReadable()) {
-                            String nomEst = ev.getNombreArchivo() != null ? ev.getNombreArchivo() : "entrega_estudiante";
-                            ZipEntry entry = new ZipEntry(carpeta + "/[ESTUDIANTE]_" + sanitizarNombre(nomEst));
-                            zos.putNextEntry(entry);
-                            try (var is = resEst.getInputStream()) {
-                                is.transferTo(zos);
-                            }
-                            zos.closeEntry();
-                            hayArchivos = true;
-                        }
-                    } catch (Exception e) {
-                        logger.warn("Error leyendo archivo estudiante {}: {}", ev.getArchivoUrl(), e.getMessage());
-                    }
-                }
-
-                // Archivo de revisión subido por profesor
-                if (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()) {
-                    try {
-                        Resource resProf = fileStorageService.loadFileAsResource(ev.getArchivoRevisionUrl());
-                        if (resProf != null && resProf.exists() && resProf.isReadable()) {
-                            String nomRev = ev.getNombreArchivoRevision() != null ? ev.getNombreArchivoRevision() : "revision_profesor";
-                            ZipEntry entry = new ZipEntry(carpeta + "/[PROFESOR_REVISION]_" + sanitizarNombre(nomRev));
-                            zos.putNextEntry(entry);
-                            try (var is = resProf.getInputStream()) {
-                                is.transferTo(zos);
-                            }
-                            zos.closeEntry();
-                            hayArchivos = true;
-                        }
-                    } catch (Exception e) {
-                        logger.warn("Error leyendo archivo revisión {}: {}", ev.getArchivoRevisionUrl(), e.getMessage());
-                    }
+                boolean agregado = agregarArchivosEvidencia(
+                    zos, ev, carpetaAsignatura + "Alumnos/", carpetaAsignatura + "Profesor/", rutasEnZip, archivosFisicosPorCarpeta);
+                if (agregado) {
+                    hayArchivos = true;
                 }
             }
 
+            // 2. Procesar documentos de práctica generales (informe final, pauta final)
+            for (DocumentoPractica doc : documentos) {
+                Asignatura asigDoc = doc.getAsignatura();
+                if (asigDoc == null && estudiante != null) {
+                    asigDoc = estudiante.getAsignatura();
+                }
+                String carpetaAsignatura = obtenerCarpetaAsignatura(asigDoc);
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura);
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Alumnos/");
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Profesor/");
+
+                boolean esProfesor = "PROFESOR".equalsIgnoreCase(doc.getTipoDocumento());
+                String subcarpeta = esProfesor ? (carpetaAsignatura + "Profesor/") : (carpetaAsignatura + "Alumnos/");
+
+                String nombreArchivo = doc.getNombreArchivo();
+                if (nombreArchivo == null || nombreArchivo.isBlank()) {
+                    nombreArchivo = esProfesor ? "Evaluacion_Final_Profesor.pdf" : "Informe_Practica_Estudiante.pdf";
+                }
+
+                String cleanUbicacion = normalizarRutaFisica(doc.getUbicacion(), nombreArchivo);
+                if (!archivosFisicosPorCarpeta.add(subcarpeta + cleanUbicacion)) {
+                    continue;
+                }
+
+                Path rutaFisica = resolverRutaArchivo(doc.getUbicacion(), doc.getNombreArchivo());
+                String entryPath = resolverNombreUnicoEnZip(rutasEnZip, subcarpeta, nombreArchivo);
+
+                zos.putNextEntry(new ZipEntry(entryPath));
+                if (rutaFisica != null && Files.exists(rutaFisica) && !Files.isDirectory(rutaFisica)) {
+                    Files.copy(rutaFisica, zos);
+                } else {
+                    String tituloDoc = doc.getNombreDocumento() != null ? doc.getNombreDocumento() : "Documento de Práctica";
+                    String nombreEst = usuario.getNombre() + " " + usuario.getApellido();
+                    String asigNom = asigDoc != null ? asigDoc.getNombre() : "Práctica General";
+                    byte[] fallback = generarPdfMock(tituloDoc, nombreEst, asigNom);
+                    zos.write(fallback);
+                }
+                zos.closeEntry();
+                hayArchivos = true;
+            }
+
+            // 3. Si no hay evidencias ni documentos, crear al menos la estructura con un archivo informativo
             if (!hayArchivos) {
-                ZipEntry entry = new ZipEntry("sin_documentos.txt");
+                Asignatura asig = estudiante != null ? estudiante.getAsignatura() : null;
+                String carpetaAsignatura = obtenerCarpetaAsignatura(asig);
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura);
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Alumnos/");
+                crearCarpetaZip(zos, carpetasCreadas, carpetaAsignatura + "Profesor/");
+
+                ZipEntry entry = new ZipEntry(carpetaAsignatura + "sin_documentos.txt");
                 zos.putNextEntry(entry);
                 String mensaje = "El estudiante " + usuario.getNombre() + " " + usuario.getApellido() +
                                  " (RUT " + usuario.getRut() + ") aún no tiene documentos o entregas archivadas en el servidor.";
@@ -743,25 +744,229 @@ public class DocumentoPracticaService {
         }
     }
 
-    private Path resolverRutaArchivo(String ubicacion, String nombreArchivo) {
-        if (ubicacion != null && !ubicacion.isBlank()) {
-            Path p = Paths.get(ubicacion);
-            if (Files.exists(p)) return p;
+    private String obtenerCarpetaAsignatura(Evidencia ev) {
+        if (ev == null) return "Asignatura_General/";
+        Asignatura asig = ev.getAsignatura();
+        if (asig == null && ev.getActividad() != null) {
+            asig = ev.getActividad().getAsignatura();
+        }
+        if (asig == null && ev.getEstudiante() != null) {
+            asig = ev.getEstudiante().getAsignatura();
+        }
+        return obtenerCarpetaAsignatura(asig);
+    }
+
+    private String obtenerCarpetaAsignatura(Asignatura asig) {
+        String nombre = (asig != null && asig.getNombre() != null && !asig.getNombre().isBlank())
+            ? asig.getNombre().trim()
+            : "Asignatura_General";
+        String limpia = sanitizarNombreCarpeta(nombre);
+        return limpia.endsWith("/") ? limpia : (limpia + "/");
+    }
+
+    private void crearCarpetaZip(ZipOutputStream zos, Set<String> carpetasCreadas, String rutaCarpeta) throws IOException {
+        String normalizada = rutaCarpeta.replace("\\", "/");
+        if (!normalizada.endsWith("/")) {
+            normalizada += "/";
+        }
+        if (carpetasCreadas.add(normalizada)) {
+            ZipEntry dirEntry = new ZipEntry(normalizada);
+            zos.putNextEntry(dirEntry);
+            zos.closeEntry();
+        }
+    }
+
+    private boolean agregarArchivosEvidencia(ZipOutputStream zos, Evidencia ev,
+                                             String carpetaAlumnos, String carpetaProfesor,
+                                             Set<String> rutasEnZip,
+                                             Set<String> archivosFisicosPorCarpeta) throws IOException {
+        boolean agregado = false;
+
+        String nombreEstudiante = "Estudiante";
+        if (ev.getEstudiante() != null && ev.getEstudiante().getUsuario() != null) {
+            Usuario u = ev.getEstudiante().getUsuario();
+            nombreEstudiante = u.getNombre() + " " + u.getApellido();
         }
 
-        if (nombreArchivo != null && !nombreArchivo.isBlank()) {
-            Path p1 = UPLOADS_DIR.resolve(nombreArchivo);
-            if (Files.exists(p1)) return p1;
+        String nombreAsignatura = "Práctica";
+        if (ev.getAsignatura() != null && ev.getAsignatura().getNombre() != null) {
+            nombreAsignatura = ev.getAsignatura().getNombre();
+        } else if (ev.getActividad() != null && ev.getActividad().getAsignatura() != null) {
+            nombreAsignatura = ev.getActividad().getAsignatura().getNombre();
+        }
 
-            Path p2 = Paths.get(System.getProperty("user.dir"), "uploads", "documentos", nombreArchivo);
-            if (Files.exists(p2)) return p2;
+        // 1. Archivo del estudiante (Alumnos)
+        String nombreArchivoAlumno = ev.getNombreArchivo();
+        String ubicacionAlumno = ev.getArchivoUrl();
+        if ((nombreArchivoAlumno == null || nombreArchivoAlumno.isBlank()) && ev.getArchivoAlumno() != null) {
+            nombreArchivoAlumno = ev.getArchivoAlumno().getNombre();
+        }
+        if ((ubicacionAlumno == null || ubicacionAlumno.isBlank()) && ev.getArchivoAlumno() != null) {
+            ubicacionAlumno = ev.getArchivoAlumno().getUbicacion();
+        }
+
+        if ((nombreArchivoAlumno != null && !nombreArchivoAlumno.isBlank()) || (ubicacionAlumno != null && !ubicacionAlumno.isBlank())) {
+            String cleanUbicacion = normalizarRutaFisica(ubicacionAlumno, nombreArchivoAlumno);
+            if (archivosFisicosPorCarpeta.add(carpetaAlumnos + cleanUbicacion)) {
+                if (nombreArchivoAlumno == null || nombreArchivoAlumno.isBlank()) {
+                    String tit = ev.getActividad() != null ? sanitizarNombreArchivo(ev.getActividad().getTitulo()) : ("actividad_" + ev.getIdEvidencia());
+                    nombreArchivoAlumno = tit + ".pdf";
+                }
+                Path pathEst = resolverRutaArchivo(ubicacionAlumno, nombreArchivoAlumno);
+                String entryPath = resolverNombreUnicoEnZip(rutasEnZip, carpetaAlumnos, sanitizarNombreArchivo(nombreArchivoAlumno));
+                zos.putNextEntry(new ZipEntry(entryPath));
+                if (pathEst != null && Files.exists(pathEst) && !Files.isDirectory(pathEst)) {
+                    Files.copy(pathEst, zos);
+                } else {
+                    String tit = ev.getActividad() != null ? ev.getActividad().getTitulo() : "Entrega de Actividad";
+                    byte[] mock = generarPdfMock(tit, nombreEstudiante, nombreAsignatura);
+                    zos.write(mock);
+                }
+                zos.closeEntry();
+                agregado = true;
+            }
+        }
+
+        // 2. Archivo del profesor (Profesor)
+        String nombreArchivoProfesor = ev.getNombreArchivoRevision();
+        String ubicacionProfesor = ev.getArchivoRevisionUrl();
+        if ((nombreArchivoProfesor == null || nombreArchivoProfesor.isBlank()) && ev.getArchivoProfesor() != null) {
+            nombreArchivoProfesor = ev.getArchivoProfesor().getNombre();
+        }
+        if ((ubicacionProfesor == null || ubicacionProfesor.isBlank()) && ev.getArchivoProfesor() != null) {
+            ubicacionProfesor = ev.getArchivoProfesor().getUbicacion();
+        }
+
+        if ((nombreArchivoProfesor != null && !nombreArchivoProfesor.isBlank()) || (ubicacionProfesor != null && !ubicacionProfesor.isBlank())) {
+            String cleanUbicacion = normalizarRutaFisica(ubicacionProfesor, nombreArchivoProfesor);
+            if (archivosFisicosPorCarpeta.add(carpetaProfesor + cleanUbicacion)) {
+                if (nombreArchivoProfesor == null || nombreArchivoProfesor.isBlank()) {
+                    String tit = ev.getActividad() != null ? sanitizarNombreArchivo(ev.getActividad().getTitulo()) : ("revision_" + ev.getIdEvidencia());
+                    nombreArchivoProfesor = "Revision_" + tit + ".pdf";
+                }
+                Path pathProf = resolverRutaArchivo(ubicacionProfesor, nombreArchivoProfesor);
+                String entryPath = resolverNombreUnicoEnZip(rutasEnZip, carpetaProfesor, sanitizarNombreArchivo(nombreArchivoProfesor));
+                zos.putNextEntry(new ZipEntry(entryPath));
+                if (pathProf != null && Files.exists(pathProf) && !Files.isDirectory(pathProf)) {
+                    Files.copy(pathProf, zos);
+                } else {
+                    String tit = ev.getActividad() != null ? ("Revisión: " + ev.getActividad().getTitulo()) : "Revisión Docente";
+                    byte[] mock = generarPdfMock(tit, nombreEstudiante, nombreAsignatura);
+                    zos.write(mock);
+                }
+                zos.closeEntry();
+                agregado = true;
+            }
+        }
+
+        return agregado;
+    }
+
+    private String resolverNombreUnicoEnZip(Set<String> rutasEnZip, String carpeta, String nombreArchivo) {
+        String limpio = sanitizarNombreArchivo(nombreArchivo);
+        String base = limpio;
+        String extension = "";
+        int dot = limpio.lastIndexOf('.');
+        if (dot > 0) {
+            base = limpio.substring(0, dot);
+            extension = limpio.substring(dot);
+        }
+        String candidata = carpeta + limpio;
+        int contador = 1;
+        while (rutasEnZip.contains(candidata)) {
+            candidata = carpeta + base + "_" + contador + extension;
+            contador++;
+        }
+        rutasEnZip.add(candidata);
+        return candidata;
+    }
+
+    private String sanitizarNombreCarpeta(String entrada) {
+        if (entrada == null || entrada.isBlank()) return "Asignatura";
+        return entrada.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
+
+    private String sanitizarNombreArchivo(String entrada) {
+        if (entrada == null || entrada.isBlank()) return "archivo.pdf";
+        return entrada.trim().replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
+
+    private String normalizarRutaFisica(String ubicacion, String nombreFallback) {
+        if (ubicacion != null && !ubicacion.isBlank()) {
+            String clean = ubicacion.trim().replace("\\", "/");
+            if (clean.startsWith("uploads/")) {
+                clean = clean.substring("uploads/".length());
+            }
+            return clean;
+        }
+        return (nombreFallback != null) ? nombreFallback.trim() : "";
+    }
+
+    public Path resolverRutaArchivo(String ubicacion, String nombreArchivo) {
+        if (ubicacion != null && !ubicacion.isBlank()) {
+            String clean = ubicacion.replace("\\", "/").trim();
+
+            // 1. Ruta directa
+            Path p = Paths.get(clean);
+            if (Files.exists(p) && !Files.isDirectory(p)) {
+                return p.toAbsolutePath().normalize();
+            }
+
+            // 2. Ruta dentro de "uploads/"
+            Path pUploads = Paths.get("uploads", clean);
+            if (Files.exists(pUploads) && !Files.isDirectory(pUploads)) {
+                return pUploads.toAbsolutePath().normalize();
+            }
+
+            // Si la ruta en BD ya contenía "uploads/", probar sin ese prefijo
+            if (clean.startsWith("uploads/")) {
+                String sub = clean.substring("uploads/".length());
+                Path pSub = Paths.get("uploads", sub);
+                if (Files.exists(pSub) && !Files.isDirectory(pSub)) {
+                    return pSub.toAbsolutePath().normalize();
+                }
+            }
+
+            // 3. A través de FileStorageService
+            try {
+                Resource res = fileStorageService.loadFileAsResource(clean);
+                if (res != null && res.exists() && res.isReadable()) {
+                    return res.getFile().toPath().toAbsolutePath().normalize();
+                }
+            } catch (Exception ignored) {
+            }
+
+            // 4. Con el directorio de trabajo del sistema
+            Path userDir = Paths.get(System.getProperty("user.dir"));
+            Path pUser = userDir.resolve(clean);
+            if (Files.exists(pUser) && !Files.isDirectory(pUser)) {
+                return pUser.toAbsolutePath().normalize();
+            }
+            Path pUserUploads = userDir.resolve("uploads").resolve(clean);
+            if (Files.exists(pUserUploads) && !Files.isDirectory(pUserUploads)) {
+                return pUserUploads.toAbsolutePath().normalize();
+            }
+        }
+
+        // 5. Búsqueda por nombre de archivo en subdirectorios comunes de uploads
+        if (nombreArchivo != null && !nombreArchivo.isBlank()) {
+            String[] subdirectorios = {"documentos", "evidencias-estudiantes", "revisiones-evidencias", "evaluaciones", "evidencias", "portafolios"};
+            for (String sub : subdirectorios) {
+                Path pSub = Paths.get("uploads", sub, nombreArchivo);
+                if (Files.exists(pSub) && !Files.isDirectory(pSub)) {
+                    return pSub.toAbsolutePath().normalize();
+                }
+                Path pUserSub = Paths.get(System.getProperty("user.dir"), "uploads", sub, nombreArchivo);
+                if (Files.exists(pUserSub) && !Files.isDirectory(pUserSub)) {
+                    return pUserSub.toAbsolutePath().normalize();
+                }
+            }
         }
 
         return null;
     }
 
     public static byte[] generarPdfMock(String titulo, String estudiante, String asignatura) {
-        // Generador de archivo de texto con encabezado y formato estructurado
         String contenido = "%PDF-1.4\n" +
             "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
             "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +

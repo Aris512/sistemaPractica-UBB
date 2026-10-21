@@ -46,6 +46,10 @@ public class Documento {
     @JoinColumn(name = "id_asignatura")
     private Asignatura asignatura;
 
+    @ManyToOne
+    @JoinColumn(name = "id_actividad")
+    private Actividad actividad;
+
     @ManyToMany
     @JoinTable(
         name = "documento_planificacion",
@@ -143,5 +147,13 @@ public class Documento {
 
     public void setAsignatura(Asignatura asignatura) {
         this.asignatura = asignatura;
+    }
+
+    public Actividad getActividad() {
+        return actividad;
+    }
+
+    public void setActividad(Actividad actividad) {
+        this.actividad = actividad;
     }
 }

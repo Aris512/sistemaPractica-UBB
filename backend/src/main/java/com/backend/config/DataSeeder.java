@@ -19,7 +19,6 @@ import com.backend.model.Asignatura;
 import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
-import com.backend.model.Evidencia;
 import com.backend.model.ObservacionPractica;
 import com.backend.model.Pauta;
 import com.backend.model.Practica;
@@ -121,7 +120,7 @@ public class DataSeeder implements CommandLineRunner {
         seedAsignaturas();
         seedUsuarios();
         seedEstudiantesYProfesores();
-        seedActividadesYEvidencias();
+        eliminarActividadesDeDemostracion();
         seedCentrosYTutoresYPracticas();
         seedPautas();
         seedObservaciones();
@@ -396,58 +395,22 @@ public class DataSeeder implements CommandLineRunner {
         }
     }
 
-    private void seedActividadesYEvidencias() {
-        if (actividadRepository.count() == 0) {
-            Optional<Profesor> profesorOpt = profesorRepository.findByUsuarioRut("11111111-1");
-            Optional<Asignatura> asignaturaOpt = asignaturaRepository.findByNombreIgnoreCase("Práctica Pedagógica");
-            Optional<Estudiante> estudianteOpt = estudianteRepository.findByUsuarioRut("12345678-5");
-
-            if (profesorOpt.isPresent() && asignaturaOpt.isPresent()) {
-                Profesor profesor = profesorOpt.get();
-                Asignatura asignatura = asignaturaOpt.get();
-
-                // Actividad 1: Con entrega revisada
-                Actividad act1 = new Actividad(
-                    profesor,
-                    asignatura,
-                    "Evidencia 1: Planificación de Clase y Recursos Didácticos",
-                    "El estudiante debe adjuntar la planificación de aula para su primera intervención en el centro de práctica, incluyendo objetivos de aprendizaje, secuencia didáctica y materiales de apoyo.",
-                    LocalDateTime.now().plusDays(7)
-                );
-                actividadRepository.save(act1);
-                logger.info("Actividad inicial creada: {}", act1.getTitulo());
-
-                if (estudianteOpt.isPresent()) {
-                    Estudiante estudiante = estudianteOpt.get();
-                    Evidencia ev1 = new Evidencia(
-                        act1,
-                        estudiante,
-                        "Planificacion_Unidad_Funciones_JavierToro.pdf",
-                        "https://ejemplo.edu/evidencias/planificacion_unidad1.pdf",
-                        "Adjunto la propuesta de planificación con énfasis en resolución colaborativa de problemas matemáticos."
-                    );
-                    ev1.setFechaEntrega(LocalDateTime.now().minusDays(2));
-                    ev1.setEstado("REVISADO");
-                    ev1.setCalificacion(6.5);
-                    ev1.setRetroalimentacion("Excelente articulación metodológica y selección de recursos. Sugiero profundizar un poco más en la pauta de cotejo para el cierre de la clase.");
-                    ev1.setFechaRevision(LocalDateTime.now().minusHours(8));
-                    ev1.setRevisadoPor(profesor);
-                    evidenciaRepository.save(ev1);
-                    logger.info("Evidencia inicial de prueba creada y revisada para estudiante: {}", estudiante.getUsuario().getRut());
-                }
-
-                // Actividad 2: Pendiente para el estudiante
-                Actividad act2 = new Actividad(
-                    profesor,
-                    asignatura,
-                    "Evidencia 2: Registro Reflexivo de Observación de Aula",
-                    "Documento de análisis pedagógico crítico respecto a la dinámica del aula observada durante las primeras 15 horas de práctica pedagógica en terreno.",
-                    LocalDateTime.now().plusDays(12)
-                );
-                actividadRepository.save(act2);
-                logger.info("Actividad pendiente creada: {}", act2.getTitulo());
-            }
+    private void eliminarActividadesDeDemostracion() {
+        List<Actividad> actividadesDemo = actividadRepository.findByTituloIn(List.of(
+            "Evidencia 1: Planificación de Clase y Recursos Didácticos",
+            "Evidencia 2: Registro Reflexivo de Observación de Aula"
+        ));
+        if (actividadesDemo.isEmpty()) {
+            return;
         }
+
+        for (Actividad actividad : actividadesDemo) {
+            evidenciaRepository.deleteAll(
+                evidenciaRepository.findByActividadIdActividadOrderByFechaEntregaDesc(actividad.getIdActividad())
+            );
+        }
+        actividadRepository.deleteAll(actividadesDemo);
+        logger.info("Se eliminaron {} actividades de demostración para que solo el profesor cree tareas.", actividadesDemo.size());
     }
 
     private void seedCentrosYTutoresYPracticas() {

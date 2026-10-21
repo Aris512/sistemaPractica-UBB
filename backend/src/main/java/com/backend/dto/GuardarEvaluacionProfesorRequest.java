@@ -10,6 +10,7 @@ public class GuardarEvaluacionProfesorRequest {
     private Double puntajeMaximo;
     private Double puntajeObtenido;
     private String observacion;
+    private Boolean conservarEvaluacionPorArchivo;
 
     public GuardarEvaluacionProfesorRequest() {
     }
@@ -76,5 +77,13 @@ public class GuardarEvaluacionProfesorRequest {
 
     public void setObservacion(String observacion) {
         this.observacion = observacion;
+    }
+
+    public Boolean getConservarEvaluacionPorArchivo() {
+        return conservarEvaluacionPorArchivo;
+    }
+
+    public void setConservarEvaluacionPorArchivo(Boolean conservarEvaluacionPorArchivo) {
+        this.conservarEvaluacionPorArchivo = conservarEvaluacionPorArchivo;
     }
 }

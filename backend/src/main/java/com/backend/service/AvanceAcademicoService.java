@@ -121,12 +121,12 @@ public class AvanceAcademicoService {
             .orElseGet(() -> new CursoAprobado(estudiante, asignatura, CursoAprobado.EN_CURSO));
 
         registro.setEstado(resultado.estado());
-        registro.setPromedio(resultado.promedio());
+        registro.setPromedio(resultado.promedio() != null ? resultado.promedio() : 0.0);
         registro.setFechaActualizacion(java.time.LocalDateTime.now());
         CursoAprobado guardado = cursoAprobadoRepository.save(registro);
 
         logger.info("Curso recalculado: estudiante={} asignatura={} estado={} promedio={} ({}/{} tareas calificadas)",
-            estudiante.getIdEstudiante(), asignatura.getNombre(), resultado.estado(), resultado.promedio(),
+            estudiante.getIdEstudiante(), asignatura.getNombre(), resultado.estado(), registro.getPromedio(),
             resultado.tareasCalificadas(), resultado.tareasTotales());
 
         // Si aprueba la asignatura en la que está matriculado actualmente, avanzar a la siguiente del plan

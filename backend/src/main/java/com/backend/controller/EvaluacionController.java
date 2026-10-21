@@ -150,4 +150,9 @@ public class EvaluacionController {
     public ResponseEntity<EstudianteEvaluacionDTO> eliminarObservacionEstudiante(@PathVariable Long idEstudiante) {
         return ResponseEntity.ok(evaluacionService.eliminarObservacionEstudiante(idEstudiante));
     }
+
+    @DeleteMapping("/estudiante/{idEstudiante}/completa")
+    public ResponseEntity<EstudianteEvaluacionDTO> eliminarEvaluacionYEntregasCompletas(@PathVariable Long idEstudiante) {
+        return ResponseEntity.ok(evaluacionService.eliminarEvaluacionYEntregasCompletas(idEstudiante));
+    }
 }

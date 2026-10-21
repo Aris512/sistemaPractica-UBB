@@ -28,10 +28,14 @@ public class ActividadEstudianteDTO {
 
     // ── Datos de la Evidencia del estudiante (puede ser null si no entregó) ──
     private Long idEvidencia;
-    private String estadoEvidencia; // "PENDIENTE" | "REVISADO" | "OBSERVADO" | null
+    private String estadoEvidencia; // "PENDIENTE" | "REVISADO" | "OBSERVADO" | "APROBADO" | "REPROBADO" | null
     private LocalDateTime fechaEntrega;
     private String nombreArchivo;
     private String archivoUrl;
+    private Long idArchivoAlumno;
+    private Long idArchivoProfesor;
+    private Long idNota;
+    private Boolean aprobado;
     private String comentarioEstudiante;
     private Double calificacion;
     private String retroalimentacion;
@@ -91,6 +95,18 @@ public class ActividadEstudianteDTO {
 
     public String getArchivoUrl() { return archivoUrl; }
     public void setArchivoUrl(String archivoUrl) { this.archivoUrl = archivoUrl; }
+
+    public Long getIdArchivoAlumno() { return idArchivoAlumno; }
+    public void setIdArchivoAlumno(Long idArchivoAlumno) { this.idArchivoAlumno = idArchivoAlumno; }
+
+    public Long getIdArchivoProfesor() { return idArchivoProfesor; }
+    public void setIdArchivoProfesor(Long idArchivoProfesor) { this.idArchivoProfesor = idArchivoProfesor; }
+
+    public Long getIdNota() { return idNota; }
+    public void setIdNota(Long idNota) { this.idNota = idNota; }
+
+    public Boolean getAprobado() { return aprobado; }
+    public void setAprobado(Boolean aprobado) { this.aprobado = aprobado; }
 
     public String getComentarioEstudiante() { return comentarioEstudiante; }
     public void setComentarioEstudiante(String comentarioEstudiante) { this.comentarioEstudiante = comentarioEstudiante; }

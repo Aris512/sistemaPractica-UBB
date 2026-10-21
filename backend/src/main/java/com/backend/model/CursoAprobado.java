@@ -39,18 +39,22 @@ public class CursoAprobado {
     @Column(nullable = false, length = 20)
     private String estado;
 
-    @Column(name = "promedio")
-    private Double promedio;
+    @Column(name = "promedio", nullable = false)
+    private Double promedio = 0.0;
 
     @Column(name = "fecha_actualizacion", nullable = false)
     private LocalDateTime fechaActualizacion;
 
-    public CursoAprobado() {}
+    public CursoAprobado() {
+        this.promedio = 0.0;
+        this.fechaActualizacion = LocalDateTime.now();
+    }
 
     public CursoAprobado(Estudiante estudiante, Asignatura asignatura, String estado) {
         this.estudiante = estudiante;
         this.asignatura = asignatura;
         this.estado = estado;
+        this.promedio = 0.0;
         this.fechaActualizacion = LocalDateTime.now();
     }
 
@@ -61,8 +65,8 @@ public class CursoAprobado {
     public void setAsignatura(Asignatura asignatura) { this.asignatura = asignatura; }
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
-    public Double getPromedio() { return promedio; }
-    public void setPromedio(Double promedio) { this.promedio = promedio; }
+    public Double getPromedio() { return promedio != null ? promedio : 0.0; }
+    public void setPromedio(Double promedio) { this.promedio = (promedio != null) ? promedio : 0.0; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
 }

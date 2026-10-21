@@ -180,3 +180,16 @@ export const eliminarObservacionEstudiante = async (
   }
   return response.json();
 };
+
+export const eliminarEvaluacionCompleta = async (
+  idEstudiante: number
+): Promise<EstudianteEvaluacion> => {
+  const response = await fetch(`${API_URL}/estudiante/${idEstudiante}/completa`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Error al eliminar la entrega, nota y observación del estudiante");
+  }
+  return response.json();
+};

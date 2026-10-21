@@ -5,6 +5,8 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,9 +23,9 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.dto.RevisionEvidenciaDTO;
 import com.backend.dto.SeguimientoEstudianteDTO;
 import com.backend.dto.SubirEvidenciaDTO;
+import com.backend.model.Documento;
 import com.backend.model.Evidencia;
 import com.backend.service.EvidenciaService;
-import com.backend.service.FileStorageService;
 
 @RestController
 @RequestMapping("/api/evidencias")
@@ -33,11 +35,9 @@ public class EvidenciaController {
     private static final Logger logger = LoggerFactory.getLogger(EvidenciaController.class);
 
     private final EvidenciaService evidenciaService;
-    private final FileStorageService fileStorageService;
 
-    public EvidenciaController(EvidenciaService evidenciaService, FileStorageService fileStorageService) {
+    public EvidenciaController(EvidenciaService evidenciaService) {
         this.evidenciaService = evidenciaService;
-        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping
@@ -85,8 +85,8 @@ public class EvidenciaController {
     }
 
     /**
-     * Endpoint multipart para que el estudiante suba un archivo real vinculado a una actividad.
-     * Acepta: file (MultipartFile), idActividad (Long), rutEstudiante (String), comentario (String opcional).
+     * Endpoint multipart para que el estudiante suba un archivo vinculado a una actividad.
+     * Registra el documento en la tabla documento con id_actividad y id_asignatura.
      */
     @PostMapping("/subir-archivo")
     public ResponseEntity<?> subirEvidenciaConArchivo(
@@ -95,30 +95,50 @@ public class EvidenciaController {
             @RequestParam("rutEstudiante") String rutEstudiante,
             @RequestParam(value = "comentario", required = false) String comentario) {
         try {
-            // Validar plazo ANTES de almacenar el archivo para evitar archivos huérfanos
             evidenciaService.validarPlazoEntrega(idActividad);
-
-            FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
-                    file,
-                    "evidencias",
-                    java.util.List.of("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "png", "jpg", "jpeg", "zip")
-            );
-
-            SubirEvidenciaDTO dto = new SubirEvidenciaDTO(
-                    idActividad,
-                    rutEstudiante,
-                    comentario,
-                    stored.originalFilename(),
-                    stored.relativePath()
-            );
-
-            Evidencia guardada = evidenciaService.subirEvidencia(dto);
-            return ResponseEntity.ok(guardada);
+            Documento doc = evidenciaService.subirArchivoEstudiante(idActividad, rutEstudiante, comentario, file);
+            return ResponseEntity.ok(Map.of(
+                    "idDocumento", doc.getIdDocumento(),
+                    "nombreArchivo", doc.getNombre(),
+                    "estado", "ENTREGADO",
+                    "mensaje", "Archivo entregado correctamente"
+            ));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             logger.error("Error al subir evidencia con archivo: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of("error", "Error interno al procesar el archivo: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Endpoint para que el profesor califique la actividad de un estudiante:
+     * crea el registro en la tabla Evidencia asociando:
+     * - id_actividad
+     * - id_estudiante
+     * - id_asignatura
+     * - id_archivo_alumno (subido previamente por el estudiante)
+     * - id_archivo_profesor (subido en este acto por el profesor)
+     * - id_nota (con la nota asignada y cálculo de si aprobó)
+     */
+    @PostMapping("/calificar")
+    public ResponseEntity<?> calificarActividad(
+            @RequestParam("idActividad") Long idActividad,
+            @RequestParam("rutEstudiante") String rutEstudiante,
+            @RequestParam("rutProfesor") String rutProfesor,
+            @RequestParam("calificacion") Double calificacion,
+            @RequestParam(value = "observacion", required = false) String observacion,
+            @RequestParam(value = "archivoRevision", required = false) MultipartFile archivoRevision) {
+        try {
+            Evidencia guardada = evidenciaService.calificarORevisarActividad(
+                    idActividad, rutEstudiante, rutProfesor, calificacion, observacion, archivoRevision
+            );
+            return ResponseEntity.ok(guardada);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error al calificar actividad: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", "Error interno al calificar: " + e.getMessage()));
         }
     }
 
@@ -154,10 +174,58 @@ public class EvidenciaController {
         }
     }
 
+    @GetMapping("/{id}/archivo-alumno")
+    public ResponseEntity<Resource> descargarArchivoAlumno(@PathVariable Long id) {
+        try {
+            Resource recurso = evidenciaService.obtenerRecursoArchivo(id, false);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + recurso.getFilename() + "\"")
+                    .body(recurso);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/archivo-profesor")
+    public ResponseEntity<Resource> descargarArchivoProfesor(@PathVariable Long id) {
+        try {
+            Resource recurso = evidenciaService.obtenerRecursoArchivo(id, true);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + recurso.getFilename() + "\"")
+                    .body(recurso);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/archivo")
+    public ResponseEntity<Resource> descargarArchivo(@PathVariable Long id, @RequestParam(value = "revision", defaultValue = "false") boolean revision) {
+        try {
+            Resource recurso = evidenciaService.obtenerRecursoArchivo(id, revision);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + recurso.getFilename() + "\"")
+                    .body(recurso);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id) {
         try {
             evidenciaService.eliminar(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/actividad/{idActividad}/estudiante/{rutEstudiante}")
+    public ResponseEntity<?> eliminarEntregaEstudiante(
+            @PathVariable Long idActividad,
+            @PathVariable String rutEstudiante) {
+        try {
+            evidenciaService.eliminarEntregaEstudiante(idActividad, rutEstudiante);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

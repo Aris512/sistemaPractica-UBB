@@ -46,20 +46,25 @@ public class AdminDocumentoController {
     @GetMapping("/evidencias/{idEvidencia}/archivo")
     public ResponseEntity<Resource> descargarArchivoEvidencia(
             @PathVariable Long idEvidencia,
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "ESTUDIANTE") String tipo) {
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "ESTUDIANTE") String tipo,
+            HttpServletResponse response) {
         Evidencia evidencia = evidenciaService.obtenerPorId(idEvidencia);
         if (evidencia == null) return ResponseEntity.notFound().build();
 
         boolean esRevision = "PROFESOR".equalsIgnoreCase(tipo);
         String nombre = esRevision ? evidencia.getNombreArchivoRevision() : evidencia.getNombreArchivo();
-        if (nombre == null || nombre.isBlank()) return ResponseEntity.notFound().build();
+        if (nombre == null || nombre.isBlank()) {
+            nombre = esRevision ? ("revision_evidencia_" + idEvidencia + ".pdf") : ("entrega_evidencia_" + idEvidencia + ".pdf");
+        }
 
         try {
             Resource recurso = evidenciaService.obtenerRecursoArchivo(idEvidencia, esRevision);
             String encodedFilename = URLEncoder.encode(nombre, StandardCharsets.UTF_8).replace("+", "%20");
+            response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
             return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"; filename*=UTF-8''" + encodedFilename)
+                .header("Access-Control-Expose-Headers", "Content-Disposition")
                 .body(recurso);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -82,6 +87,7 @@ public class AdminDocumentoController {
 
             response.setContentType("application/zip");
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipFilename + "\"; filename*=UTF-8''" + encodedFilename);
+            response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
 
             documentoPracticaService.escribirZipTarea(idEvidencia, response.getOutputStream());
             response.flushBuffer();
@@ -129,6 +135,7 @@ public class AdminDocumentoController {
             return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombreArchivo + "\"; filename*=UTF-8''" + encodedFilename)
+                .header("Access-Control-Expose-Headers", "Content-Disposition")
                 .body(recurso);
         } catch (IOException e) {
             logger.error("Error al leer archivo {}: {}", id, e.getMessage());
@@ -151,6 +158,7 @@ public class AdminDocumentoController {
 
             response.setContentType("application/zip");
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + zipFilename + "\"; filename*=UTF-8''" + encodedFilename);
+            response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
 
             documentoPracticaService.escribirZipEstudiante(rut, response.getOutputStream());
             response.flushBuffer();
