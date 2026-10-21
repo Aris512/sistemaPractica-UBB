@@ -55,14 +55,31 @@ public class PortafolioService {
      */
     @Transactional(readOnly = true)
     public List<PortafolioItemDTO> obtenerDocumentosPorEstudiante(String rutEstudianteRaw) {
+        return obtenerDocumentosPorEstudiante(rutEstudianteRaw, false);
+    }
+
+    /**
+     * Obtiene los documentos del portafolio de un estudiante. Con soloPropios=true solo devuelve los
+     * que subió el propio estudiante: los archivos de profesores (p. ej. revisiones adjuntas a sus
+     * observaciones) no forman parte del portafolio que ve el alumno.
+     */
+    @Transactional(readOnly = true)
+    public List<PortafolioItemDTO> obtenerDocumentosPorEstudiante(String rutEstudianteRaw, boolean soloPropios) {
         Usuario usuarioEstudiante = buscarUsuarioPorRut(rutEstudianteRaw);
         String rutExacto = usuarioEstudiante != null ? usuarioEstudiante.getRut() : rutEstudianteRaw;
         String rutLimpio = RutUtils.clean(rutEstudianteRaw);
 
         List<Documento> docs = documentoRepository.findPortafolioByRut(rutExacto, rutLimpio);
         return docs.stream()
+            .filter(d -> !soloPropios || subidoPorEstudiante(d, rutLimpio))
             .map(d -> toDTO(d, rutExacto))
             .collect(Collectors.toList());
+    }
+
+    private boolean subidoPorEstudiante(Documento doc, String rutEstudianteLimpio) {
+        return doc.getUsuario() != null
+            && doc.getUsuario().getRut() != null
+            && RutUtils.clean(doc.getUsuario().getRut()).equalsIgnoreCase(rutEstudianteLimpio);
     }
 
     /**

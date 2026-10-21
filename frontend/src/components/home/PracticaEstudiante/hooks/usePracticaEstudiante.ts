@@ -93,7 +93,8 @@ export function usePracticaEstudiante(user: UserSession) {
       // 5. Consultar Evidencias del Portafolio
       let evidenciasPortafolio: any[] = [];
       try {
-        const portRes = await fetch(`/api/portafolio/estudiante/${encodeURIComponent(rut)}`);
+        // Solo archivos subidos por el propio alumno: los del profesor no se muestran en su portafolio
+        const portRes = await fetch(`/api/portafolio/estudiante/${encodeURIComponent(rut)}?soloPropios=true`);
         if (portRes.ok) {
           evidenciasPortafolio = await portRes.json();
         }
@@ -116,9 +117,11 @@ export function usePracticaEstudiante(user: UserSession) {
       // Construcción consolidada de documentos
       const docsConsolidados: DocumentoFiltroItem[] = [];
 
-      // A. Documentos del expediente obligatorio
+      // A. Documentos del expediente obligatorio (solo los del alumno; la pauta del profesor no se muestra)
       if (expedienteDoc && Array.isArray(expedienteDoc.documentos)) {
-        expedienteDoc.documentos.forEach((d: any, idx: number) => {
+        expedienteDoc.documentos
+          .filter((d: { tipoDocumento?: string }) => d.tipoDocumento === "ESTUDIANTE")
+          .forEach((d: any, idx: number) => {
           const nombreArch = d.nombreArchivo && d.nombreArchivo !== "—" ? d.nombreArchivo : d.nombreDocumento;
           const ext = nombreArch.includes(".") ? nombreArch.split(".").pop().toLowerCase() : "pdf";
           docsConsolidados.push({

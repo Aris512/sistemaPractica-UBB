@@ -63,9 +63,7 @@ export function ModalEvaluaciones({
   const [pestanaActiva, setPestanaActiva] = useState<"evaluacion" | "entrega">("evaluacion");
   const [entregaUrl, setEntregaUrl] = useState<string | null>(null);
   const [entregaTipo, setEntregaTipo] = useState("");
-  const [entregaCargando, setEntregaCargando] = useState(false);
   const [entregaError, setEntregaError] = useState<string | null>(null);
-  const [entregaIntento, setEntregaIntento] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,35 +78,29 @@ export function ModalEvaluaciones({
     }
   }, [student]);
 
-  // Al cambiar de estudiante se vuelve a la pestaña de evaluación y se descarta la vista previa anterior
-  useEffect(() => {
-    setPestanaActiva("evaluacion");
-    setEntregaUrl(null);
-    setEntregaError(null);
-  }, [student?.idEstudiante, student?.idEvidencia]);
+  // La entrega se carga solo al abrir su pestaña. El modal se monta de nuevo por cada estudiante
+  // (key en Evaluaciones), así que la vista previa nunca queda de otro alumno.
+  const debeCargarEntrega =
+    pestanaActiva === "entrega" && !!student?.idEvidencia && !!student.tieneArchivoEntrega && !entregaUrl && !entregaError;
 
-  // Carga la entrega del alumno solo cuando se abre su pestaña
   useEffect(() => {
-    if (pestanaActiva !== "entrega" || entregaUrl || !student?.idEvidencia || !student.tieneArchivoEntrega) return;
+    if (!debeCargarEntrega || !student?.idEvidencia) return;
     let cancelado = false;
-    setEntregaCargando(true);
-    setEntregaError(null);
     obtenerArchivoEntregaAlumno(student.idEvidencia, student.nombreArchivoEntrega)
       .then((blob) => {
         if (cancelado) return;
         setEntregaTipo(blob.type);
         setEntregaUrl(URL.createObjectURL(blob));
       })
-      .catch((err: any) => {
-        if (!cancelado) setEntregaError(err?.message || "No se pudo cargar el archivo del alumno.");
-      })
-      .finally(() => {
-        if (!cancelado) setEntregaCargando(false);
+      .catch((err: unknown) => {
+        if (!cancelado) {
+          setEntregaError(err instanceof Error ? err.message : "No se pudo cargar el archivo del alumno.");
+        }
       });
     return () => {
       cancelado = true;
     };
-  }, [pestanaActiva, entregaUrl, entregaIntento, student?.idEvidencia, student?.tieneArchivoEntrega, student?.nombreArchivoEntrega]);
+  }, [debeCargarEntrega, student?.idEvidencia, student?.nombreArchivoEntrega]);
 
   // Libera la URL temporal de la vista previa
   useEffect(() => {
@@ -173,6 +165,9 @@ export function ModalEvaluaciones({
       setIsDownloading(false);
     }
   };
+
+  const extensionEntrega = (student.nombreArchivoEntrega || "").split(".").pop()?.toLowerCase() || "";
+  const esImagenEntrega = ["png", "jpg", "jpeg", "gif", "webp"].includes(extensionEntrega);
 
   const handleDescargarEntrega = () => {
     if (!entregaUrl) return;
@@ -291,7 +286,7 @@ export function ModalEvaluaciones({
         className={`bg-white shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
           isFullscreen
             ? "fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none rounded-none"
-            : "relative z-50 rounded-2xl max-w-4xl w-full max-h-[92vh] border border-slate-200"
+            : "relative z-50 rounded-2xl max-w-4xl w-full h-[88vh] border border-slate-200"
         }`}
       >
         {/* Cabecera del Modal con botón de Pantalla Completa y Cerrar */}
@@ -344,7 +339,7 @@ export function ModalEvaluaciones({
         </div>
 
         {/* Pestañas estilo navegador: evaluación y entrega del alumno */}
-        <div className="flex items-end gap-1 px-4 pt-2 bg-slate-100 border-b border-slate-200 shrink-0 overflow-x-auto" role="tablist">
+        <div className="flex items-end gap-1 px-4 pt-2 bg-slate-100 border-b border-slate-200 shrink-0 overflow-x-auto overflow-y-hidden" role="tablist">
           <button
             type="button"
             role="tab"
@@ -379,22 +374,42 @@ export function ModalEvaluaciones({
         </div>
 
         {pestanaActiva === "entrega" ? (
-          <div className="flex-1 flex flex-col min-h-0 bg-slate-50">
-            {/* Barra tipo dirección con los datos de la entrega */}
-            <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-white border-b border-slate-200 shrink-0">
-              <div className="flex items-center gap-2 min-w-0 flex-1 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-600">
-                <FileText className="size-3.5 text-slate-400 shrink-0" />
-                <span className="truncate font-medium">
-                  {student.nombreArchivoEntrega || "Sin archivo"}
-                </span>
-                {student.tituloActividad && (
-                  <span className="truncate text-slate-400 hidden sm:inline">• {student.tituloActividad}</span>
-                )}
-                {student.fechaEntrega && (
-                  <span className="text-slate-400 font-mono shrink-0 hidden md:inline">
-                    • {new Date(student.fechaEntrega).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                  </span>
-                )}
+          <div className="flex-1 flex flex-col min-h-0 bg-slate-100">
+            {/* Ficha de la entrega: tipo, nombre, actividad, fecha y acciones */}
+            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-white border-b border-slate-200 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`size-10 rounded-lg flex flex-col items-center justify-center shrink-0 border text-[9px] font-black uppercase tracking-wide ${
+                    extensionEntrega === "pdf"
+                      ? "bg-rose-50 border-rose-200 text-rose-700"
+                      : esImagenEntrega
+                        ? "bg-violet-50 border-violet-200 text-violet-700"
+                        : "bg-sky-50 border-sky-200 text-sky-700"
+                  }`}
+                >
+                  <FileText className="size-4 mb-0.5" />
+                  {extensionEntrega || "doc"}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate" title={student.nombreArchivoEntrega || undefined}>
+                    {student.nombreArchivoEntrega || "Sin archivo entregado"}
+                  </p>
+                  <p className="text-[11px] text-slate-500 flex items-center gap-1.5 truncate">
+                    {student.tituloActividad && (
+                      <span className="flex items-center gap-1 truncate">
+                        <BookOpen className="size-3 shrink-0" />
+                        {student.tituloActividad}
+                      </span>
+                    )}
+                    {student.fechaEntrega && (
+                      <span className="flex items-center gap-1 shrink-0">
+                        <Calendar className="size-3" />
+                        Entregado el{" "}
+                        {new Date(student.fechaEntrega).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
               {entregaUrl && (
                 <div className="flex items-center gap-2 shrink-0">
@@ -411,10 +426,9 @@ export function ModalEvaluaciones({
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
                     size="sm"
                     onClick={handleDescargarEntrega}
-                    className="text-xs h-8 gap-1.5 bg-white cursor-pointer"
+                    className="text-xs h-8 gap-1.5 bg-sky-700 hover:bg-sky-800 text-white cursor-pointer"
                   >
                     <Download className="size-3" />
                     <span className="hidden sm:inline">Descargar</span>
@@ -423,64 +437,73 @@ export function ModalEvaluaciones({
               )}
             </div>
 
-            <div className={`flex-1 min-h-0 ${isFullscreen ? "" : "h-[60vh]"}`}>
-              {!student.idEvidencia || !student.tieneArchivoEntrega ? (
-                <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-500 p-6 text-center">
-                  <FileX className="size-8 text-slate-300" />
-                  <p className="text-sm font-semibold text-slate-700">El alumno aún no ha subido un archivo</p>
-                  <p className="text-xs">Cuando entregue la actividad podrás revisarlo aquí.</p>
-                </div>
-              ) : entregaCargando ? (
-                <div className="h-full flex items-center justify-center gap-2 text-xs text-slate-500">
-                  <RefreshCw className="size-4 animate-spin" />
-                  Cargando archivo del alumno...
-                </div>
-              ) : entregaError ? (
-                <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
-                  <p className="text-xs text-rose-600 font-medium">{entregaError}</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEntregaError(null);
-                      setEntregaIntento((n) => n + 1);
-                    }}
-                    className="text-xs h-8 gap-1.5 cursor-pointer"
-                  >
-                    <RefreshCw className="size-3" />
-                    Reintentar
-                  </Button>
-                </div>
-              ) : entregaUrl && entregaTipo.startsWith("image/") ? (
-                <div className="h-full overflow-auto flex items-start justify-center p-4">
-                  <img
-                    src={entregaUrl}
-                    alt={student.nombreArchivoEntrega || "Entrega del alumno"}
-                    className="max-w-full rounded-lg border border-slate-200 shadow-xs bg-white"
+            {/* Visor: ocupa todo el espacio restante del modal, igual que la pestaña de evaluación */}
+            <div className="flex-1 min-h-0 p-4">
+              <div className="h-full rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                {!student.idEvidencia || !student.tieneArchivoEntrega ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-2 text-slate-500 p-6 text-center">
+                    <div className="size-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-1">
+                      <FileX className="size-7 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">El alumno aún no ha subido un archivo</p>
+                    <p className="text-xs">Cuando entregue la actividad podrás revisarlo aquí.</p>
+                  </div>
+                ) : debeCargarEntrega ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-3 text-xs text-slate-500">
+                    <RefreshCw className="size-6 animate-spin text-sky-600" />
+                    Cargando archivo del alumno...
+                  </div>
+                ) : entregaError ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                    <div className="size-14 rounded-2xl bg-rose-50 flex items-center justify-center">
+                      <FileX className="size-7 text-rose-400" />
+                    </div>
+                    <p className="text-xs text-rose-600 font-medium max-w-sm">{entregaError}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEntregaError(null)}
+                      className="text-xs h-8 gap-1.5 cursor-pointer"
+                    >
+                      <RefreshCw className="size-3" />
+                      Reintentar
+                    </Button>
+                  </div>
+                ) : entregaUrl && entregaTipo.startsWith("image/") ? (
+                  <div className="h-full overflow-auto flex items-center justify-center p-4 bg-slate-50">
+                    <img
+                      src={entregaUrl}
+                      alt={student.nombreArchivoEntrega || "Entrega del alumno"}
+                      className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+                    />
+                  </div>
+                ) : entregaUrl && (entregaTipo === "application/pdf" || entregaTipo.startsWith("text/")) ? (
+                  <iframe
+                    // Sin panel de miniaturas y ajustado al ancho: el documento usa todo el visor
+                    src={entregaTipo === "application/pdf" ? `${entregaUrl}#navpanes=0&view=FitH` : entregaUrl}
+                    title={student.nombreArchivoEntrega || "Entrega del alumno"}
+                    className="w-full h-full border-0"
                   />
-                </div>
-              ) : entregaUrl && (entregaTipo === "application/pdf" || entregaTipo.startsWith("text/")) ? (
-                <iframe
-                  src={entregaUrl}
-                  title={student.nombreArchivoEntrega || "Entrega del alumno"}
-                  className="w-full h-full border-0 bg-white"
-                />
-              ) : entregaUrl ? (
-                <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
-                  <FileText className="size-8 text-slate-300" />
-                  <p className="text-sm font-semibold text-slate-700">Este tipo de archivo no se puede previsualizar</p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleDescargarEntrega}
-                    className="text-xs h-8 gap-1.5 bg-sky-700 hover:bg-sky-800 text-white cursor-pointer"
-                  >
-                    <Download className="size-3" />
-                    Descargar archivo
-                  </Button>
-                </div>
-              ) : null}
+                ) : entregaUrl ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
+                    <div className="size-14 rounded-2xl bg-sky-50 flex items-center justify-center">
+                      <FileText className="size-7 text-sky-500" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">Este tipo de archivo no se puede previsualizar</p>
+                    <p className="text-xs text-slate-500">Descárgalo para revisarlo en tu equipo.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleDescargarEntrega}
+                      className="text-xs h-8 gap-1.5 bg-sky-700 hover:bg-sky-800 text-white cursor-pointer"
+                    >
+                      <Download className="size-3" />
+                      Descargar archivo
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         ) : (

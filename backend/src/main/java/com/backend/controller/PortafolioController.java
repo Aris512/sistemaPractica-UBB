@@ -39,11 +39,15 @@ public class PortafolioController {
     }
 
     /**
-     * Obtiene todos los documentos y evidencias del portafolio del estudiante indicado.
+     * Obtiene los documentos y evidencias del portafolio del estudiante indicado.
+     * Con soloPropios=true (vista del propio estudiante) se excluyen los archivos subidos por
+     * profesores u otros usuarios, incluidas las revisiones adjuntas a sus observaciones.
      */
     @GetMapping("/estudiante/{rut}")
-    public ResponseEntity<List<PortafolioItemDTO>> obtenerDocumentosEstudiante(@PathVariable String rut) {
-        return ResponseEntity.ok(portafolioService.obtenerDocumentosPorEstudiante(rut));
+    public ResponseEntity<List<PortafolioItemDTO>> obtenerDocumentosEstudiante(
+            @PathVariable String rut,
+            @RequestParam(defaultValue = "false") boolean soloPropios) {
+        return ResponseEntity.ok(portafolioService.obtenerDocumentosPorEstudiante(rut, soloPropios));
     }
 
     /**
