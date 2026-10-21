@@ -149,8 +149,9 @@ public class EvaluacionService {
                         .findFirst()
                         .orElse(practicas.isEmpty() ? null : practicas.get(0));
 
-                // Nota existente
-                Optional<Nota> notaOpt = notaRepository.findFirstByEstudianteIdEstudianteOrderByIdNotaDesc(estudiante.getIdEstudiante());
+                // Nota existente: solo la emitida por este profesor, para no mostrar la nota
+                // de otra asignatura cuando el estudiante avanza en el plan.
+                Optional<Nota> notaOpt = notasDelProfesor(estudiante.getIdEstudiante(), profesor).stream().findFirst();
 
                 // Evaluación existente: SOLAMENTE la asociada a la Nota de este estudiante (no de la práctica)
                 Evaluacion evaluacion = null;
@@ -219,6 +220,7 @@ public class EvaluacionService {
                         dto.setEvaluadorNombre(u.getNombre() + " " + u.getApellido());
                     });
                 }
+                completarEntregaAlumno(dto, estudiante.getIdEstudiante(), profesor.getUsuario().getRut());
 
                 resultado.add(dto);
             }
@@ -248,14 +250,14 @@ public class EvaluacionService {
         Profesor profesor = profesorRepository.findByUsuarioRut(req.getRutProfesor())
                 .orElseThrow(() -> new RuntimeException("Profesor no encontrado con RUT: " + req.getRutProfesor()));
 
-        // 1. Resolver si ya existe una Nota previa para este estudiante
-        List<Nota> notasEstudiante = notaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante());
+        // 1. Resolver si ya existe una Nota previa de este profesor para el estudiante
+        // (las notas de otros profesores/asignaturas no se tocan).
+        List<Nota> notasEstudiante = notasDelProfesor(estudiante.getIdEstudiante(), profesor);
         Nota notaExistente = notasEstudiante.isEmpty() ? null : notasEstudiante.get(0);
         if (notasEstudiante.size() > 1) {
             for (int i = 1; i < notasEstudiante.size(); i++) {
-                notaRepository.delete(notasEstudiante.get(i));
+                eliminarNota(notasEstudiante.get(i));
             }
-            notaRepository.flush();
         }
 
         // 2. Resolver la Evaluación existente (evitar crear registros redundantes)
@@ -275,8 +277,7 @@ public class EvaluacionService {
         if (req.getPuntajeObtenido() == null && obsLimpia == null
                 && !Boolean.TRUE.equals(req.getConservarEvaluacionPorArchivo())) {
             if (notaExistente != null) {
-                notaRepository.delete(notaExistente);
-                notaRepository.flush();
+                eliminarNota(notaExistente);
                 notaExistente = null;
             }
             if (evaluacion != null && evaluacion.getPractica() == null) {
@@ -290,7 +291,7 @@ public class EvaluacionService {
                 evaluacionRepository.flush();
                 evaluacion = null;
             }
-            return construirDTO(estudiante, evaluacion, null);
+            return construirDTO(estudiante, evaluacion, null, profesor.getUsuario().getRut());
         }
 
         // CASO B: Existe nota, observación o ambas
@@ -337,7 +338,41 @@ public class EvaluacionService {
 
         sincronizarRevisionEnEvidencia(estudiante, profesor, notaExistente, obsLimpia);
 
-        return construirDTO(estudiante, evaluacion, notaExistente);
+        return construirDTO(estudiante, evaluacion, notaExistente, profesor.getUsuario().getRut());
+    }
+
+    /** Notas que el profesor emitió para el estudiante, la más reciente primero. */
+    private List<Nota> notasDelProfesor(Long idEstudiante, Profesor profesor) {
+        String rutProfesor = profesor.getUsuario() != null ? profesor.getUsuario().getRut() : null;
+        if (rutProfesor == null) return List.of();
+        return notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutProfesor);
+    }
+
+    /**
+     * Elimina una nota desvinculándola antes de las evidencias que la referencian, para que la
+     * entrega deje de figurar como calificada y el avance académico se recalcule sin ella.
+     */
+    private void eliminarNota(Nota nota) {
+        List<Evidencia> afectadas = nota.getIdNota() != null
+                ? evidenciaRepository.findByNotaIdNota(nota.getIdNota())
+                : List.of();
+        for (Evidencia ev : afectadas) {
+            ev.setNota(null);
+            evidenciaRepository.saveAndFlush(ev);
+        }
+        notaRepository.delete(nota);
+        notaRepository.flush();
+        afectadas.forEach(this::actualizarAvanceDesdeEvidencia);
+    }
+
+    /** Propaga a las evidencias un cambio de puntaje (p. ej. nota vaciada) y recalcula el avance. */
+    private void sincronizarEvidenciasDeNota(Nota nota) {
+        if (nota.getIdNota() == null) return;
+        for (Evidencia ev : evidenciaRepository.findByNotaIdNota(nota.getIdNota())) {
+            ev.actualizarEstadoSegunNota();
+            evidenciaRepository.saveAndFlush(ev);
+            actualizarAvanceDesdeEvidencia(ev);
+        }
     }
 
     @Transactional
@@ -354,11 +389,11 @@ public class EvaluacionService {
                 // Preservar la nota con puntaje null para no romper el vínculo con la observación
                 nota.setPuntajeObtenido(null);
                 nota = notaRepository.save(nota);
+                sincronizarEvidenciasDeNota(nota);
                 return construirDTO(estudiante, evaluacion, nota);
             } else {
                 // Si no hay observación, eliminar nota y evaluación huérfana
-                notaRepository.delete(nota);
-                notaRepository.flush();
+                eliminarNota(nota);
                 if (evaluacion != null && evaluacion.getPractica() == null) {
                     List<ObservacionEvaluacion> obsHijas = observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(evaluacion.getIdEvaluacion());
                     if (!obsHijas.isEmpty()) {
@@ -393,8 +428,7 @@ public class EvaluacionService {
             }
             if (nota.getPuntajeObtenido() == null) {
                 // Si no hay nota ni observación, limpiar ambos para no dejar huérfanos
-                notaRepository.delete(nota);
-                notaRepository.flush();
+                eliminarNota(nota);
                 nota = null;
                 if (evaluacion != null && evaluacion.getPractica() == null) {
                     List<ObservacionEvaluacion> obsHijas = observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(evaluacion.getIdEvaluacion());
@@ -434,7 +468,12 @@ public class EvaluacionService {
 
         Set<Documento> docsFisicosParaBorrar = new HashSet<>();
         Set<String> urlsSueltas = new HashSet<>();
+        Set<Asignatura> asignaturasAfectadas = new HashSet<>();
+        if (asignatura != null) asignaturasAfectadas.add(asignatura);
         for (Evidencia ev : evidencias) {
+            if (ev.getActividad() != null && ev.getActividad().getAsignatura() != null) {
+                asignaturasAfectadas.add(ev.getActividad().getAsignatura());
+            }
             // Entregas antiguas sin Documento: la ruta vive solo en la evidencia.
             if (ev.getArchivoUrl() != null) urlsSueltas.add(ev.getArchivoUrl());
             if (ev.getArchivoRevisionUrl() != null) urlsSueltas.add(ev.getArchivoRevisionUrl());
@@ -520,10 +559,10 @@ public class EvaluacionService {
             }
         }
 
-        // 5. Recalcular progreso en AvanceAcademico
-        if (asignatura != null) {
+        // 5. Recalcular progreso en AvanceAcademico de cada asignatura con entregas eliminadas
+        for (Asignatura asig : asignaturasAfectadas) {
             try {
-                avanceAcademicoService.recalcularYGuardar(estudiante, asignatura);
+                avanceAcademicoService.recalcularYGuardar(estudiante, asig);
             } catch (Exception e) {
                 logger.warn("No se pudo recalcular avance académico tras eliminación: {}", e.getMessage());
             }
@@ -584,6 +623,29 @@ public class EvaluacionService {
     }
 
     private EstudianteEvaluacionDTO construirDTO(Estudiante estudiante, Evaluacion evaluacion, Nota nota) {
+        return construirDTO(estudiante, evaluacion, nota, nota != null ? nota.getRutEvaluador() : null);
+    }
+
+    /**
+     * Agrega al DTO la entrega (evidencia) que el estudiante subió para las actividades del profesor,
+     * para que el profesor pueda previsualizarla al evaluar.
+     */
+    private void completarEntregaAlumno(EstudianteEvaluacionDTO dto, Long idEstudiante, String rutProfesor) {
+        if (rutProfesor == null) return;
+        evidenciaRepository
+                .findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(idEstudiante, rutProfesor)
+                .ifPresent(ev -> {
+                    String ruta = ev.getArchivoUrl();
+                    dto.setIdEvidencia(ev.getIdEvidencia());
+                    dto.setNombreArchivoEntrega(ev.getNombreArchivo());
+                    dto.setTituloActividad(ev.getActividad() != null ? ev.getActividad().getTitulo() : null);
+                    dto.setFechaEntrega(ev.getFechaEntrega() != null ? ev.getFechaEntrega().toString() : null);
+                    dto.setTieneArchivoEntrega(ruta != null && !ruta.isBlank());
+                    dto.setEstadoEntrega("ENTREGADO");
+                });
+    }
+
+    private EstudianteEvaluacionDTO construirDTO(Estudiante estudiante, Evaluacion evaluacion, Nota nota, String rutProfesor) {
         EstudianteEvaluacionDTO dto = new EstudianteEvaluacionDTO();
         dto.setIdEstudiante(estudiante.getIdEstudiante());
         if (estudiante.getUsuario() != null) {
@@ -592,9 +654,17 @@ public class EvaluacionService {
             dto.setRut(estudiante.getUsuario().getRut());
             dto.setCorreo(estudiante.getUsuario().getCorreo());
         }
-        if (estudiante.getAsignatura() != null) {
-            dto.setAsignatura(estudiante.getAsignatura().getNombre());
-            dto.setIdAsignatura(estudiante.getAsignatura().getIdAsignatura());
+        // La asignatura de la evaluación es la del profesor que la emite; la del estudiante puede
+        // haber cambiado si avanzó en el plan.
+        Asignatura asignaturaEvaluacion = rutProfesor != null
+                ? profesorRepository.findByUsuarioRut(rutProfesor).map(Profesor::getAsignatura).orElse(null)
+                : null;
+        if (asignaturaEvaluacion == null) {
+            asignaturaEvaluacion = estudiante.getAsignatura();
+        }
+        if (asignaturaEvaluacion != null) {
+            dto.setAsignatura(asignaturaEvaluacion.getNombre());
+            dto.setIdAsignatura(asignaturaEvaluacion.getIdAsignatura());
         }
         long docCount = 0;
         if (estudiante.getAsignatura() != null && estudiante.getUsuario() != null) {
@@ -665,6 +735,7 @@ public class EvaluacionService {
                 dto.setEvaluadorRut(profesores.get(0).getUsuario().getRut());
             }
         }
+        completarEntregaAlumno(dto, estudiante.getIdEstudiante(), rutProfesor);
 
         return dto;
     }
@@ -755,10 +826,15 @@ public class EvaluacionService {
                     Estudiante est = estudianteRepository.findById(idEstudiante).orElse(null);
                     Usuario prof = usuarioRepository.findByRut(rutProfesor).orElse(null);
                     if (est != null && est.getUsuario() != null && prof != null) {
+                        // Se archiva en la asignatura del profesor que evalúa, no en la que el
+                        // estudiante cursa ahora (si ya avanzó, quedaría en la asignatura equivocada).
+                        Asignatura asignaturaProfesor = profesorRepository.findByUsuarioRut(rutProfesor)
+                                .map(Profesor::getAsignatura)
+                                .orElse(est.getAsignatura());
                         DocumentoPractica doc = new DocumentoPractica();
                         doc.setUsuario(prof);
                         doc.setEstudiante(est.getUsuario());
-                        doc.setAsignatura(est.getAsignatura());
+                        doc.setAsignatura(asignaturaProfesor);
                         doc.setNombreArchivo(stored.originalFilename());
                         doc.setNombreDocumento((tipoEvaluacion != null && !tipoEvaluacion.isBlank()) ? tipoEvaluacion : "Pauta de Evaluación y Retroalimentación");
                         doc.setTipoDocumento("PROFESOR");
@@ -774,8 +850,10 @@ public class EvaluacionService {
             }
 
             Estudiante estudiante = estudianteRepository.findById(idEstudiante).orElse(null);
-            Nota nota = notaRepository.findFirstByEstudianteIdEstudianteOrderByIdNotaDesc(idEstudiante).orElse(null);
-            return construirDTO(estudiante, evaluacion, nota);
+            Nota nota = notaRepository
+                    .findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutProfesor)
+                    .stream().findFirst().orElse(null);
+            return construirDTO(estudiante, evaluacion, nota, rutProfesor);
         }
 
         return dto;
@@ -791,9 +869,8 @@ public class EvaluacionService {
                     evidencia.setRevisadoPor(profesor);
                     evidencia.setRetroalimentacion(observacion);
                     evidencia.setFechaRevision(LocalDateTime.now());
-                    if (nota.getPuntajeObtenido() != null) {
-                        evidencia.setCalificacion(nota.getPuntajeObtenido());
-                    } else {
+                    // setNota ya derivó el estado de la nota; si quedó vacía, la entrega vuelve a "REVISADO".
+                    if (nota.getPuntajeObtenido() == null) {
                         evidencia.setEstado("REVISADO");
                     }
                     evidenciaRepository.save(evidencia);

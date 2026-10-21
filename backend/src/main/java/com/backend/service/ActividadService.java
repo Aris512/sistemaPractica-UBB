@@ -196,7 +196,11 @@ public class ActividadService {
 
     @Transactional
     public void eliminar(Long id) {
-        evidenciaService.eliminarPorActividad(id);
+        Asignatura asignatura = actividadRepository.findById(id).map(Actividad::getAsignatura).orElse(null);
+        java.util.Set<Estudiante> afectados = evidenciaService.eliminarPorActividad(id);
         actividadRepository.deleteById(id);
+        actividadRepository.flush();
+        // Ya sin la actividad, se recalcula el avance con las tareas que quedan en la asignatura.
+        evidenciaService.recalcularAvance(afectados, asignatura);
     }
 }

@@ -25,6 +25,12 @@ public class EstudianteEvaluacionDTO {
     private String archivoUrl;
     private String nombreArchivo;
     private Boolean tieneArchivo;
+    // Entrega (evidencia) que el estudiante subió a la actividad del profesor
+    private Long idEvidencia;
+    private String nombreArchivoEntrega;
+    private String tituloActividad;
+    private String fechaEntrega;
+    private Boolean tieneArchivoEntrega;
 
     public EstudianteEvaluacionDTO() {
     }
@@ -215,5 +221,45 @@ public class EstudianteEvaluacionDTO {
 
     public void setTieneArchivo(Boolean tieneArchivo) {
         this.tieneArchivo = tieneArchivo;
+    }
+
+    public Long getIdEvidencia() {
+        return idEvidencia;
+    }
+
+    public void setIdEvidencia(Long idEvidencia) {
+        this.idEvidencia = idEvidencia;
+    }
+
+    public String getNombreArchivoEntrega() {
+        return nombreArchivoEntrega;
+    }
+
+    public void setNombreArchivoEntrega(String nombreArchivoEntrega) {
+        this.nombreArchivoEntrega = nombreArchivoEntrega;
+    }
+
+    public String getTituloActividad() {
+        return tituloActividad;
+    }
+
+    public void setTituloActividad(String tituloActividad) {
+        this.tituloActividad = tituloActividad;
+    }
+
+    public String getFechaEntrega() {
+        return fechaEntrega;
+    }
+
+    public void setFechaEntrega(String fechaEntrega) {
+        this.fechaEntrega = fechaEntrega;
+    }
+
+    public Boolean getTieneArchivoEntrega() {
+        return tieneArchivoEntrega;
+    }
+
+    public void setTieneArchivoEntrega(Boolean tieneArchivoEntrega) {
+        this.tieneArchivoEntrega = tieneArchivoEntrega;
     }
 }

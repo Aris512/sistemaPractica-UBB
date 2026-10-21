@@ -682,8 +682,24 @@ public class DocumentoPracticaService {
                 }
             }
 
+            // Archivos físicos ya incluidos desde las evidencias: la pauta del profesor también se copia
+            // en DocumentoPractica, y no debe repetirse en otra carpeta de asignatura.
+            Set<String> archivosDeEvidencias = new HashSet<>();
+            for (Evidencia ev : evidencias) {
+                if (ev.getArchivoUrl() != null && !ev.getArchivoUrl().isBlank()) {
+                    archivosDeEvidencias.add(normalizarRutaFisica(ev.getArchivoUrl(), null));
+                }
+                if (ev.getArchivoRevisionUrl() != null && !ev.getArchivoRevisionUrl().isBlank()) {
+                    archivosDeEvidencias.add(normalizarRutaFisica(ev.getArchivoRevisionUrl(), null));
+                }
+            }
+
             // 2. Procesar documentos de práctica generales (informe final, pauta final)
             for (DocumentoPractica doc : documentos) {
+                if (doc.getUbicacion() != null && !doc.getUbicacion().isBlank()
+                        && archivosDeEvidencias.contains(normalizarRutaFisica(doc.getUbicacion(), null))) {
+                    continue;
+                }
                 Asignatura asigDoc = doc.getAsignatura();
                 if (asigDoc == null && estudiante != null) {
                     asigDoc = estudiante.getAsignatura();
