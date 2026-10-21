@@ -17,26 +17,26 @@ import org.springframework.transaction.annotation.Transactional;
 import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
 import com.backend.model.CentroPractica;
+import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
 import com.backend.model.ObservacionPractica;
 import com.backend.model.Pauta;
+import com.backend.model.Permiso;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
 import com.backend.model.ProfesorColaborador;
 import com.backend.model.Rol;
+import com.backend.model.RolPermiso;
 import com.backend.model.TutorPractica;
 import com.backend.model.Usuario;
-import com.backend.model.Permiso;
-import com.backend.model.RolPermiso;
 import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.CentroPracticaRepository;
+import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
-import com.backend.model.DocumentoPractica;
-import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PautaRepository;
 import com.backend.repository.PermisoRepository;
@@ -138,7 +138,8 @@ public class DataSeeder implements CommandLineRunner {
             new RolInfo("PROFESOR_ASIGNATURA", "Rol para profesores a cargo de asignaturas"),
             new RolInfo("PROFESOR_COLABORADOR", "Rol para profesores colaboradores en centros de práctica"),
             new RolInfo("TUTOR_PRACTICA", "Rol para tutores de práctica profesional"),
-            new RolInfo("COORDINADOR", "Rol para coordinadores de práctica")
+            new RolInfo("COORDINADOR", "Rol para coordinadores de práctica"),
+            new RolInfo("ADMINISTRADOR","rol administrador")
         );
 
         for (RolInfo info : rolesIniciales) {
@@ -289,7 +290,8 @@ public class DataSeeder implements CommandLineRunner {
             new UsuarioInfo("10987654-2", "Patricia", "Navarro", "patricia.navarro@test.com", "PROFESOR_ASIGNATURA"),
             new UsuarioInfo("10000013-K", "Profesor", "Colaborador", "colaborador@test.com", "PROFESOR_COLABORADOR"),
             new UsuarioInfo("18765432-7", "Tutor", "Practica", "tutor@test.com", "TUTOR_PRACTICA"),
-            new UsuarioInfo("20123456-5", "Coordinador", "General", "coordinador@test.com", "COORDINADOR")
+            new UsuarioInfo("20123456-5", "Coordinador", "General", "coordinador@test.com", "COORDINADOR"),
+            new UsuarioInfo("22222222-2", "Administrador", "AD", "administrador@test.com", "ADMINISTRADOR")
         );
 
         for (UsuarioInfo info : usuariosIniciales) {
@@ -592,7 +594,7 @@ public class DataSeeder implements CommandLineRunner {
                 if (!java.nio.file.Files.exists(uploadsDir)) {
                     java.nio.file.Files.createDirectories(uploadsDir);
                 }
-            } catch (Exception e) {
+            } catch (java.io.IOException | RuntimeException e) {
                 logger.error("Error creando directorio uploads/documentos: {}", e.getMessage());
             }
 
@@ -668,7 +670,7 @@ public class DataSeeder implements CommandLineRunner {
                 byte[] content = com.backend.service.DocumentoPracticaService.generarPdfMock(titulo, estudiante, asignatura);
                 java.nio.file.Files.write(destino, content);
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             logger.warn("No se pudo escribir archivo físico de prueba {}: {}", destino, e.getMessage());
         }
     }

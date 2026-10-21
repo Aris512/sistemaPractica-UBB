@@ -984,19 +984,28 @@ public class DocumentoPracticaService {
     }
 
     public static byte[] generarPdfMock(String titulo, String estudiante, String asignatura) {
-        String contenido = "%PDF-1.4\n" +
-            "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
-            "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
-            "3 0 obj << /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >> endobj\n" +
-            "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\n" +
-            "5 0 obj << /Length 200 >> stream\n" +
-            "BT /F1 14 Tf 50 720 Td (" + escapePdf(titulo) + ") Tj\n" +
-            "/F1 11 Tf 0 -30 Td (Estudiante: " + escapePdf(estudiante) + ") Tj\n" +
-            "0 -20 Td (Asignatura: " + escapePdf(asignatura) + ") Tj\n" +
-            "0 -20 Td (Universidad del Bio-Bio - Sistema de Practicas) Tj\n" +
-            "0 -20 Td (Documento verificado y archivado localmente.) Tj ET\n" +
-            "endstream\nendobj\nxref\n0 6\n0000000000 65535 f \n" +
-            "trailer << /Size 6 /Root 1 0 R >>\nstartxref\n500\n%%EOF\n";
+        String contenido = """
+            %%PDF-1.4
+            1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+            2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+            3 0 obj << /Type /Page /Parent 2 0 R /Resources << /Font << /F1 4 0 R >> >> /MediaBox [0 0 612 792] /Contents 5 0 R >> endobj
+            4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+            5 0 obj << /Length 200 >> stream
+            BT /F1 14 Tf 50 720 Td (%s) Tj
+            /F1 11 Tf 0 -30 Td (Estudiante: %s) Tj
+            0 -20 Td (Asignatura: %s) Tj
+            0 -20 Td (Universidad del Bio-Bio - Sistema de Practicas) Tj
+            0 -20 Td (Documento verificado y archivado localmente.) Tj ET
+            endstream
+            endobj
+            xref
+            0 6
+            0000000000 65535 f\s
+            trailer << /Size 6 /Root 1 0 R >>
+            startxref
+            500
+            %%%%EOF
+            """.formatted(escapePdf(titulo), escapePdf(estudiante), escapePdf(asignatura));
         return contenido.getBytes(StandardCharsets.ISO_8859_1);
     }
 
