@@ -82,7 +82,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         if (!hasPermission("IA_ACCESO")) {
           return <MallaCurricular userRut={user?.rut} />;
         }
-        return <AsistentesIA onBack={() => setActiveMenu("inicio")} />;
+        return <AsistentesIA user={user} />;
       case "inicio":
       case "malla-curricular":
       default:

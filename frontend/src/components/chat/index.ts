@@ -1,0 +1,1 @@
+export { ChatIA } from "./ChatIA";
