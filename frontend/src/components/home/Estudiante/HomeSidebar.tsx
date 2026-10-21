@@ -20,7 +20,6 @@ import {
   Bot,
   LogOut,
 } from "lucide-react";
-import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomeSidebarProps {
@@ -66,14 +65,6 @@ export function HomeSidebar({
   onLogout,
 }: HomeSidebarProps) {
   const { hasPermission } = usePermissions(user);
-
-  const handleSelectMockup = (menu: HomeMenuKey, modulo: string) => {
-    onSelectMenu(menu);
-    sileo.warning({
-      title: "Módulo en desarrollo",
-      description: `${modulo} se encuentra actualmente en desarrollo`,
-    });
-  };
 
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
@@ -173,7 +164,7 @@ export function HomeSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "asistentes-ia"}
-                    onClick={() => handleSelectMockup("asistentes-ia", "Asistentes de IA")}
+                    onClick={() => onSelectMenu("asistentes-ia")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "asistentes-ia"
                         ? "bg-sky-50 text-sky-800 font-semibold border-l-4 border-sky-600 pl-2"
