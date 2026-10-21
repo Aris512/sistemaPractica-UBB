@@ -101,9 +101,13 @@ public class PlanificacionController {
      * Elimina un archivo adjunto de una planificación.
      */
     @DeleteMapping("/{id}/archivos/{idDocumento}")
-    public ResponseEntity<Void> eliminarArchivo(@PathVariable Long id, @PathVariable Long idDocumento) {
-        planificacionService.eliminarArchivo(id, idDocumento);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> eliminarArchivo(@PathVariable Long id, @PathVariable Long idDocumento) {
+        try {
+            planificacionService.eliminarArchivo(id, idDocumento);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     /**

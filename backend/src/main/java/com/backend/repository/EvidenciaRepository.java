@@ -40,4 +40,10 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
     Optional<Evidencia> findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(
         Long idEstudiante, String rutProfesor
     );
+
+    long countByArchivoUrlIn(java.util.Collection<String> ubicaciones);
+
+    long countByArchivoRevisionUrlIn(java.util.Collection<String> ubicaciones);
+
+    List<Evidencia> findByArchivoProfesorIdDocumento(Long idDocumento);
 }

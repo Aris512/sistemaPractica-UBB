@@ -23,5 +23,8 @@ public interface DocumentoPracticaRepository extends JpaRepository<DocumentoPrac
     java.util.Optional<DocumentoPractica> findByEstudianteRutAndTipoDocumento(String rut, String tipoDocumento);
 
     java.util.Optional<DocumentoPractica> findByEstudianteRutAndAsignaturaIdAsignaturaAndTipoDocumento(String rut, Long idAsignatura, String tipoDocumento);
-}
 
+    long countByUbicacionIn(java.util.Collection<String> ubicaciones);
+
+    List<DocumentoPractica> findByUbicacionIn(java.util.Collection<String> ubicaciones);
+}

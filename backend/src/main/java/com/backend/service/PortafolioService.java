@@ -190,8 +190,8 @@ public class PortafolioService {
         Documento doc = documentoRepository.findById(idDocumento)
             .orElseThrow(() -> new IllegalArgumentException("Documento no encontrado con ID: " + idDocumento));
 
-        fileStorageService.deleteFile(doc.getUbicacion());
         documentoRepository.delete(doc);
+        fileStorageService.deleteFile(doc.getUbicacion());
         logger.info("Documento de portafolio eliminado con éxito: ID {}", idDocumento);
     }
 

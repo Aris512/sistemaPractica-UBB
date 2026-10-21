@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -933,7 +932,9 @@ public class DocumentoPracticaService {
                 if (res != null && res.exists() && res.isReadable()) {
                     return res.getFile().toPath().toAbsolutePath().normalize();
                 }
-            } catch (Exception ignored) {
+            } catch (IOException | RuntimeException e) {
+                // Fallback esperado: se siguen probando las demás rutas, pero se deja rastro para diagnóstico.
+                logger.debug("FileStorageService no resolvió '{}' ({}); se prueban rutas alternativas", clean, e.getMessage());
             }
 
             // 4. Con el directorio de trabajo del sistema
@@ -988,12 +989,6 @@ public class DocumentoPracticaService {
         return text.replace("(", "").replace(")", "").replace("\\", "");
     }
 
-    private String sanitizarNombre(String entrada) {
-        if (entrada == null) return "archivo";
-        String normalized = Normalizer.normalize(entrada, Normalizer.Form.NFD);
-        String limpia = normalized.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-        return limpia.replaceAll("[^a-zA-Z0-9._-]", "_");
-    }
 
     private String formatTamanio(Long bytes) {
         if (bytes == null || bytes <= 0) return "—";

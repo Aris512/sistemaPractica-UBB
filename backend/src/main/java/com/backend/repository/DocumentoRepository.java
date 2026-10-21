@@ -15,6 +15,10 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
 
     @Query("SELECT d FROM Documento d WHERE d.rutEstudiante = :rutExacto OR d.rutEstudiante = :rutLimpio OR ((d.usuario.rut = :rutExacto OR d.usuario.rut = :rutLimpio) AND d.tipo LIKE 'PORTAFOLIO%') ORDER BY d.fechaCarga DESC")
     List<Documento> findPortafolioByRut(@Param("rutExacto") String rutExacto, @Param("rutLimpio") String rutLimpio);
+
+    long countByUbicacionIn(java.util.Collection<String> ubicaciones);
+
+    List<Documento> findByUbicacionIn(java.util.Collection<String> ubicaciones);
+
+    List<Documento> findByActividadIdActividad(Long idActividad);
 }
-
-

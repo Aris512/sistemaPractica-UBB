@@ -29,12 +29,15 @@ public class ActividadService {
     private final AsignaturaRepository asignaturaRepository;
     private final EstudianteRepository estudianteRepository;
     private final EvidenciaRepository evidenciaRepository;
+    private final EvidenciaService evidenciaService;
 
     public ActividadService(ActividadRepository actividadRepository,
                             ProfesorRepository profesorRepository,
                             AsignaturaRepository asignaturaRepository,
                             EstudianteRepository estudianteRepository,
-                            EvidenciaRepository evidenciaRepository) {
+                            EvidenciaRepository evidenciaRepository,
+                            EvidenciaService evidenciaService) {
+        this.evidenciaService = evidenciaService;
         this.actividadRepository = actividadRepository;
         this.profesorRepository = profesorRepository;
         this.asignaturaRepository = asignaturaRepository;
@@ -193,10 +196,7 @@ public class ActividadService {
 
     @Transactional
     public void eliminar(Long id) {
-        List<Evidencia> evidencias = evidenciaRepository.findByActividadIdActividadOrderByFechaEntregaDesc(id);
-        if (evidencias != null && !evidencias.isEmpty()) {
-            evidenciaRepository.deleteAll(evidencias);
-        }
+        evidenciaService.eliminarPorActividad(id);
         actividadRepository.deleteById(id);
     }
 }

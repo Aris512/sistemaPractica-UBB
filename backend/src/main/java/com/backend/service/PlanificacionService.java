@@ -206,8 +206,22 @@ public class PlanificacionService {
         Documento doc = documentoRepository.findById(idDocumento)
             .orElseThrow(() -> new IllegalArgumentException("Documento no encontrado con ID: " + idDocumento));
 
-        fileStorageService.deleteFile(doc.getUbicacion());
+        boolean pertenece = doc.getPlanificaciones() != null && doc.getPlanificaciones().stream()
+            .anyMatch(p -> idPlanificacion != null && idPlanificacion.equals(p.getIdPlanificacion()));
+        if (!pertenece) {
+            throw new IllegalArgumentException("El documento " + idDocumento + " no pertenece a la planificación " + idPlanificacion);
+        }
+
+        // Si el documento sigue ligado a otras planificaciones solo se desvincula de esta.
+        if (doc.getPlanificaciones().size() > 1) {
+            doc.getPlanificaciones().removeIf(p -> idPlanificacion.equals(p.getIdPlanificacion()));
+            documentoRepository.save(doc);
+            return;
+        }
+
         documentoRepository.delete(doc);
+        fileStorageService.deleteFile(doc.getUbicacion());
+        logger.info("Archivo {} eliminado de la planificación {}", idDocumento, idPlanificacion);
     }
 
     /**

@@ -241,14 +241,19 @@ public class EvidenciaService {
                 .orElseGet(() -> new Evidencia(actividad, estudiante, guardado, null, null));
 
         String archivoAnterior = evidencia.getArchivoUrl();
+        Documento documentoAnterior = evidencia.getArchivoAlumno() != guardado ? evidencia.getArchivoAlumno() : null;
         evidencia.setArchivoAlumno(guardado);
         evidencia.setNombreArchivo(guardado.getNombre());
         evidencia.setArchivoUrl(guardado.getUbicacion());
         evidencia.setComentarioEstudiante(comentario);
         evidencia.setFechaEntrega(LocalDateTime.now());
         evidencia.setEstado("PENDIENTE");
-        evidenciaRepository.save(evidencia);
+        evidenciaRepository.saveAndFlush(evidencia);
 
+        // La evidencia ya apunta al documento nuevo: el anterior pasa a ser un registro huérfano.
+        if (documentoAnterior != null) {
+            documentoRepository.delete(documentoAnterior);
+        }
         if (archivoAnterior != null && !archivoAnterior.equals(guardado.getUbicacion())) {
             fileStorageService.deleteFile(archivoAnterior);
         }
@@ -281,9 +286,14 @@ public class EvidenciaService {
             Documento documento = documentoRepository.save(crearDocumento(
                     stored, profesor.getUsuario(), estudiante, evidencia.getActividad(), "EVIDENCIA_REVISION"));
             String archivoAnterior = evidencia.getArchivoRevisionUrl();
+            Documento documentoAnterior = evidencia.getArchivoProfesor();
             evidencia.setArchivoProfesor(documento);
             evidencia.setNombreArchivoRevision(documento.getNombre());
             evidencia.setArchivoRevisionUrl(documento.getUbicacion());
+            evidenciaRepository.saveAndFlush(evidencia);
+            if (documentoAnterior != null) {
+                documentoRepository.delete(documentoAnterior);
+            }
             if (archivoAnterior != null && !archivoAnterior.equals(documento.getUbicacion())) {
                 fileStorageService.deleteFile(archivoAnterior);
             }
@@ -325,9 +335,28 @@ public class EvidenciaService {
                 "revisiones-evidencias",
                 List.of("pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "png", "jpg", "jpeg", "zip")
             );
-            fileStorageService.deleteFile(evidencia.getArchivoRevisionUrl());
-            evidencia.setNombreArchivoRevision(stored.originalFilename());
-            evidencia.setArchivoRevisionUrl(stored.relativePath());
+            String archivoAnterior = evidencia.getArchivoRevisionUrl();
+            Documento documentoAnterior = evidencia.getArchivoProfesor();
+            Usuario autor = evidencia.getRevisadoPor() != null ? evidencia.getRevisadoPor().getUsuario() : null;
+            if (dto.getRutProfesor() != null) {
+                Profesor revisor = profesorRepository.findByUsuarioRut(dto.getRutProfesor()).orElse(null);
+                if (revisor != null) {
+                    autor = revisor.getUsuario();
+                }
+            }
+            // Se registra como Documento (el getter de la evidencia prioriza archivoProfesor sobre la URL suelta).
+            Documento documento = documentoRepository.save(crearDocumento(
+                    stored, autor, evidencia.getEstudiante(), evidencia.getActividad(), "EVIDENCIA_REVISION"));
+            evidencia.setArchivoProfesor(documento);
+            evidencia.setNombreArchivoRevision(documento.getNombre());
+            evidencia.setArchivoRevisionUrl(documento.getUbicacion());
+            evidenciaRepository.saveAndFlush(evidencia);
+            if (documentoAnterior != null) {
+                documentoRepository.delete(documentoAnterior);
+            }
+            if (archivoAnterior != null && !archivoAnterior.equals(documento.getUbicacion())) {
+                fileStorageService.deleteFile(archivoAnterior);
+            }
         }
 
         aplicarRevision(evidencia, dto);
@@ -401,8 +430,47 @@ public class EvidenciaService {
         if (actividad != null) {
             validarPlazoEntrega(actividad);
         }
-        fileStorageService.deleteFile(evidencia.getArchivoUrl());
-        fileStorageService.deleteFile(evidencia.getArchivoRevisionUrl());
+        eliminarEvidenciaConArchivos(evidencia);
+    }
+
+    /**
+     * Elimina la evidencia junto con los Documento que la respaldan y sus archivos físicos.
+     * Primero se desvincula y borra el registro (FK), y los archivos se eliminan solo tras el commit
+     * y si ningún otro registro los sigue usando.
+     */
+    private void eliminarEvidenciaConArchivos(Evidencia evidencia) {
+        String urlAlumno = evidencia.getArchivoUrl();
+        String urlRevision = evidencia.getArchivoRevisionUrl();
+        Documento docAlumno = evidencia.getArchivoAlumno();
+        Documento docProfesor = evidencia.getArchivoProfesor();
+
+        evidencia.setArchivoAlumno(null);
+        evidencia.setArchivoProfesor(null);
+        evidenciaRepository.saveAndFlush(evidencia);
         evidenciaRepository.delete(evidencia);
+        evidenciaRepository.flush();
+
+        if (docAlumno != null) documentoRepository.delete(docAlumno);
+        if (docProfesor != null) documentoRepository.delete(docProfesor);
+        documentoRepository.flush();
+
+        fileStorageService.deleteFile(urlAlumno);
+        fileStorageService.deleteFile(urlRevision);
+    }
+
+    /** Elimina todas las entregas de una actividad (con sus documentos y archivos) antes de borrar la actividad. */
+    @Transactional
+    public void eliminarPorActividad(Long idActividad) {
+        List<Evidencia> evidencias = new java.util.ArrayList<>(
+                evidenciaRepository.findByActividadIdActividadOrderByFechaEntregaDesc(idActividad));
+        for (Evidencia evidencia : evidencias) {
+            eliminarEvidenciaConArchivos(evidencia);
+        }
+        // Documentos sueltos ligados a la actividad (FK id_actividad) sin evidencia viva.
+        for (Documento doc : documentoRepository.findByActividadIdActividad(idActividad)) {
+            documentoRepository.delete(doc);
+            fileStorageService.deleteFile(doc.getUbicacion());
+        }
+        documentoRepository.flush();
     }
 }

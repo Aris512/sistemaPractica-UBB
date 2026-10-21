@@ -99,8 +99,12 @@ public class EvaluacionService {
         return evaluacionRepository.save(evaluacion);
     }
 
+    @Transactional
     public void eliminar(Long id) {
-        evaluacionRepository.deleteById(id);
+        Evaluacion evaluacion = evaluacionRepository.findById(id).orElse(null);
+        if (evaluacion == null) return;
+        eliminarArchivoDeEvaluacion(evaluacion);
+        evaluacionRepository.delete(evaluacion);
     }
 
     @Transactional(readOnly = true)
@@ -281,6 +285,7 @@ public class EvaluacionService {
                     observacionEvaluacionRepository.deleteAll(obsHijas);
                     observacionEvaluacionRepository.flush();
                 }
+                eliminarArchivoDeEvaluacion(evaluacion);
                 evaluacionRepository.delete(evaluacion);
                 evaluacionRepository.flush();
                 evaluacion = null;
@@ -360,6 +365,7 @@ public class EvaluacionService {
                         observacionEvaluacionRepository.deleteAll(obsHijas);
                         observacionEvaluacionRepository.flush();
                     }
+                    eliminarArchivoDeEvaluacion(evaluacion);
                     evaluacionRepository.delete(evaluacion);
                     evaluacionRepository.flush();
                     evaluacion = null;
@@ -396,6 +402,7 @@ public class EvaluacionService {
                         observacionEvaluacionRepository.deleteAll(obsHijas);
                         observacionEvaluacionRepository.flush();
                     }
+                    eliminarArchivoDeEvaluacion(evaluacion);
                     evaluacionRepository.delete(evaluacion);
                     evaluacionRepository.flush();
                     evaluacion = null;
@@ -426,7 +433,11 @@ public class EvaluacionService {
         }
 
         Set<Documento> docsFisicosParaBorrar = new HashSet<>();
+        Set<String> urlsSueltas = new HashSet<>();
         for (Evidencia ev : evidencias) {
+            // Entregas antiguas sin Documento: la ruta vive solo en la evidencia.
+            if (ev.getArchivoUrl() != null) urlsSueltas.add(ev.getArchivoUrl());
+            if (ev.getArchivoRevisionUrl() != null) urlsSueltas.add(ev.getArchivoRevisionUrl());
             if (ev.getArchivoAlumno() != null) {
                 docsFisicosParaBorrar.add(ev.getArchivoAlumno());
                 ev.setArchivoAlumno(null);
@@ -452,6 +463,7 @@ public class EvaluacionService {
             }
         }
         documentoRepository.flush();
+        urlsSueltas.forEach(fileStorageService::deleteFile);
 
         // 2. Eliminar documentos del estudiante en la tabla Documento asociados a actividades o entregas
         if (rutEstudiante != null) {
@@ -528,20 +540,47 @@ public class EvaluacionService {
                 observacionEvaluacionRepository.deleteAll(obsHijas);
                 observacionEvaluacionRepository.flush();
             }
-            if (evaluacion.getArchivoUrl() != null) {
-                fileStorageService.deleteFile(evaluacion.getArchivoUrl());
-            }
+            eliminarArchivoDeEvaluacion(evaluacion);
             evaluacionRepository.delete(evaluacion);
             evaluacionRepository.flush();
         } else {
             evaluacion.setObservacion(null);
-            if (evaluacion.getArchivoUrl() != null) {
-                fileStorageService.deleteFile(evaluacion.getArchivoUrl());
-                evaluacion.setArchivoUrl(null);
-                evaluacion.setNombreArchivo(null);
-            }
+            eliminarArchivoDeEvaluacion(evaluacion);
             evaluacionRepository.save(evaluacion);
         }
+    }
+
+    /**
+     * Quita el archivo adjunto de una evaluación junto con todos los registros que se crearon a
+     * partir de él al subirlo (copia en DocumentoPractica del expediente y Documento de revisión
+     * de la evidencia). El archivo físico se elimina tras el commit y solo si nada más lo referencia.
+     */
+    private void eliminarArchivoDeEvaluacion(Evaluacion evaluacion) {
+        if (evaluacion == null) return;
+        String url = evaluacion.getArchivoUrl();
+        if (url == null || url.isBlank()) return;
+
+        Set<String> rutas = fileStorageService.variantesDeRuta(url);
+
+        List<DocumentoPractica> copias = documentoPracticaRepository.findByUbicacionIn(rutas);
+        if (!copias.isEmpty()) {
+            documentoPracticaRepository.deleteAll(copias);
+        }
+
+        for (Documento doc : documentoRepository.findByUbicacionIn(rutas)) {
+            if (!"EVIDENCIA_REVISION".equalsIgnoreCase(doc.getTipo())) continue;
+            for (Evidencia ev : evidenciaRepository.findByArchivoProfesorIdDocumento(doc.getIdDocumento())) {
+                ev.setArchivoProfesor(null);
+                ev.setNombreArchivoRevision(null);
+                ev.setArchivoRevisionUrl(null);
+                evidenciaRepository.saveAndFlush(ev);
+            }
+            documentoRepository.delete(doc);
+        }
+
+        evaluacion.setArchivoUrl(null);
+        evaluacion.setNombreArchivo(null);
+        fileStorageService.deleteFile(url);
     }
 
     private EstudianteEvaluacionDTO construirDTO(Estudiante estudiante, Evaluacion evaluacion, Nota nota) {
@@ -694,16 +733,13 @@ public class EvaluacionService {
         if (evaluacion != null) {
             if (Boolean.TRUE.equals(eliminarArchivo)) {
                 if (evaluacion.getArchivoUrl() != null) {
-                    fileStorageService.deleteFile(evaluacion.getArchivoUrl());
-                    evaluacion.setArchivoUrl(null);
-                    evaluacion.setNombreArchivo(null);
+                    eliminarArchivoDeEvaluacion(evaluacion);
                     evaluacion = evaluacionRepository.save(evaluacion);
                 }
                 limpiarArchivoRevisionEnEvidencia(idEstudiante, rutProfesor);
             } else if (file != null && !file.isEmpty()) {
-                if (evaluacion.getArchivoUrl() != null) {
-                    fileStorageService.deleteFile(evaluacion.getArchivoUrl());
-                }
+                // Reemplazo: se retira el archivo anterior con todas sus copias para no dejar registros apuntando a él.
+                eliminarArchivoDeEvaluacion(evaluacion);
                 FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
                         file,
                         "evaluaciones",
@@ -785,6 +821,7 @@ public class EvaluacionService {
                     documento.setActividad(evidencia.getActividad());
 
                     Documento guardado = documentoRepository.save(documento);
+                    Documento documentoAnterior = evidencia.getArchivoProfesor();
                     evidencia.setArchivoProfesor(guardado);
                     evidencia.setNombreArchivoRevision(guardado.getNombre());
                     evidencia.setArchivoRevisionUrl(guardado.getUbicacion());
@@ -793,7 +830,10 @@ public class EvaluacionService {
                     if (evidencia.getCalificacion() == null) {
                         evidencia.setEstado("REVISADO");
                     }
-                    evidenciaRepository.save(evidencia);
+                    evidenciaRepository.saveAndFlush(evidencia);
+                    if (documentoAnterior != null && !documentoAnterior.equals(guardado)) {
+                        documentoRepository.delete(documentoAnterior);
+                    }
                 });
     }
 
@@ -852,9 +892,7 @@ public class EvaluacionService {
         Evaluacion ev = evaluacionRepository.findById(idEvaluacion)
                 .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
         if (ev.getArchivoUrl() != null) {
-            fileStorageService.deleteFile(ev.getArchivoUrl());
-            ev.setArchivoUrl(null);
-            ev.setNombreArchivo(null);
+            eliminarArchivoDeEvaluacion(ev);
             evaluacionRepository.save(ev);
         }
         Estudiante est = null;
