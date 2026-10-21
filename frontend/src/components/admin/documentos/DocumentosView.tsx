@@ -36,7 +36,6 @@ export function DocumentosView() {
     setSelectedStudentDetail,
     detailLoading,
     fetchStudentDetail,
-    downloadSingleFile,
     downloadStudentZip,
     downloadEvidenciaArchivo,
     downloadTareaZip,
@@ -180,7 +179,6 @@ export function DocumentosView() {
         }}
         detalle={selectedStudentDetail}
         loading={detailLoading}
-        onDownloadFile={downloadSingleFile}
         onDownloadZip={downloadStudentZip}
         onDownloadEvidenciaArchivo={downloadEvidenciaArchivo}
         onDownloadTareaZip={downloadTareaZip}

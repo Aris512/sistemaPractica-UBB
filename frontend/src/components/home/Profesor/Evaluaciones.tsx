@@ -641,6 +641,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
 
       {/* ── MODAL: Detalles y Emisión de Evaluación (Pantalla Completa & Subida de Documentos) ── */}
       <ModalEvaluaciones
+        key={selectedStudent?.idEstudiante ?? "cerrado"}
         isOpen={!!selectedStudent}
         student={selectedStudent}
         profesorRut={profesorRut}

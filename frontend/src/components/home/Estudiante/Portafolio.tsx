@@ -63,7 +63,8 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
     if (!rutEstudiante) return;
     setCargando(true);
     try {
-      const docs = await obtenerDocumentosPortafolio(rutEstudiante);
+      // El alumno solo ve lo que él subió: los archivos del profesor no son parte de su portafolio
+      const docs = await obtenerDocumentosPortafolio(rutEstudiante, true);
       setDocumentos(docs);
     } catch (err: any) {
       console.warn("No se pudieron cargar evidencias del portafolio:", err);
