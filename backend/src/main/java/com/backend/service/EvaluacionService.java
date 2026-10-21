@@ -27,9 +27,9 @@ import com.backend.model.ObservacionEvaluacion;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
 import com.backend.model.Usuario;
+import com.backend.repository.ActividadRepository;
 import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.DocumentoRepository;
-import com.backend.repository.ActividadRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
@@ -278,7 +278,6 @@ public class EvaluacionService {
                 && !Boolean.TRUE.equals(req.getConservarEvaluacionPorArchivo())) {
             if (notaExistente != null) {
                 eliminarNota(notaExistente);
-                notaExistente = null;
             }
             if (evaluacion != null && evaluacion.getPractica() == null) {
                 List<ObservacionEvaluacion> obsHijas = observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(evaluacion.getIdEvaluacion());
@@ -318,8 +317,14 @@ public class EvaluacionService {
             evaluacion.setTipoEvaluador("PROFESOR_ASIGNATURA");
             evaluacion.setFecha(LocalDateTime.now());
             evaluacion.setTipoEvaluacion(req.getTipoEvaluacion() != null ? req.getTipoEvaluacion() : "Evaluación Docente");
-            evaluacion.setPuntajeMinimo(req.getPuntajeMinimo() != null ? req.getPuntajeMinimo() : 1.0);
-            evaluacion.setPuntajeMaximo(req.getPuntajeMaximo() != null ? req.getPuntajeMaximo() : 7.0);
+            evaluacion.setPuntajeMinimo(1.0);
+            if (req.getPuntajeMinimo() != null) {
+                evaluacion.setPuntajeMinimo(req.getPuntajeMinimo());
+            }
+            evaluacion.setPuntajeMaximo(7.0);
+            if (req.getPuntajeMaximo() != null) {
+                evaluacion.setPuntajeMaximo(req.getPuntajeMaximo());
+            }
             evaluacion.setObservacion(obsLimpia);
             evaluacion.setFechaLimite(LocalDateTime.now().plusDays(30));
             evaluacion = evaluacionRepository.save(evaluacion);
@@ -656,8 +661,11 @@ public class EvaluacionService {
         }
         // La asignatura de la evaluación es la del profesor que la emite; la del estudiante puede
         // haber cambiado si avanzó en el plan.
-        Asignatura asignaturaEvaluacion = rutProfesor != null
-                ? profesorRepository.findByUsuarioRut(rutProfesor).map(Profesor::getAsignatura).orElse(null)
+        Profesor profesorEvaluador = rutProfesor != null
+                ? profesorRepository.findByUsuarioRut(rutProfesor).orElse(null)
+                : null;
+        Asignatura asignaturaEvaluacion = profesorEvaluador != null
+                ? profesorEvaluador.getAsignatura()
                 : null;
         if (asignaturaEvaluacion == null) {
             asignaturaEvaluacion = estudiante.getAsignatura();
@@ -828,9 +836,10 @@ public class EvaluacionService {
                     if (est != null && est.getUsuario() != null && prof != null) {
                         // Se archiva en la asignatura del profesor que evalúa, no en la que el
                         // estudiante cursa ahora (si ya avanzó, quedaría en la asignatura equivocada).
-                        Asignatura asignaturaProfesor = profesorRepository.findByUsuarioRut(rutProfesor)
-                                .map(Profesor::getAsignatura)
-                                .orElse(est.getAsignatura());
+                        Profesor profesorDoc = profesorRepository.findByUsuarioRut(rutProfesor).orElse(null);
+                        Asignatura asignaturaProfesor = profesorDoc != null && profesorDoc.getAsignatura() != null
+                                ? profesorDoc.getAsignatura()
+                                : est.getAsignatura();
                         DocumentoPractica doc = new DocumentoPractica();
                         doc.setUsuario(prof);
                         doc.setEstudiante(est.getUsuario());

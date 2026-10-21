@@ -196,7 +196,8 @@ public class ActividadService {
 
     @Transactional
     public void eliminar(Long id) {
-        Asignatura asignatura = actividadRepository.findById(id).map(Actividad::getAsignatura).orElse(null);
+        Actividad actividad = actividadRepository.findById(id).orElse(null);
+        Asignatura asignatura = actividad != null ? actividad.getAsignatura() : null;
         java.util.Set<Estudiante> afectados = evidenciaService.eliminarPorActividad(id);
         actividadRepository.deleteById(id);
         actividadRepository.flush();
