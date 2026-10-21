@@ -22,6 +22,12 @@ export interface EstudianteEvaluacion {
   archivoUrl?: string | null;
   nombreArchivo?: string | null;
   tieneArchivo?: boolean;
+  // Entrega (evidencia) que el alumno subió a la actividad del profesor
+  idEvidencia?: number | null;
+  nombreArchivoEntrega?: string | null;
+  tituloActividad?: string | null;
+  fechaEntrega?: string | null;
+  tieneArchivoEntrega?: boolean;
 }
 
 export interface GuardarEvaluacionRequest {
@@ -38,6 +44,32 @@ export interface GuardarEvaluacionRequest {
 }
 
 const API_URL = "http://localhost:8080/api/evaluaciones";
+const EVIDENCIAS_URL = "http://localhost:8080/api/evidencias";
+
+const MIME_POR_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  txt: "text/plain",
+};
+
+/** Obtiene el archivo que el alumno entregó, con el tipo MIME correcto para previsualizarlo. */
+export const obtenerArchivoEntregaAlumno = async (
+  idEvidencia: number,
+  nombreArchivo?: string | null
+): Promise<Blob> => {
+  const response = await fetch(`${EVIDENCIAS_URL}/${idEvidencia}/archivo-alumno`);
+  if (!response.ok) {
+    throw new Error(`Error ${response.status}: No se pudo obtener el archivo entregado por el alumno.`);
+  }
+  const blob = await response.blob();
+  const extension = (nombreArchivo || "").split(".").pop()?.toLowerCase() || "";
+  const tipo = MIME_POR_EXTENSION[extension] || blob.type || "application/octet-stream";
+  return blob.type === tipo ? blob : new Blob([blob], { type: tipo });
+};
 
 export const getEstudiantesProfesor = async (
   rutProfesor: string

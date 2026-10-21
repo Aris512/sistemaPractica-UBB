@@ -699,7 +699,25 @@ public class AdminController {
             rutParams.toArray()
         );
 
-        // 2. DOCUMENTOS: eliminar todos los documentos asociados al usuario o estudiante
+        // 2. ENTREGAS Y NOTAS DEL ESTUDIANTE: se eliminan antes que los documentos, porque la
+        // evidencia referencia documento (archivos) y nota.
+        if (!idsEstudiante.isEmpty()) {
+            String inEstClause = String.join(",", Collections.nCopies(idsEstudiante.size(), "?"));
+            Object[] estArgs = idsEstudiante.toArray();
+
+            List<Long> idsEvaluacion = jdbcTemplate.query(
+                "SELECT DISTINCT id_evaluacion FROM nota WHERE id_evaluacion IS NOT NULL AND id_estudiante IN (" + inEstClause + ")",
+                (rs, rowNum) -> rs.getLong("id_evaluacion"),
+                estArgs
+            );
+
+            jdbcTemplate.update("DELETE FROM evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            jdbcTemplate.update("DELETE FROM cursos_aprobados WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            jdbcTemplate.update("DELETE FROM nota WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            eliminarEvaluacionesHuerfanas(idsEvaluacion);
+        }
+
+        // 3. DOCUMENTOS: eliminar todos los documentos asociados al usuario o estudiante
         List<Object> doubleRutParams = new ArrayList<>(rutParams);
         doubleRutParams.addAll(rutParams);
         List<Long> idsDocumento = jdbcTemplate.query(
@@ -708,14 +726,7 @@ public class AdminController {
             doubleRutParams.toArray()
         );
 
-        if (!idsDocumento.isEmpty()) {
-            String inDocsClause = String.join(",", Collections.nCopies(idsDocumento.size(), "?"));
-            Object[] docArgs = idsDocumento.toArray();
-            jdbcTemplate.update("DELETE FROM documento_planificacion WHERE id_documento IN (" + inDocsClause + ")", docArgs);
-            jdbcTemplate.update("UPDATE proyecto_intervencion SET id_documento = NULL WHERE id_documento IN (" + inDocsClause + ")", docArgs);
-            jdbcTemplate.update("UPDATE entrega_evidencia SET id_documento = NULL WHERE id_documento IN (" + inDocsClause + ")", docArgs);
-            jdbcTemplate.update("DELETE FROM documento WHERE id_documento IN (" + inDocsClause + ")", docArgs);
-        }
+        eliminarDocumentos(idsDocumento);
 
         // Eliminar directamente cualquier documento restante por RUT
         jdbcTemplate.update(
@@ -729,7 +740,7 @@ public class AdminController {
             doubleRutParams.toArray()
         );
 
-        // 3. ESTUDIANTE: Desvincular de práctica (conservando la práctica) y limpiar registros propios
+        // 4. ESTUDIANTE: Desvincular de práctica (conservando la práctica) y limpiar registros propios
         if (!idsEstudiante.isEmpty()) {
             String inEstClause = String.join(",", Collections.nCopies(idsEstudiante.size(), "?"));
             Object[] estArgs = idsEstudiante.toArray();
@@ -738,9 +749,7 @@ public class AdminController {
             jdbcTemplate.update("UPDATE practica SET id_estudiante = NULL WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
             jdbcTemplate.update("UPDATE planificacion SET id_estudiante = NULL WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
 
-            // Eliminar registros de entregas, evidencias y respuestas
-            jdbcTemplate.update("DELETE FROM entrega_evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
-            jdbcTemplate.update("DELETE FROM evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            // Eliminar respuestas (las entregas y notas ya se eliminaron en el paso 2)
             jdbcTemplate.update("DELETE FROM respuesta_encuesta WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
             jdbcTemplate.update("DELETE FROM respuesta_pregunta WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
 
@@ -749,7 +758,7 @@ public class AdminController {
         }
         jdbcTemplate.update("DELETE FROM estudiante WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 4. PROFESOR: Desvincular de revisiones, asignaturas, actividades y eliminar profesor
+        // 5. PROFESOR: Desvincular de revisiones, asignaturas, actividades y eliminar profesor
         if (!idsProfesor.isEmpty()) {
             String inProfClause = String.join(",", Collections.nCopies(idsProfesor.size(), "?"));
             Object[] profArgs = idsProfesor.toArray();
@@ -764,8 +773,13 @@ public class AdminController {
             if (!idsActividad.isEmpty()) {
                 String inActClause = String.join(",", Collections.nCopies(idsActividad.size(), "?"));
                 Object[] actArgs = idsActividad.toArray();
-                jdbcTemplate.update("DELETE FROM entrega_evidencia WHERE id_actividad IN (" + inActClause + ")", actArgs);
                 jdbcTemplate.update("DELETE FROM evidencia WHERE id_actividad IN (" + inActClause + ")", actArgs);
+                // Archivos de las entregas de esas actividades (documento.id_actividad referencia actividad)
+                eliminarDocumentos(jdbcTemplate.query(
+                    "SELECT id_documento FROM documento WHERE id_actividad IN (" + inActClause + ")",
+                    (rs, rowNum) -> rs.getLong("id_documento"),
+                    actArgs
+                ));
                 jdbcTemplate.update("DELETE FROM actividad WHERE id_actividad IN (" + inActClause + ")", actArgs);
             }
 
@@ -773,7 +787,7 @@ public class AdminController {
         }
         jdbcTemplate.update("DELETE FROM profesor WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 5. PROFESOR COLABORADOR: Desvincular de práctica (conservando la práctica) y eliminar colaborador
+        // 6. PROFESOR COLABORADOR: Desvincular de práctica (conservando la práctica) y eliminar colaborador
         if (!idsColaborador.isEmpty()) {
             String inColabClause = String.join(",", Collections.nCopies(idsColaborador.size(), "?"));
             Object[] colabArgs = idsColaborador.toArray();
@@ -782,7 +796,7 @@ public class AdminController {
         }
         jdbcTemplate.update("DELETE FROM profesor_colaborador WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 6. TUTOR PRÁCTICA: Desvincular de práctica (conservando la práctica) y eliminar tutor
+        // 7. TUTOR PRÁCTICA: Desvincular de práctica (conservando la práctica) y eliminar tutor
         if (!idsTutor.isEmpty()) {
             String inTutorClause = String.join(",", Collections.nCopies(idsTutor.size(), "?"));
             Object[] tutorArgs = idsTutor.toArray();
@@ -791,10 +805,10 @@ public class AdminController {
         }
         jdbcTemplate.update("DELETE FROM tutor_practica WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 7. ROLES: Limpiar la tabla intermedia usuario_rol
+        // 8. ROLES: Limpiar la tabla intermedia usuario_rol
         jdbcTemplate.update("DELETE FROM usuario_rol WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 8. USUARIO: Eliminar definitivamente el registro en la tabla usuario
+        // 9. USUARIO: Eliminar definitivamente el registro en la tabla usuario
         jdbcTemplate.update("DELETE FROM usuario WHERE rut IN (" + inRutsClause + ")", rutParams.toArray());
 
         // Limpiar el contexto de persistencia JPA para evitar discrepancias
@@ -806,6 +820,40 @@ public class AdminController {
             "message", "Usuario eliminado con éxito",
             "rut", rutOficial
         ));
+    }
+
+    /** Elimina documentos quitando antes las referencias que otras tablas tienen hacia ellos. */
+    private void eliminarDocumentos(List<Long> idsDocumento) {
+        if (idsDocumento.isEmpty()) return;
+        String inDocsClause = String.join(",", Collections.nCopies(idsDocumento.size(), "?"));
+        Object[] docArgs = idsDocumento.toArray();
+        jdbcTemplate.update("DELETE FROM documento_planificacion WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+        jdbcTemplate.update("UPDATE proyecto_intervencion SET id_documento = NULL WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+        jdbcTemplate.update("UPDATE evidencia SET id_archivo_alumno = NULL WHERE id_archivo_alumno IN (" + inDocsClause + ")", docArgs);
+        jdbcTemplate.update("UPDATE evidencia SET id_archivo_profesor = NULL WHERE id_archivo_profesor IN (" + inDocsClause + ")", docArgs);
+        jdbcTemplate.update("DELETE FROM documento WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+    }
+
+    /**
+     * Elimina las evaluaciones docentes que quedaron sin notas tras borrar al estudiante. Las
+     * evaluaciones ligadas a una práctica se conservan.
+     */
+    private void eliminarEvaluacionesHuerfanas(List<Long> idsEvaluacion) {
+        if (idsEvaluacion.isEmpty()) return;
+        String inEvalClause = String.join(",", Collections.nCopies(idsEvaluacion.size(), "?"));
+        List<Long> huerfanas = jdbcTemplate.query(
+            "SELECT e.id_evaluacion FROM evaluacion e WHERE e.id_evaluacion IN (" + inEvalClause + ") "
+                + "AND e.id_practica IS NULL "
+                + "AND NOT EXISTS (SELECT 1 FROM nota n WHERE n.id_evaluacion = e.id_evaluacion)",
+            (rs, rowNum) -> rs.getLong("id_evaluacion"),
+            idsEvaluacion.toArray()
+        );
+        if (huerfanas.isEmpty()) return;
+        String inClause = String.join(",", Collections.nCopies(huerfanas.size(), "?"));
+        Object[] args = huerfanas.toArray();
+        jdbcTemplate.update("DELETE FROM observacion_evaluacion WHERE id_evaluacion IN (" + inClause + ")", args);
+        jdbcTemplate.update("DELETE FROM nota_de_voz WHERE id_evaluacion IN (" + inClause + ")", args);
+        jdbcTemplate.update("DELETE FROM evaluacion WHERE id_evaluacion IN (" + inClause + ")", args);
     }
 
     /**

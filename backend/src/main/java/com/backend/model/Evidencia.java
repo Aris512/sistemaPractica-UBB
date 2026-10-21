@@ -75,8 +75,6 @@ public class Evidencia {
 
     private String estado; // "PENDIENTE", "REVISADO", "OBSERVADO", "APROBADO", "REPROBADO"
 
-    private Double calificacion;
-
     @ManyToOne
     @JoinColumn(name = "id_profesor_revisor")
     private Profesor revisadoPor;
@@ -97,7 +95,6 @@ public class Evidencia {
         this.nota = nota;
         this.fechaEntrega = LocalDateTime.now();
         if (nota != null && nota.getPuntajeObtenido() != null) {
-            this.calificacion = nota.getPuntajeObtenido();
             this.estado = nota.getPuntajeObtenido() >= 4.0 ? "APROBADO" : "REPROBADO";
         } else {
             this.estado = "PENDIENTE";
@@ -200,11 +197,22 @@ public class Evidencia {
         return nota;
     }
 
+    /**
+     * Vincula la nota de la entrega. La calificación no se copia en la evidencia: siempre se
+     * lee desde la Nota, así eliminarla o dejarla vacía se refleja de inmediato en todo el sistema.
+     */
     public void setNota(Nota nota) {
         this.nota = nota;
-        if (nota != null && nota.getPuntajeObtenido() != null) {
-            this.calificacion = nota.getPuntajeObtenido();
-            this.estado = nota.getPuntajeObtenido() >= 4.0 ? "APROBADO" : "REPROBADO";
+        actualizarEstadoSegunNota();
+    }
+
+    /** Ajusta el estado a APROBADO/REPROBADO según la nota, o lo devuelve a revisión si ya no la hay. */
+    public void actualizarEstadoSegunNota() {
+        Double valor = getCalificacion();
+        if (valor != null) {
+            this.estado = valor >= 4.0 ? "APROBADO" : "REPROBADO";
+        } else if ("APROBADO".equals(this.estado) || "REPROBADO".equals(this.estado)) {
+            this.estado = this.fechaRevision != null ? "REVISADO" : "PENDIENTE";
         }
     }
 
@@ -296,21 +304,9 @@ public class Evidencia {
         this.estado = estado;
     }
 
+    /** Calificación derivada de la Nota vinculada (la tabla evidencia no guarda copia propia). */
     public Double getCalificacion() {
-        if (this.nota != null && this.nota.getPuntajeObtenido() != null) {
-            return this.nota.getPuntajeObtenido();
-        }
-        return calificacion;
-    }
-
-    public void setCalificacion(Double calificacion) {
-        this.calificacion = calificacion;
-        if (this.nota != null) {
-            this.nota.setPuntajeObtenido(calificacion);
-        }
-        if (calificacion != null) {
-            this.estado = calificacion >= 4.0 ? "APROBADO" : "REPROBADO";
-        }
+        return this.nota != null ? this.nota.getPuntajeObtenido() : null;
     }
 
     public Boolean isAprobado() {
