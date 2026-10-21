@@ -15,7 +15,6 @@ import {
   Download,
   GraduationCap,
   School,
-  FileText,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -27,7 +26,7 @@ import {
   MessageSquare,
   FolderArchive,
 } from "lucide-react";
-import type { EstudianteDetalleDocumentos, DocumentoItem } from "./types";
+import type { EstudianteDetalleDocumentos } from "./types";
 import { sileo } from "sileo";
 
 interface DocumentosModalProps {
@@ -35,7 +34,6 @@ interface DocumentosModalProps {
   onClose: () => void;
   detalle: EstudianteDetalleDocumentos | null;
   loading: boolean;
-  onDownloadFile: (doc: DocumentoItem) => void;
   onDownloadZip: (rut: string, studentName?: string) => Promise<void>;
   onDownloadEvidenciaArchivo?: (
     idEvidencia: number,
@@ -50,7 +48,6 @@ export function DocumentosModal({
   onClose,
   detalle,
   loading,
-  onDownloadFile,
   onDownloadZip,
   onDownloadEvidenciaArchivo,
   onDownloadTareaZip,
@@ -368,378 +365,136 @@ export function DocumentosModal({
                 </div>
               </div>
 
-              {/* Lista de documentos de la práctica (convenio, informe final, pauta, etc.) */}
+              {/* Seguimiento de tareas: una fila por actividad con nota, archivos y retroalimentación */}
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-slate-900 flex items-center justify-between">
-                  <span>Documentos Administrativos de Práctica</span>
-                  <span className="text-xs font-normal text-slate-500">
-                    Almacenados en el servidor
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <BookOpen className="size-4 text-indigo-600" />
+                    Tareas y calificaciones
+                  </h4>
+                  <span className="text-xs text-slate-500">
+                    {detalle.tareas?.length ?? 0} {(detalle.tareas?.length ?? 0) === 1 ? "tarea" : "tareas"}
                   </span>
-                </h4>
-
-                <div className="space-y-3">
-                  {detalle.documentos.map((doc, idx) => {
-                    const isEntregado = doc.estado === "ENTREGADO";
-                    const isEstudiante = doc.tipoDocumento === "ESTUDIANTE";
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`rounded-xl border p-4 transition-all ${
-                          isEntregado
-                            ? "border-slate-200 bg-white shadow-xs hover:border-slate-300"
-                            : "border-dashed border-slate-300 bg-slate-50/70"
-                        }`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <div
-                              className={`flex size-10 items-center justify-center rounded-lg shrink-0 mt-0.5 ${
-                                isEntregado
-                                  ? isEstudiante
-                                    ? "bg-indigo-50 text-indigo-700"
-                                    : "bg-emerald-50 text-emerald-700"
-                                  : "bg-slate-100 text-slate-400"
-                              }`}
-                            >
-                              <FileText className="size-5" />
-                            </div>
-
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold text-slate-900">
-                                  {doc.nombreDocumento}
-                                </span>
-                                <span
-                                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                                    isEstudiante
-                                      ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  }`}
-                                >
-                                  {isEstudiante ? "Estudiante" : "Profesor"}
-                                </span>
-                              </div>
-
-                              {isEntregado ? (
-                                <div className="text-xs text-slate-500 space-y-0.5">
-                                  <p className="font-mono text-slate-700 font-medium">
-                                    {doc.nombreArchivo}
-                                  </p>
-                                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
-                                    <span>Subido por: <strong>{doc.subidoPor}</strong></span>
-                                    {doc.tamanio && doc.tamanio !== "—" && (
-                                      <span>Tamaño: {doc.tamanio}</span>
-                                    )}
-                                    {doc.fechaCarga && (
-                                      <span>
-                                        Fecha: {formatDate(doc.fechaCarga)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <p className="text-xs text-amber-700 flex items-center gap-1 font-medium">
-                                  <Clock className="size-3" />
-                                  Documento pendiente de entrega por {isEstudiante ? "el estudiante" : "el profesor"}.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Botón de descarga individual */}
-                          <div className="sm:self-center self-end shrink-0">
-                            {isEntregado ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onDownloadFile(doc)}
-                                className="gap-1.5 text-slate-700 hover:text-slate-900 hover:bg-slate-100 cursor-pointer text-xs"
-                                title="Descargar documento individual"
-                              >
-                                <Download className="size-3.5 text-slate-600" />
-                                <span>Descargar PDF</span>
-                              </Button>
-                            ) : (
-                              <span className="text-xs font-medium text-slate-400 px-3 py-1.5 rounded-md bg-slate-100">
-                                No disponible
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
-              </div>
 
-              {/* Sección de Seguimiento de Tareas, Revisiones y Notas de Asignaturas */}
-              {detalle.tareas && detalle.tareas.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <BookOpen className="size-4 text-indigo-600" />
-                        <span>Seguimiento de Tareas, Revisiones y Calificaciones</span>
-                      </h4>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Archivos entregados por el estudiante, retroalimentación y correcciones adjuntas del profesor.
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-                      {detalle.tareas.length} {detalle.tareas.length === 1 ? "tarea" : "tareas"}
-                    </span>
+                {!detalle.tareas || detalle.tareas.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-xs text-slate-500">
+                    El estudiante aún no tiene tareas asignadas.
                   </div>
-
-                  <div className="space-y-4">
+                ) : (
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden bg-white">
                     {detalle.tareas.map((tarea) => {
-                      const tieneEvidenciaReal = tarea.idEvidencia && tarea.idEvidencia > 0;
+                      const tieneEvidenciaReal = !!tarea.idEvidencia && tarea.idEvidencia > 0;
                       const calificacion = tarea.calificacion;
-                      const estaAprobado = calificacion !== null && calificacion !== undefined && calificacion >= 4.0;
                       const sinNota = calificacion === null || calificacion === undefined;
+                      const estaAprobado = !sinNota && calificacion >= 4.0;
+                      const noEntregado = !tieneEvidenciaReal || tarea.estado === "NO_ENTREGADO";
 
-                      const isDownloadingStudent = downloadingEvidenciaKey === `${tarea.idEvidencia}-ESTUDIANTE`;
-                      const isDownloadingProf = downloadingEvidenciaKey === `${tarea.idEvidencia}-PROFESOR`;
-                      const isDownloadingZip = downloadingTareaZipId === tarea.idEvidencia;
+                      const descargandoEntrega = downloadingEvidenciaKey === `${tarea.idEvidencia}-ESTUDIANTE`;
+                      const descargandoRevision = downloadingEvidenciaKey === `${tarea.idEvidencia}-PROFESOR`;
+                      const descargandoZipTarea = downloadingTareaZipId === tarea.idEvidencia;
 
                       return (
-                        <div
-                          key={tarea.idEvidencia || `act-${tarea.idActividad}`}
-                          className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden transition-all hover:border-slate-300"
-                        >
-                          {/* Header de la Tarea */}
-                          <div className="p-4 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200/60">
-                                  {tarea.asignatura || detalle.asignatura}
-                                </span>
-                                <span className="text-xs font-medium text-slate-500">
-                                  Semestre {tarea.semestre || detalle.semestre}
-                                </span>
-                              </div>
-                              <h5 className="text-sm font-bold text-slate-900">
-                                {tarea.tituloActividad}
-                              </h5>
-                              {tarea.descripcionActividad && (
-                                <p className="text-xs text-slate-600 line-clamp-2">
-                                  {tarea.descripcionActividad}
-                                </p>
-                              )}
+                        <div key={tarea.idEvidencia || `act-${tarea.idActividad}`} className="p-4 space-y-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            {/* Título y contexto */}
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-slate-900 truncate">{tarea.tituloActividad}</p>
+                              <p className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-2">
+                                <span>{tarea.asignatura || detalle.asignatura}</span>
+                                {tarea.fechaEntrega && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="size-3" />
+                                    Entregada {formatDate(tarea.fechaEntrega)}
+                                  </span>
+                                )}
+                                {tarea.revisadoPorNombre && <span>Revisó: {tarea.revisadoPorNombre}</span>}
+                              </p>
                             </div>
 
-                            {/* Badges de Calificación y Estado */}
-                            <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              {/* Nota / Aprobación */}
-                              {!sinNota ? (
-                                <div
-                                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                            {/* Estado / nota */}
+                            <div className="shrink-0">
+                              {noEntregado ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                                  No entregada
+                                </span>
+                              ) : sinNota ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                  <Clock className="size-3" />
+                                  Sin calificar
+                                </span>
+                              ) : (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
                                     estaAprobado
                                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                       : "bg-rose-50 text-rose-700 border-rose-200"
                                   }`}
                                 >
-                                  <Award className="size-3.5" />
-                                  <span>Nota: {calificacion?.toFixed(1)}</span>
-                                  <span className="text-[10px] font-semibold uppercase ml-1">
-                                    ({estaAprobado ? "Aprobado" : "Reprobado"})
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                  <Clock className="size-3" />
-                                  <span>Sin calificar</span>
-                                </div>
+                                  <Award className="size-3" />
+                                  {calificacion.toFixed(1)} · {estaAprobado ? "Aprobada" : "Reprobada"}
+                                </span>
                               )}
+                            </div>
+                          </div>
 
-                              {/* Estado de Entrega */}
-                              <span
-                                className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${
-                                  tarea.estado === "REVISADO"
-                                    ? "bg-teal-50 text-teal-700 border-teal-200"
-                                    : tarea.estado === "ENTREGADO"
-                                    ? "bg-sky-50 text-sky-700 border-sky-200"
-                                    : "bg-slate-100 text-slate-600 border-slate-200"
-                                }`}
-                              >
-                                {tarea.estado === "REVISADO"
-                                  ? "Revisado"
-                                  : tarea.estado === "ENTREGADO"
-                                  ? "Entregado"
-                                  : "No entregado"}
-                              </span>
-
-                              {/* Botón ZIP de la tarea */}
-                              {tieneEvidenciaReal && onDownloadTareaZip && (
-                                <Button
+                          {/* Archivos y descarga */}
+                          {tieneEvidenciaReal && (tarea.tieneArchivoEstudiante || tarea.tieneArchivoRevision) && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              {tarea.tieneArchivoEstudiante && (
+                                <button
                                   type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isDownloadingZip}
-                                  onClick={() => handleDownloadTareaZip(tarea.idEvidencia, tarea.tituloActividad)}
-                                  className="h-7 px-2.5 text-xs text-slate-700 hover:text-slate-900 border-slate-300 gap-1.5 cursor-pointer"
-                                  title="Descargar paquete ZIP con la entrega del estudiante y revisión del profesor"
+                                  disabled={descargandoEntrega}
+                                  onClick={() => handleDownloadEvidencia(tarea.idEvidencia, "ESTUDIANTE", tarea.nombreArchivoEstudiante)}
+                                  className="inline-flex items-center gap-1.5 max-w-64 px-2.5 py-1 rounded-md border border-indigo-200 bg-indigo-50/60 text-xs text-indigo-700 hover:bg-indigo-100 cursor-pointer disabled:opacity-60"
+                                  title={`Descargar entrega: ${tarea.nombreArchivoEstudiante || "archivo"}`}
                                 >
-                                  {isDownloadingZip ? (
-                                    <Loader2 className="size-3 animate-spin" />
-                                  ) : (
-                                    <FolderArchive className="size-3 text-slate-600" />
-                                  )}
-                                  <span>ZIP Tarea</span>
-                                </Button>
+                                  {descargandoEntrega ? <Loader2 className="size-3 animate-spin shrink-0" /> : <User className="size-3 shrink-0" />}
+                                  <span className="truncate">{tarea.nombreArchivoEstudiante || "Entrega"}</span>
+                                  <Download className="size-3 shrink-0" />
+                                </button>
+                              )}
+                              {tarea.tieneArchivoRevision && (
+                                <button
+                                  type="button"
+                                  disabled={descargandoRevision}
+                                  onClick={() => handleDownloadEvidencia(tarea.idEvidencia, "PROFESOR", tarea.nombreArchivoRevision)}
+                                  className="inline-flex items-center gap-1.5 max-w-64 px-2.5 py-1 rounded-md border border-emerald-200 bg-emerald-50/60 text-xs text-emerald-700 hover:bg-emerald-100 cursor-pointer disabled:opacity-60"
+                                  title={`Descargar revisión: ${tarea.nombreArchivoRevision || "archivo"}`}
+                                >
+                                  {descargandoRevision ? <Loader2 className="size-3 animate-spin shrink-0" /> : <School className="size-3 shrink-0" />}
+                                  <span className="truncate">{tarea.nombreArchivoRevision || "Revisión"}</span>
+                                  <Download className="size-3 shrink-0" />
+                                </button>
+                              )}
+                              {onDownloadTareaZip && (
+                                <button
+                                  type="button"
+                                  disabled={descargandoZipTarea}
+                                  onClick={() => handleDownloadTareaZip(tarea.idEvidencia, tarea.tituloActividad)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-60"
+                                  title="Descargar la entrega y la revisión en un ZIP"
+                                >
+                                  {descargandoZipTarea ? <Loader2 className="size-3 animate-spin" /> : <FolderArchive className="size-3" />}
+                                  ZIP
+                                </button>
                               )}
                             </div>
-                          </div>
+                          )}
 
-                          {/* Contenido dividido en Entrega del Estudiante y Revisión del Profesor */}
-                          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Sección 1: Entrega del Estudiante */}
-                            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                  <User className="size-3.5 text-indigo-600" />
-                                  Entrega del Estudiante
-                                </span>
-                                {tarea.fechaEntrega && (
-                                  <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                                    <Calendar className="size-2.5 text-slate-400" />
-                                    {formatDate(tarea.fechaEntrega)}
-                                  </span>
-                                )}
-                              </div>
-
-                              {tarea.tieneArchivoEstudiante ? (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2 p-2 rounded-md bg-white border border-slate-200">
-                                    <FileText className="size-4 text-indigo-600 shrink-0" />
-                                    <span className="text-xs font-mono text-slate-700 truncate flex-1">
-                                      {tarea.nombreArchivoEstudiante || "archivo_entrega"}
-                                    </span>
-                                  </div>
-
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={isDownloadingStudent}
-                                    onClick={() =>
-                                      handleDownloadEvidencia(
-                                        tarea.idEvidencia,
-                                        "ESTUDIANTE",
-                                        tarea.nombreArchivoEstudiante
-                                      )
-                                    }
-                                    className="w-full text-xs h-8 gap-1.5 text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50 border-indigo-200 cursor-pointer"
-                                  >
-                                    {isDownloadingStudent ? (
-                                      <Loader2 className="size-3.5 animate-spin" />
-                                    ) : (
-                                      <Download className="size-3.5" />
-                                    )}
-                                    <span>Descargar entrega del estudiante</span>
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="p-3 text-center rounded-md bg-white/70 border border-dashed border-slate-200">
-                                  <p className="text-xs text-slate-400">
-                                    No se ha registrado ningún archivo de entrega por parte del estudiante.
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Sección 2: Revisión y Feedback del Profesor */}
-                            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                  <School className="size-3.5 text-emerald-600" />
-                                  Revisión del Profesor
-                                </span>
-                                {tarea.fechaRevision && (
-                                  <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                                    <Calendar className="size-2.5 text-slate-400" />
-                                    {formatDate(tarea.fechaRevision)}
-                                  </span>
-                                )}
-                              </div>
-
-                              {tarea.revisadoPorNombre || tarea.calificacion !== null || tarea.tieneArchivoRevision ? (
-                                <div className="space-y-2">
-                                  {tarea.revisadoPorNombre && (
-                                    <p className="text-xs text-slate-600">
-                                      Profesor: <strong>{tarea.revisadoPorNombre}</strong>
-                                      {tarea.revisadoPorRut && (
-                                        <span className="text-[10px] font-mono text-slate-400 ml-1">
-                                          ({tarea.revisadoPorRut})
-                                        </span>
-                                      )}
-                                    </p>
-                                  )}
-
-                                  {tarea.retroalimentacion && (
-                                    <div className="p-2.5 rounded-md bg-white border border-slate-200 text-xs text-slate-700">
-                                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 mb-1">
-                                        <MessageSquare className="size-3 text-emerald-600" />
-                                        <span>Retroalimentación:</span>
-                                      </div>
-                                      <p className="text-xs italic text-slate-700">
-                                        "{tarea.retroalimentacion}"
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  {tarea.tieneArchivoRevision ? (
-                                    <div>
-                                      <div className="flex items-center gap-2 p-2 rounded-md bg-white border border-slate-200 mb-2">
-                                        <FileText className="size-4 text-emerald-600 shrink-0" />
-                                        <span className="text-xs font-mono text-slate-700 truncate flex-1">
-                                          {tarea.nombreArchivoRevision || "archivo_revision"}
-                                        </span>
-                                      </div>
-
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isDownloadingProf}
-                                        onClick={() =>
-                                          handleDownloadEvidencia(
-                                            tarea.idEvidencia,
-                                            "PROFESOR",
-                                            tarea.nombreArchivoRevision
-                                          )
-                                        }
-                                        className="w-full text-xs h-8 gap-1.5 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-200 cursor-pointer"
-                                      >
-                                        {isDownloadingProf ? (
-                                          <Loader2 className="size-3.5 animate-spin" />
-                                        ) : (
-                                          <Download className="size-3.5" />
-                                        )}
-                                        <span>Descargar revisión del profesor</span>
-                                      </Button>
-                                    </div>
-                                  ) : (
-                                    <p className="text-[11px] text-slate-400 italic">
-                                      El profesor no adjuntó archivo adicional de corrección.
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="p-3 text-center rounded-md bg-white/70 border border-dashed border-slate-200">
-                                  <p className="text-xs text-slate-400">
-                                    Pendiente de revisión y retroalimentación docente.
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                          {/* Retroalimentación del profesor */}
+                          {tarea.retroalimentacion && (
+                            <p className="text-xs text-slate-600 flex items-start gap-1.5">
+                              <MessageSquare className="size-3 text-emerald-600 shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{tarea.retroalimentacion}</span>
+                            </p>
+                          )}
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </div>
