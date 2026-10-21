@@ -3,7 +3,6 @@ import { getAdminAuthHeader } from "@/lib/adminAuth";
 import type {
   EstudianteDocumentoRow,
   EstudianteDetalleDocumentos,
-  DocumentoItem,
   DocumentosSortState,
   SortDirection,
 } from "./types";
@@ -213,53 +212,6 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     }
   };
 
-  // Descargar archivo individual
-  const downloadSingleFile = async (doc: DocumentoItem) => {
-    if (!doc.id) {
-      sileo.error({
-        title: "Archivo no disponible",
-        description: "Este documento aún no ha sido entregado.",
-      });
-      return;
-    }
-
-    try {
-      sileo.show({
-        title: "Descargando archivo",
-        description: `Preparando ${doc.nombreArchivo}...`,
-      });
-
-      const res = await fetch(`http://localhost:8080/admin/documentos/archivo/${doc.id}`, {
-        headers: getAuthHeader(),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Error ${res.status}: No se pudo descargar el archivo.`);
-      }
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = doc.nombreArchivo || `documento_${doc.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      sileo.success({
-        title: "Descarga completada",
-        description: `Se descargó "${doc.nombreArchivo}" con éxito.`,
-      });
-    } catch (err: any) {
-      console.error("Error al descargar archivo:", err);
-      sileo.error({
-        title: "Error de descarga",
-        description: err.message || "No se pudo completar la descarga del archivo.",
-      });
-    }
-  };
-
   // Descargar todos los documentos en formato ZIP
   const downloadStudentZip = async (rut: string, studentName?: string) => {
     try {
@@ -439,7 +391,6 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     setSelectedStudentDetail,
     detailLoading,
     fetchStudentDetail,
-    downloadSingleFile,
     downloadStudentZip,
     downloadEvidenciaArchivo,
     downloadTareaZip,
