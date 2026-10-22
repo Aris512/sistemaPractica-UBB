@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8080/api";
+const API_URL = "/api";
 
 /** Actividad enriquecida con el estado de la evidencia del estudiante */
 export interface ActividadEstudiante {
@@ -90,7 +90,7 @@ export const getArchivoDownloadUrl = (relativePath: string): string => {
   if (!relativePath) return "";
   if (relativePath.startsWith("http")) return relativePath;
   const clean = relativePath.replace(/^uploads\//, "");
-  return `http://localhost:8080/uploads/${clean}`;
+  return `/uploads/${clean}`;
 };
 
 /** Elimina la evidencia entregada por el estudiante para una actividad */
@@ -101,9 +101,9 @@ export const eliminarEvidencia = async (
 ): Promise<void> => {
   let url = "";
   if (idEvidencia) {
-    url = `http://localhost:8080/api/evidencias/${idEvidencia}`;
+    url = `/api/evidencias/${idEvidencia}`;
   } else if (idActividad && rutEstudiante) {
-    url = `http://localhost:8080/api/evidencias/actividad/${idActividad}/estudiante/${encodeURIComponent(rutEstudiante)}`;
+    url = `/api/evidencias/actividad/${idActividad}/estudiante/${encodeURIComponent(rutEstudiante)}`;
   } else {
     throw new Error("Se requiere ID de evidencia o actividad para eliminar");
   }

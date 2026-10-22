@@ -14,7 +14,7 @@ export function PerfilProfesor({ user, onBack }: PerfilProfesorProps) {
 
   useEffect(() => {
     if (!user?.rut) return;
-    fetch(`http://localhost:8080/api/profesores/rut/${encodeURIComponent(user.rut)}`)
+    fetch(`/api/profesores/rut/${encodeURIComponent(user.rut)}`)
       .then((res) => {
         if (!res.ok) return null;
         return res.json();
