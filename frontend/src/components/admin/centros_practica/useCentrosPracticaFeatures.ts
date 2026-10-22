@@ -51,7 +51,7 @@ export function useCentrosPracticaFeatures(initialPageSize = 10) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8080/api/centros-practica");
+      const res = await fetch("/api/centros-practica");
       if (!res.ok) {
         throw new Error(`Error ${res.status}: No se pudieron cargar los centros de práctica.`);
       }
@@ -100,7 +100,7 @@ export function useCentrosPracticaFeatures(initialPageSize = 10) {
 
   const deleteCentro = async (id: number): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`http://localhost:8080/api/centros-practica/${id}`, {
+      const res = await fetch(`/api/centros-practica/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {

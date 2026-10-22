@@ -31,8 +31,19 @@ export default defineConfig({
     },
   },
   server: {
+    // El frontend llama al backend con rutas relativas; en desarrollo Vite las reenvía a Spring y en
+    // producción lo hace Nginx (frontend/nginx.conf). "/admin/" lleva la barra final para no capturar
+    // la página /admin de la SPA, que sigue sirviéndola Vite.
     proxy: {
       "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/admin/": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/uploads/": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },

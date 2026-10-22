@@ -43,8 +43,8 @@ export interface GuardarEvaluacionRequest {
   eliminarArchivo?: boolean;
 }
 
-const API_URL = "http://localhost:8080/api/evaluaciones";
-const EVIDENCIAS_URL = "http://localhost:8080/api/evidencias";
+const API_URL = "/api/evaluaciones";
+const EVIDENCIAS_URL = "/api/evidencias";
 
 const MIME_POR_EXTENSION: Record<string, string> = {
   pdf: "application/pdf",
