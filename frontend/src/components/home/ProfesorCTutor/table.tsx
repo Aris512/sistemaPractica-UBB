@@ -49,7 +49,7 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/practicas/seguimiento/${encodeURIComponent(tutorRut)}`);
+      const res = await fetch(`/api/practicas/seguimiento/${encodeURIComponent(tutorRut)}`);
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
@@ -66,7 +66,7 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
       }
 
       // Fallback a estudiantes generales
-      const resEst = await fetch("http://localhost:8080/api/estudiantes");
+      const resEst = await fetch("/api/estudiantes");
       if (resEst.ok) {
         const estJson = await resEst.json();
         if (Array.isArray(estJson)) {

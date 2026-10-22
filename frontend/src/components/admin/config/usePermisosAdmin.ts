@@ -27,7 +27,7 @@ export function usePermisosAdmin() {
     try {
       let res = await fetch("/api/roles");
       if (!res.ok) {
-        res = await fetch("http://localhost:8080/api/roles");
+        res = await fetch("/api/roles");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: RolOption[] = await res.json();
@@ -55,7 +55,7 @@ export function usePermisosAdmin() {
       setLoadingPermisos(true);
       setError(null);
       try {
-        let res = await fetch(`http://localhost:8080/admin/permisos/roles/${roleId}`, {
+        let res = await fetch(`/admin/permisos/roles/${roleId}`, {
           headers: getAdminHeaders(),
         });
         if (!res.ok) {
@@ -138,7 +138,7 @@ export function usePermisosAdmin() {
         }),
       };
 
-      let res = await fetch(`http://localhost:8080/admin/permisos/roles/${selectedRoleId}`, {
+      let res = await fetch(`/admin/permisos/roles/${selectedRoleId}`, {
         method: "PUT",
         headers: getAdminHeaders(),
         body: JSON.stringify(payload),

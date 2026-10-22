@@ -72,7 +72,7 @@ export function AsociarPracticaView({
   // ── 1. Cargar asignaturas de práctica oficiales ──
   const fetchAsignaturas = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/coordinador/asignaturas-practica");
+      const res = await fetch("/api/coordinador/asignaturas-practica");
       if (res.ok) {
         const data = await res.json();
         setAsignaturas(data);
@@ -94,7 +94,7 @@ export function AsociarPracticaView({
     if (!asigId) return;
     setLoadingCandidatos(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/coordinador/candidatos?asignaturaId=${asigId}`);
+      const res = await fetch(`/api/coordinador/candidatos?asignaturaId=${asigId}`);
       if (res.ok) {
         const data: CandidatosResponse = await res.json();
         setCandidatos(data);
@@ -116,7 +116,7 @@ export function AsociarPracticaView({
   const fetchAsociaciones = useCallback(async () => {
     setLoadingAsociaciones(true);
     try {
-      const res = await fetch("http://localhost:8080/api/coordinador/asociaciones");
+      const res = await fetch("/api/coordinador/asociaciones");
       if (res.ok) {
         const data = await res.json();
         setAsociaciones(Array.isArray(data) ? data : []);
@@ -220,7 +220,7 @@ export function AsociarPracticaView({
 
     setSubmitting(true);
     try {
-      const res = await fetch("http://localhost:8080/api/coordinador/asociar", {
+      const res = await fetch("/api/coordinador/asociar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -260,7 +260,7 @@ export function AsociarPracticaView({
   // ── Eliminar Asociación ──
   const handleEliminarAsociacion = async (idPractica: number, nombreEstudiante: string) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/coordinador/asociaciones/${idPractica}`, {
+      const res = await fetch(`/api/coordinador/asociaciones/${idPractica}`, {
         method: "DELETE",
       });
       if (res.ok) {

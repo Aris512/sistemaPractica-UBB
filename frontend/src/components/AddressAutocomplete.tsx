@@ -62,7 +62,7 @@ export function AddressAutocomplete({
 
     const handler = setTimeout(async () => {
       try {
-        const res = await fetch(`http://localhost:8080/api/direcciones?q=${encodeURIComponent(trimmed)}&limit=5`);
+        const res = await fetch(`/api/direcciones?q=${encodeURIComponent(trimmed)}&limit=5`);
         if (!res.ok) {
           throw new Error("No se pudieron cargar sugerencias");
         }
