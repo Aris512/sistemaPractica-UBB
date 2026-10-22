@@ -110,7 +110,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8080/admin/documentos/estudiantes", {
+      const res = await fetch("/admin/documentos/estudiantes", {
         headers: getAuthHeader(),
       });
       if (!res.ok) {
@@ -193,7 +193,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
   const fetchStudentDetail = async (rut: string) => {
     setDetailLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/admin/documentos/estudiantes/${encodeURIComponent(rut)}`, {
+      const res = await fetch(`/admin/documentos/estudiantes/${encodeURIComponent(rut)}`, {
         headers: getAuthHeader(),
       });
       if (!res.ok) {
@@ -226,7 +226,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       });
 
       const res = await fetch(
-        `http://localhost:8080/admin/documentos/estudiantes/${encodeURIComponent(rut)}/descargar`,
+        `/admin/documentos/estudiantes/${encodeURIComponent(rut)}/descargar`,
         {
           headers: getAuthHeader(),
         }
@@ -280,7 +280,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       });
 
       const res = await fetch(
-        `http://localhost:8080/admin/documentos/evidencias/${idEvidencia}/archivo?tipo=${tipo}`,
+        `/admin/documentos/evidencias/${idEvidencia}/archivo?tipo=${tipo}`,
         {
           headers: getAuthHeader(),
         }
@@ -327,7 +327,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       });
 
       const res = await fetch(
-        `http://localhost:8080/admin/documentos/evidencias/${idEvidencia}/zip`,
+        `/admin/documentos/evidencias/${idEvidencia}/zip`,
         {
           headers: getAuthHeader(),
         }

@@ -93,7 +93,7 @@ export function CreateModal({ isOpen, onClose, onCreate }: CreateModalProps) {
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/asignaturas", {
+      const res = await fetch("/api/asignaturas", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
