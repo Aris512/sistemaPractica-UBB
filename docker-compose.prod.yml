@@ -6,6 +6,11 @@
 # red interna de la composición usando el nombre del servicio como host (mysql, backend).
 # Los valores se leen del archivo .env del servidor (plantilla en .env.example); nunca se versiona.
 
+# Nombre de proyecto propio: sin él, Compose usa el nombre de la carpeta, igual que docker-compose.yml
+# de desarrollo, y como ambos tienen el servicio "mysql" y el volumen "mysql_data", producción
+# reemplazaría el MySQL de desarrollo y reutilizaría su base de datos.
+name: proyectou-prod
+
 services:
   mysql:
     image: docker.io/library/mysql:8.4
