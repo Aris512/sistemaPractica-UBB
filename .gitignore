@@ -21,6 +21,7 @@ Desktop.ini
 # Backend (Maven & Java)
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
+backend/uploads/
 *.class
 
 # Frontend (Node & build)

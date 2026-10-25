@@ -50,13 +50,19 @@ public class ObservacionEvaluacionController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Nuevo (módulo Pedro) — obtener todas las observaciones de una evaluación */
     @GetMapping("/evaluacion/{idEvaluacion}")
     public ResponseEntity<List<ObservacionEvaluacion>> obtenerPorEvaluacion(@PathVariable Long idEvaluacion) {
         return ResponseEntity.ok(observacionEvaluacionService.obtenerPorEvaluacion(idEvaluacion));
     }
 
+    /**
+     * Nuevo (módulo Pedro) — actualizar texto de una observación (respeta
+     * fechaLimite)
+     */
     @PutMapping("/{id}")
-    public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody ObservacionEvaluacion observacionEvaluacion) {
+    public ResponseEntity<?> actualizar(@PathVariable Long id,
+            @RequestBody ObservacionEvaluacion observacionEvaluacion) {
         try {
             ObservacionEvaluacion actualizada = observacionEvaluacionService.actualizar(id, observacionEvaluacion);
             if (actualizada == null) {

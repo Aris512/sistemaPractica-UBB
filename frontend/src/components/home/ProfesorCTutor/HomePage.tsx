@@ -7,8 +7,10 @@ import { TableEstudiantes } from "./table";
 import { Pautas } from "./Pautas";
 import { Observaciones } from "./Observaciones";
 import { PerfilProfesor } from "./PerfilProfesor";
+import { Portafolio } from "../Profesor/Portafolio";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomePageProps {
   user: UserSession;
@@ -16,8 +18,21 @@ interface HomePageProps {
 }
 
 export function HomePage({ user, onLogout }: HomePageProps) {
-  const [activeMenu, setActiveMenu] = useState<ProfesorCTutorMenuKey>("inicio");
+  const [activeMenu, setActiveMenu] = useState<ProfesorCTutorMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_profesor_ctutor");
+      if (saved) return saved as ProfesorCTutorMenuKey;
+    } catch {}
+    return "inicio";
+  });
   const [formattedDate, setFormattedDate] = useState("");
+  const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_profesor_ctutor", activeMenu);
+    } catch {}
+  }, [activeMenu]);
 
   useEffect(() => {
     try {
@@ -38,9 +53,20 @@ export function HomePage({ user, onLogout }: HomePageProps) {
   const renderContent = () => {
     switch (activeMenu) {
       case "pautas":
+        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
+          return <TableEstudiantes user={user} />;
+        }
         return <Pautas onBack={() => setActiveMenu("inicio")} />;
       case "observaciones":
+        if (!hasPermission("OBSERVACIONES_CONSULTAR") && !hasPermission("OBSERVACIONES_REGISTRAR")) {
+          return <TableEstudiantes user={user} />;
+        }
         return <Observaciones onBack={() => setActiveMenu("inicio")} />;
+      case "portafolio":
+        if (!hasPermission("PORTAFOLIO_SUBIR")) {
+          return <TableEstudiantes user={user} />;
+        }
+        return <Portafolio onBack={() => setActiveMenu("inicio")} />;
       case "perfil":
         return <PerfilProfesor user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":

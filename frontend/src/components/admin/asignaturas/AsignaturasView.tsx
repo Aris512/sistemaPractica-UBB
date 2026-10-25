@@ -7,6 +7,7 @@ import { CreateModal } from "./CreateModal";
 import { EditModal } from "./EditModal";
 import type { Asignatura } from "./types";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { RefreshCw, Loader2, AlertCircle, BookPlus } from "lucide-react";
 import { sileo } from "sileo";
 
@@ -38,6 +39,7 @@ export function AsignaturasView() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingAsignatura, setEditingAsignatura] = useState<Asignatura | null>(null);
+  const [asignaturaAEliminar, setAsignaturaAEliminar] = useState<Asignatura | null>(null);
 
   const handleRowAction = async (action: string, item: Asignatura) => {
     switch (action) {
@@ -46,9 +48,13 @@ export function AsignaturasView() {
         setIsEditOpen(true);
         break;
       case "delete": {
+        if (!asignaturaAEliminar) {
+          setAsignaturaAEliminar(item);
+          break;
+        }
         const res = await deleteAsignatura(item.idAsignatura);
         if (res.success) {
-          sileo.error({
+          sileo.success({
             title: "Asignatura eliminada",
             description: `Se eliminó "${item.nombre}" de la base de datos`,
           });
@@ -214,6 +220,11 @@ export function AsignaturasView() {
         }}
         asignatura={editingAsignatura}
         onSave={handleEditSuccess}
+      />
+      <ConfirmDeleteDialog
+        open={!!asignaturaAEliminar}
+        onOpenChange={(open) => !open && setAsignaturaAEliminar(null)}
+        onConfirm={() => handleRowAction("delete", asignaturaAEliminar!)}
       />
     </div>
   );

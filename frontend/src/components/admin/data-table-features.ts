@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { adminFetch } from "@/lib/adminAuth";
 
 // ── Tipo principal para la tabla de usuarios ──
 export interface UsuarioRow {
@@ -7,6 +8,8 @@ export interface UsuarioRow {
   correo?: string;
   rol: string;
   curso: string;
+  centroPractica?: string;
+  idCentro?: number | null;
   estado: boolean;
 }
 
@@ -147,23 +150,20 @@ export function useDataTableFeatures(
     setLoading(true);
     setError(null);
     try {
-      const credentials = btoa("admin:admin123");
-      const res = await fetch("http://localhost:8080/admin/usuarios", {
-        headers: {
-          Authorization: `Basic ${credentials}`,
-        },
-      });
+      const res = await adminFetch("/admin/usuarios");
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
       const json = await res.json();
 
       const rows: UsuarioRow[] = json.map(
-        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string; estado?: boolean }) => ({
+        (u: { rut: string; nombre: string; roles: string[]; correo: string; curso?: string; centroPractica?: string; idCentro?: number; estado?: boolean }) => ({
           rut: u.rut,
           nombre: u.nombre,
           correo: u.correo,
           rol: u.roles && u.roles.length > 0 ? u.roles[0] : "SIN ROL",
           curso: u.curso || "—",
+          centroPractica: u.centroPractica || "—",
+          idCentro: u.idCentro || null,
           estado: u.estado !== undefined ? Boolean(u.estado) : true,
         })
       );
@@ -248,8 +248,29 @@ export function useDataTableFeatures(
   };
 
   // ── Operaciones CRUD ──
-  const deleteUsuario = (rut: string) => {
-    setData((prev) => prev.filter((item) => item.rut !== rut));
+  const deleteUsuario = async (rut: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await adminFetch(`/admin/usuarios/${encodeURIComponent(rut)}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(
+          errJson?.error || errJson?.message || `Error ${res.status}: No se pudo eliminar el usuario.`
+        );
+      }
+
+      // Eliminar de la lista local únicamente si la eliminación en base de datos fue exitosa
+      setData((prev) => prev.filter((item) => item.rut !== rut));
+      return { success: true };
+    } catch (err: any) {
+      console.error("Error al eliminar usuario:", err);
+      return {
+        success: false,
+        error: err.message || "No se pudo eliminar el usuario de la base de datos.",
+      };
+    }
   };
 
   const toggleUsuarioEstado = async (rut: string, nuevoEstado: boolean) => {
@@ -261,14 +282,12 @@ export function useDataTableFeatures(
     );
 
     try {
-      const credentials = btoa("admin:admin123");
-      let res = await fetch(
-        `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}/estado`,
+      let res = await adminFetch(
+        `/admin/usuarios/${encodeURIComponent(rut)}/estado`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Basic ${credentials}`,
           },
           body: JSON.stringify({ estado: nuevoEstado }),
         }
@@ -276,13 +295,12 @@ export function useDataTableFeatures(
 
       // Si el endpoint específico da 404, fallback al endpoint principal de usuarios
       if (res.status === 404) {
-        res = await fetch(
-          `http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`,
+        res = await adminFetch(
+          `/admin/usuarios/${encodeURIComponent(rut)}`,
           {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Basic ${credentials}`,
             },
             body: JSON.stringify({ estado: nuevoEstado }),
           }

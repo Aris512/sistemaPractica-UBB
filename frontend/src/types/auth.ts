@@ -12,6 +12,7 @@ export interface UserSession {
   roles: string[];
   rol?: string;
   estado?: boolean;
+  esPractica?: boolean;
 }
 
 export interface LoginResponse {

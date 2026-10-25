@@ -16,13 +16,19 @@ export function useSeguimientoData(userRut?: string) {
     try {
       const profesorRut = userRut || "11111111-1";
       const res = await fetch(
-        `http://localhost:8080/api/evidencias/seguimiento/profesor/${encodeURIComponent(profesorRut)}`
+        `/api/evidencias/seguimiento/profesor/${encodeURIComponent(profesorRut)}`
       );
 
       if (res.ok) {
         const json = await res.json();
         if (Array.isArray(json) && json.length > 0) {
-          const rows: EstudianteEvidenciaRow[] = json.map((dto: any) => ({
+          const activos = json.filter(
+            (dto: any) =>
+              dto.activo !== false &&
+              dto.estado?.toLowerCase() !== "inactivo" &&
+              dto.estadoEntrega !== "INACTIVO"
+          );
+          const rows: EstudianteEvidenciaRow[] = activos.map((dto: any) => ({
             idEstudiante: dto.idEstudiante,
             idEvidencia: dto.idEvidencia,
             idActividad: dto.idActividad,
@@ -44,6 +50,10 @@ export function useSeguimientoData(userRut?: string) {
             fechaSubidaRaw: dto.fechaSubida,
             nombreArchivo: dto.nombreArchivo,
             archivoUrl: dto.archivoUrl,
+            idArchivoAlumno: dto.idArchivoAlumno,
+            idArchivoProfesor: dto.idArchivoProfesor,
+            idNota: dto.idNota,
+            aprobado: dto.aprobado,
             comentarioEstudiante: dto.comentarioEstudiante,
             calificacion: dto.calificacion,
             retroalimentacion: dto.retroalimentacion,
@@ -54,12 +64,18 @@ export function useSeguimientoData(userRut?: string) {
         }
       }
 
-      const resEst = await fetch("http://localhost:8080/api/estudiantes");
+      const resEst = await fetch("/api/estudiantes");
       if (resEst.ok) {
         const estJson = await resEst.json();
         if (Array.isArray(estJson)) {
+          const activos = estJson.filter(
+            (est: any) =>
+              est.usuario?.activo !== false &&
+              est.usuario?.estado?.toLowerCase() !== "inactivo" &&
+              est.estado?.toUpperCase() !== "INACTIVO"
+          );
           setData(
-            estJson.map((est: any) => ({
+            activos.map((est: any) => ({
               idEstudiante: est.idEstudiante,
               rut: est.usuario?.rut || "—",
               nombre: est.usuario ? `${est.usuario.nombre} ${est.usuario.apellido}` : "Estudiante",

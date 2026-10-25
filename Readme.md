@@ -124,6 +124,18 @@ MySQL se ejecuta mediante Docker Compose con los siguientes parámetros de conex
 - **Root Password:** `root_pass`
 - **Volumen de datos:** `mysql_data`
 
+### Asistente de IA (Groq)
+
+El chatbot de **Asistentes de IA** (vista del estudiante) llama a Groq desde el backend. Agregar en el archivo `.env` de la raíz (no se versiona) o como variables de entorno del sistema:
+
+```bash
+GROQ_API_KEY=tu_clave_de_groq
+# Opcional: modelo a usar (por defecto openai/gpt-oss-120b)
+GROQ_MODEL=openai/gpt-oss-120b
+```
+
+La clave nunca debe ir en el frontend ni en variables `VITE_`. Sin `GROQ_API_KEY` el resto del sistema funciona y el chat informa que el servicio no está configurado. Los límites de uso se ajustan con las propiedades `chat.*` de `application.properties`.
+
 ---
 
 ## 6. Componentes del Frontend (shadcn/ui)

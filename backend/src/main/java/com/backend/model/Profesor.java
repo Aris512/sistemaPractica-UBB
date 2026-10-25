@@ -1,15 +1,11 @@
 package com.backend.model;
 
-import java.util.Set;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
@@ -29,14 +25,6 @@ public class Profesor {
     @ManyToOne
     @JoinColumn(name = "id_asignatura")
     private Asignatura asignatura;
-
-    @ManyToMany
-    @JoinTable(
-        name = "profesor_asignatura",
-        joinColumns = @JoinColumn(name = "id_profesor"),
-        inverseJoinColumns = @JoinColumn(name = "id_asignatura")
-    )
-    private Set<Asignatura> asignaturas;
 
     public Profesor() {
     }
@@ -68,13 +56,5 @@ public class Profesor {
 
     public void setAsignatura(Asignatura asignatura) {
         this.asignatura = asignatura;
-    }
-
-    public Set<Asignatura> getAsignaturas() {
-        return asignaturas;
-    }
-
-    public void setAsignaturas(Set<Asignatura> asignaturas) {
-        this.asignaturas = asignaturas;
     }
 }

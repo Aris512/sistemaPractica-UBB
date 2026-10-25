@@ -10,10 +10,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Users, BookOpen, ShieldCheck } from "lucide-react";
-import { sileo } from "sileo";
+import { Users, BookOpen, ShieldCheck, Building2, FolderArchive, ClipboardCheck, LogOut } from "lucide-react";
 
-export type AdminSection = "usuarios" | "asignaturas";
+export type AdminSection = "usuarios" | "asignaturas" | "centros_practica" | "permisos" | "documentos" | "evaluaciones";
 
 interface AdminSidebarProps {
   activeSection?: AdminSection;
@@ -24,7 +23,9 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({
   activeSection = "usuarios",
-  onSelectSection
+  onSelectSection,
+  onLogout,
+  onGoHome: _onGoHome,
 }: AdminSidebarProps) {
 
   return (
@@ -74,17 +75,49 @@ export function AdminSidebar({
 
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Auditoría"
-                  onClick={() =>
-                    sileo.info({
-                      title: "Auditoría",
-                      description: "Módulo de auditoría y registros",
-                    })
-                  }
+                  isActive={activeSection === "documentos"}
+                  tooltip="Documentos"
+                  onClick={() => onSelectSection?.("documentos")}
+                  className="cursor-pointer"
+                >
+                  <FolderArchive className="size-4" />
+                  <span>Documentos</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeSection === "centros_practica"}
+                  tooltip="Centros de Práctica"
+                  onClick={() => onSelectSection?.("centros_practica")}
+                  className="cursor-pointer"
+                >
+                  <Building2 className="size-4" />
+                  <span>Centros de Práctica</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeSection === "permisos"}
+                  tooltip="Permisos por Rol"
+                  onClick={() => onSelectSection?.("permisos")}
                   className="cursor-pointer"
                 >
                   <ShieldCheck className="size-4" />
-                  <span>Auditoría</span>
+                  <span>Permisos Rol</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeSection === "evaluaciones"}
+                  tooltip="Evaluaciones"
+                  onClick={() => onSelectSection?.("evaluaciones")}
+                  className="cursor-pointer"
+                >
+                  <ClipboardCheck className="size-4" />
+                  <span>Evaluaciones</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -92,11 +125,25 @@ export function AdminSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <div className="flex items-center gap-2 p-2 text-xs text-muted-foreground border-t border-sidebar-border">
+      <SidebarFooter className="p-3 border-t border-sidebar-border mt-auto space-y-2">
+        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
           <div className="size-2 rounded-full bg-emerald-500" />
           <span>Conectado como Admin</span>
         </div>
+        {onLogout && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={onLogout}
+                className="w-full justify-start text-rose-600 hover:text-rose-700 hover:bg-rose-50 cursor-pointer font-medium text-sm transition-colors gap-2"
+                title="Cerrar sesión e ir al login principal"
+              >
+                <LogOut className="size-4 text-rose-600" />
+                <span>Cerrar sesión</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

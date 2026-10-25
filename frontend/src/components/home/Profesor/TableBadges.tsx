@@ -32,6 +32,22 @@ export function EstadoRevisionBadge({
   estado: EstudianteEvidenciaRow["estadoRevision"];
   calificacion?: number | null;
 }) {
+  if (estado === "APROBADO") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs">
+        <span className="size-1.5 rounded-full bg-emerald-600" />
+        Aprobado {calificacion ? `(${calificacion.toFixed(1)})` : ""}
+      </span>
+    );
+  }
+  if (estado === "REPROBADO") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200/80 shadow-2xs">
+        <span className="size-1.5 rounded-full bg-rose-600" />
+        Reprobado {calificacion ? `(${calificacion.toFixed(1)})` : ""}
+      </span>
+    );
+  }
   if (estado === "REVISADO") {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-200/80 shadow-2xs">

@@ -82,7 +82,7 @@ export function useAsignaturasFeatures(initialPageSize = 10) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8080/api/asignaturas");
+      const res = await fetch("/api/asignaturas");
       if (!res.ok) {
         throw new Error(`Error ${res.status}: No se pudieron cargar las asignaturas.`);
       }
@@ -167,7 +167,7 @@ export function useAsignaturasFeatures(initialPageSize = 10) {
   // Eliminar asignatura llamando al backend
   const deleteAsignatura = async (id: number): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`http://localhost:8080/api/asignaturas/${id}`, {
+      const res = await fetch(`/api/asignaturas/${id}`, {
         method: "DELETE",
       });
 

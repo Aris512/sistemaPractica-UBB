@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Calendar as CalendarIcon,
@@ -49,6 +50,7 @@ interface ActividadesProps {
 }
 
 export function Actividades({ user }: ActividadesProps) {
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
   const [actividades, setActividades] = useState<ActividadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -98,14 +100,14 @@ export function Actividades({ user }: ActividadesProps) {
     setLoading(true);
     try {
       const res = await fetch(
-        `http://localhost:8080/api/actividades/profesor/${encodeURIComponent(profesorRut)}`
+        `/api/actividades/profesor/${encodeURIComponent(profesorRut)}`
       );
       if (res.ok) {
         const data = await res.json();
         setActividades(Array.isArray(data) ? data : []);
       } else {
         // Fallback a todas si no hay por profesor
-        const resAll = await fetch("http://localhost:8080/api/actividades");
+        const resAll = await fetch("/api/actividades");
         if (resAll.ok) {
           const allData = await resAll.json();
           setActividades(Array.isArray(allData) ? allData : []);
@@ -141,8 +143,8 @@ export function Actividades({ user }: ActividadesProps) {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      sileo.warning({
-        title: "Campos inválidos",
+      sileo.error({
+        title: "Campos requeridos",
         description: Object.values(newErrors)[0],
       });
       return;
@@ -162,14 +164,15 @@ export function Actividades({ user }: ActividadesProps) {
         fechaLimite: fechaLimiteIso,
       };
 
-      const res = await fetch("http://localhost:8080/api/actividades", {
+      const res = await fetch("/api/actividades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        throw new Error("No se pudo crear la actividad en el servidor.");
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || errJson?.error || "No se pudo crear la actividad en el servidor.");
       }
 
       const nuevaActividad = await res.json();
@@ -186,11 +189,11 @@ export function Actividades({ user }: ActividadesProps) {
         title: "Tarea Creada",
         description: "La tarea ha sido asignada a todos los estudiantes del curso.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al crear actividad:", err);
       sileo.error({
-        title: "Error de creación",
-        description: "No fue posible registrar la actividad en la base de datos.",
+        title: "Error al crear tarea",
+        description: err?.message || "No fue posible registrar la actividad en la base de datos.",
       });
     } finally {
       setSubmitting(false);
@@ -207,7 +210,7 @@ export function Actividades({ user }: ActividadesProps) {
     );
 
     try {
-      const res = await fetch(`http://localhost:8080/api/actividades/${idActividad}/estado`, {
+      const res = await fetch(`/api/actividades/${idActividad}/estado`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado: nuevoEstado }),
@@ -245,10 +248,10 @@ export function Actividades({ user }: ActividadesProps) {
     }
   };
 
-  // Eliminar tarea sin confirmación
+  // La eliminación se ejecuta tras confirmar en el diálogo compartido.
   const handleEliminarActividad = async (idActividad: number) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/actividades/${idActividad}`, {
+      const res = await fetch(`/api/actividades/${idActividad}`, {
         method: "DELETE",
       });
 
@@ -293,19 +296,19 @@ export function Actividades({ user }: ActividadesProps) {
 
     if (!editTitulo.trim()) {
       setEditError("El título de la tarea es obligatorio.");
-      sileo.warning({ title: "Campo requerido", description: "El título no puede estar vacío." });
+      sileo.error({ title: "Campo requerido", description: "El título no puede estar vacío." });
       return;
     }
 
     if (!editFechaDate) {
       setEditError("Debes seleccionar una fecha límite con el calendario.");
-      sileo.warning({ title: "Campo requerido", description: "Debes seleccionar una fecha límite." });
+      sileo.error({ title: "Campo requerido", description: "Debes seleccionar una fecha límite." });
       return;
     }
 
     if (isPastDateTime(editFechaDate, editHora)) {
       setEditError("La fecha y hora límite no puede ser anterior a la actual.");
-      sileo.warning({
+      sileo.error({
         title: "Fecha no válida",
         description: "La fecha y hora límite no puede ser anterior a la actual.",
       });
@@ -315,7 +318,7 @@ export function Actividades({ user }: ActividadesProps) {
     setEditingSubmitting(true);
     try {
       const fechaLimiteIso = formatToISO(editFechaDate, editHora);
-      const res = await fetch(`http://localhost:8080/api/actividades/${editingActividad.idActividad}`, {
+      const res = await fetch(`/api/actividades/${editingActividad.idActividad}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -326,7 +329,8 @@ export function Actividades({ user }: ActividadesProps) {
       });
 
       if (!res.ok) {
-        throw new Error("Error al guardar cambios");
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || errJson?.error || "Error al guardar cambios en el servidor");
       }
 
       const actualizada = await res.json();
@@ -339,11 +343,11 @@ export function Actividades({ user }: ActividadesProps) {
         title: "Tarea Actualizada",
         description: "Los cambios se han guardado con éxito.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al actualizar actividad:", err);
       sileo.error({
-        title: "Error al actualizar",
-        description: "No se pudieron guardar los cambios.",
+        title: "Error al actualizar tarea",
+        description: err?.message || "No se pudieron guardar los cambios.",
       });
     } finally {
       setEditingSubmitting(false);
@@ -675,11 +679,11 @@ export function Actividades({ user }: ActividadesProps) {
                         Editar
                       </Button>
 
-                      {/* Botón Eliminar Tarea (sin confirmación) */}
+                      {/* Botón para solicitar la eliminación de la tarea */}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEliminarActividad(act.idActividad)}
+                        onClick={() => setDeleteAction(() => () => handleEliminarActividad(act.idActividad))}
                         className="cursor-pointer text-xs border-slate-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 gap-1"
                         title="Eliminar tarea"
                       >
@@ -831,6 +835,11 @@ export function Actividades({ user }: ActividadesProps) {
           </div>
         </div>
       )}
+      <ConfirmDeleteDialog
+        open={!!deleteAction}
+        onOpenChange={(open) => !open && setDeleteAction(null)}
+        onConfirm={async () => deleteAction?.()}
+      />
     </div>
   );
 }

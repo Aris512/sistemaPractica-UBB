@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { clearAdminAuth } from "@/lib/adminAuth";
+import { clearStoredUserSession } from "@/lib/authSession";
+import { LoginForm } from "@/components/login/LoginForm";
 import { DataTable } from "./data-table";
 import { userColumns } from "./columns";
 import {
@@ -7,9 +10,14 @@ import {
 } from "./data-table-features";
 import { AdminSidebar, type AdminSection } from "./AdminSidebar";
 import { AdminToolbar } from "./AdminToolbar";
-import { EditModal, CreateModal } from "./usuarios";
+import { EditModal, CreateModal, ImportModal } from "./usuarios";
 import { AsignaturasView } from "./asignaturas";
+import { DocumentosView } from "./documentos";
+import { CentrosPracticaView } from "./centros_practica";
+import { PermisosConfigView } from "./config";
+import { EvaluacionesView } from "./Evaluaciones";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
@@ -17,11 +25,16 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { RefreshCw, Loader2, AlertCircle, UserPlus, LogOut } from "lucide-react";
+import { RefreshCw, Loader2, AlertCircle, UserPlus, LogOut, FileSpreadsheet } from "lucide-react";
 import { Toaster, sileo } from "sileo";
 import "sileo/styles.css";
 
-export default function AdminPage() {
+/**
+ * Componente interno: contiene toda la lógica y JSX del panel.
+ * Solo se monta cuando el usuario ya está autenticado como administrador,
+ * evitando que los hooks (useDataTableFeatures) hagan llamadas a /admin/** sin credenciales.
+ */
+function AdminPanel({ onLogout }: { onLogout: () => void }) {
   const [activeSection, setActiveSection] = useState<AdminSection>("usuarios");
 
   const {
@@ -57,8 +70,26 @@ export default function AdminPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState<UsuarioRow | null>(null);
 
   const nextInvoiceId = `INV${String(data.length + 1).padStart(3, "0")}`;
+
+  const handleConfirmarEliminarUsuario = async () => {
+    if (!usuarioAEliminar) return;
+    const res = await deleteUsuario(usuarioAEliminar.rut);
+    if (res.success) {
+      sileo.success({
+        title: "Usuario eliminado",
+        description: `${usuarioAEliminar.nombre} (${usuarioAEliminar.rut}) fue eliminado correctamente de la base de datos.`,
+      });
+    } else {
+      sileo.error({
+        title: "Error al eliminar usuario",
+        description: res.error || "No se pudo eliminar el usuario del servidor.",
+      });
+    }
+  };
 
   const handleRowAction = async (action: string, item: UsuarioRow) => {
     switch (action) {
@@ -66,13 +97,10 @@ export default function AdminPage() {
         setEditingInvoice(item);
         setIsEditModalOpen(true);
         break;
-      case "delete":
-        deleteUsuario(item.rut);
-        sileo.error({
-          title: "Usuario eliminado",
-          description: `${item.nombre} (${item.rut}) fue eliminado de la tabla`,
-        });
+      case "delete": {
+        setUsuarioAEliminar(item);
         break;
+      }
       case "toggle-estado": {
         const nuevoEstado = !item.estado;
         const res = await toggleUsuarioEstado(item.rut, nuevoEstado);
@@ -143,6 +171,13 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
+    clearAdminAuth();
+    clearStoredUserSession();
+    onLogout?.();
+    window.location.href = "/";
+  };
+
+  const handleGoHome = () => {
     window.history.pushState({}, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate"));
   };
@@ -154,7 +189,7 @@ export default function AdminPage() {
           activeSection={activeSection}
           onSelectSection={(sec) => setActiveSection(sec)}
           onLogout={handleLogout}
-          onGoHome={handleLogout}
+          onGoHome={handleGoHome}
         />
 
         <SidebarInset className="bg-slate-50 min-h-screen">
@@ -172,7 +207,15 @@ export default function AdminPage() {
                 <span className="hidden sm:inline text-xs text-muted-foreground ml-2">
                   {activeSection === "usuarios"
                     ? "/ Gestión de Usuarios"
-                    : "/ Gestión de Asignaturas"}
+                    : activeSection === "asignaturas"
+                    ? "/ Gestión de Asignaturas"
+                    : activeSection === "documentos"
+                    ? "/ Expedientes de Documentos"
+                    : activeSection === "centros_practica"
+                    ? "/ Gestión de Centros de Práctica"
+                    : activeSection === "evaluaciones"
+                    ? "/ Evaluaciones"
+                    : "/ Configuración de Permisos por Rol"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -193,6 +236,16 @@ export default function AdminPage() {
           {/* Renderizado condicional según la sección activa */}
           {activeSection === "asignaturas" ? (
             <AsignaturasView />
+          ) : activeSection === "documentos" ? (
+            <DocumentosView />
+          ) : activeSection === "centros_practica" ? (
+            <CentrosPracticaView />
+          ) : activeSection === "permisos" ? (
+            <PermisosConfigView />
+          ) : activeSection === "evaluaciones" ? (
+            <div className="p-4 sm:p-8 max-w-5xl mx-auto w-full">
+              <EvaluacionesView />
+            </div>
           ) : (
             /* Main Content Area - Usuarios */
             <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-6 w-full">
@@ -219,6 +272,14 @@ export default function AdminPage() {
                   >
                     <RefreshCw className="size-4" />
                     Recargar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="gap-1.5 cursor-pointer border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs"
+                  >
+                    <FileSpreadsheet className="size-4 text-emerald-600" />
+                    Importar Excel
                   </Button>
                   <Button
                     onClick={() => setIsCreateModalOpen(true)}
@@ -311,10 +372,87 @@ export default function AdminPage() {
                 suggestedId={nextInvoiceId}
                 onCreate={handleCreateUser}
               />
+
+              {/* Import Modal */}
+              <ImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImportSuccess={() => refetch()}
+              />
             </div>
           )}
         </SidebarInset>
+        <ConfirmDeleteDialog
+          open={!!usuarioAEliminar}
+          onOpenChange={(open) => !open && setUsuarioAEliminar(null)}
+          onConfirm={handleConfirmarEliminarUsuario}
+        />
       </SidebarProvider>
     </TooltipProvider>
   );
+}
+
+/**
+ * Guard de acceso al panel administrativo.
+ *
+ * Verifica si hay una sesión admin almacenada (sessionStorage / cookie).
+ * - Sin sesión: muestra LoginForm con context="admin" (sin popup nativo del navegador).
+ * - Con sesión válida: monta AdminPanel (que contiene todos los hooks y llamadas a /admin/**).
+ *
+ * Separar AdminPanel de AdminPage evita que los hooks del panel hagan
+ * llamadas a la API antes de que el usuario se haya autenticado.
+ */
+export default function AdminPage() {
+  const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+
+    // 1. Verificar sessionStorage
+    const ssHeader = window.sessionStorage.getItem("admin_auth_header");
+    if (ssHeader) return true;
+
+    // 2. Sincronizar cookie a sessionStorage si existe (restaura sesión tras recarga)
+    const cookieMatch = document.cookie.match(/(?:^|; )admin_auth=([^;]*)/);
+    if (cookieMatch && cookieMatch[1]) {
+      const decoded = decodeURIComponent(cookieMatch[1]);
+      if (decoded) {
+        window.sessionStorage.setItem("admin_auth_header", decoded);
+        return true;
+      }
+    }
+
+    return false;
+  });
+
+  const handleAdminLogout = () => {
+    clearAdminAuth();
+    clearStoredUserSession();
+    window.location.href = "/";
+  };
+
+  if (!adminAuthenticated) {
+    return (
+      <div className="min-h-screen w-full flex flex-col justify-center items-center bg-[#edf2f7] p-4 sm:p-6 md:p-10 relative overflow-hidden">
+        {/* Fondo de matemáticas: mismo patrón que el login principal para coherencia visual */}
+        <div
+          className="absolute inset-0 pointer-events-none select-none opacity-25 bg-repeat bg-center"
+          style={{
+            backgroundImage: "url('/math-doodles.svg')",
+            backgroundSize: "680px 680px",
+          }}
+          aria-hidden="true"
+        />
+        <div className="w-full max-w-md mx-auto relative z-10">
+          <LoginForm
+            context="admin"
+            onAdminLoginSuccess={() => setAdminAuthenticated(true)}
+            onLoginSuccess={() => {
+              /* No utilizado en contexto admin; requerido por la firma de la prop */
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return <AdminPanel onLogout={handleAdminLogout} />;
 }
