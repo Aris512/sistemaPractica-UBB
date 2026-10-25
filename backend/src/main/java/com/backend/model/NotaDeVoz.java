@@ -32,6 +32,15 @@ public class NotaDeVoz {
     @Column(name = "fecha_grabacion")
     private LocalDateTime fechaGrabacion;
 
+    @Column(name = "transcripcion", columnDefinition = "TEXT")
+    private String transcripcion;
+
+    @Column(name = "nombre_archivo")
+    private String nombreArchivo;
+
+    @Column(name = "rut_grabador")
+    private String rutGrabador;
+
     public NotaDeVoz() {
     }
 
@@ -39,6 +48,16 @@ public class NotaDeVoz {
         this.evaluacion = evaluacion;
         this.ubicacionArchivo = ubicacionArchivo;
         this.duracion = duracion;
+        this.fechaGrabacion = LocalDateTime.now();
+    }
+
+    public NotaDeVoz(Evaluacion evaluacion, String ubicacionArchivo, String nombreArchivo, String duracion, String transcripcion, String rutGrabador) {
+        this.evaluacion = evaluacion;
+        this.ubicacionArchivo = ubicacionArchivo;
+        this.nombreArchivo = nombreArchivo;
+        this.duracion = duracion;
+        this.transcripcion = transcripcion;
+        this.rutGrabador = rutGrabador;
         this.fechaGrabacion = LocalDateTime.now();
     }
 
@@ -80,5 +99,29 @@ public class NotaDeVoz {
 
     public void setFechaGrabacion(LocalDateTime fechaGrabacion) {
         this.fechaGrabacion = fechaGrabacion;
+    }
+
+    public String getTranscripcion() {
+        return transcripcion;
+    }
+
+    public void setTranscripcion(String transcripcion) {
+        this.transcripcion = transcripcion;
+    }
+
+    public String getNombreArchivo() {
+        return nombreArchivo;
+    }
+
+    public void setNombreArchivo(String nombreArchivo) {
+        this.nombreArchivo = nombreArchivo;
+    }
+
+    public String getRutGrabador() {
+        return rutGrabador;
+    }
+
+    public void setRutGrabador(String rutGrabador) {
+        this.rutGrabador = rutGrabador;
     }
 }

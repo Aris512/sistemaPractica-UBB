@@ -22,6 +22,7 @@ export interface EstudianteEvaluacion {
   archivoUrl?: string | null;
   nombreArchivo?: string | null;
   tieneArchivo?: boolean;
+  tipoEvaluador?: string | null;
   // Entrega (evidencia) que el alumno subió a la actividad del profesor
   idEvidencia?: number | null;
   nombreArchivoEntrega?: string | null;
@@ -34,6 +35,10 @@ export interface GuardarEvaluacionRequest {
   idEstudiante: number;
   idEvaluacion?: number | null;
   rutProfesor: string;
+  rutEvaluador?: string;
+  nombreEvaluador?: string;
+  tipoEvaluador?: string;
+  idPractica?: number;
   tipoEvaluacion?: string;
   puntajeMinimo?: number;
   puntajeMaximo?: number;
@@ -41,6 +46,17 @@ export interface GuardarEvaluacionRequest {
   observacion?: string | null;
   file?: File | null;
   eliminarArchivo?: boolean;
+}
+
+export interface NotaDeVozDTO {
+  idAudio: number;
+  idEvaluacion: number;
+  duracion?: number | null;
+  audioUrl?: string | null;
+  nombreArchivo?: string | null;
+  transcripcion?: string | null;
+  fechaGrabacion?: string | null;
+  rutGrabador?: string | null;
 }
 
 const API_URL = "/api/evaluaciones";
@@ -100,7 +116,11 @@ export const guardarEvaluacionProfesor = async (
   if (data.file || data.eliminarArchivo) {
     const formData = new FormData();
     formData.append("idEstudiante", String(data.idEstudiante));
-    formData.append("rutProfesor", data.rutProfesor);
+    if (data.rutProfesor) formData.append("rutProfesor", data.rutProfesor);
+    if (data.rutEvaluador) formData.append("rutEvaluador", data.rutEvaluador);
+    if (data.nombreEvaluador) formData.append("nombreEvaluador", data.nombreEvaluador);
+    if (data.tipoEvaluador) formData.append("tipoEvaluador", data.tipoEvaluador);
+    if (data.idPractica != null) formData.append("idPractica", String(data.idPractica));
     if (data.idEvaluacion != null) formData.append("idEvaluacion", String(data.idEvaluacion));
     if (data.tipoEvaluacion) formData.append("tipoEvaluacion", data.tipoEvaluacion);
     if (data.puntajeObtenido != null) formData.append("puntajeObtenido", String(data.puntajeObtenido));
@@ -224,4 +244,70 @@ export const eliminarEvaluacionCompleta = async (
     throw new Error(errorText || "Error al eliminar la entrega, nota y observación del estudiante");
   }
   return response.json();
+};
+
+const NOTAS_VOZ_URL = "/api/notas-de-voz";
+
+export const getNotasDeVozPorEvaluacion = async (
+  idEvaluacion: number
+): Promise<NotaDeVozDTO[]> => {
+  const response = await fetch(`${NOTAS_VOZ_URL}/evaluacion/${idEvaluacion}`);
+  if (!response.ok) {
+    throw new Error(`Error al obtener notas de voz: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export const getNotasDeVozPorEstudiante = async (
+  idEstudiante: number
+): Promise<NotaDeVozDTO[]> => {
+  const response = await fetch(`${NOTAS_VOZ_URL}/estudiante/${idEstudiante}`);
+  if (!response.ok) {
+    throw new Error(`Error al obtener notas de voz del estudiante: ${response.statusText}`);
+  }
+  return response.json();
+};
+
+export const subirNotaDeVoz = async (
+  formData: FormData
+): Promise<NotaDeVozDTO> => {
+  const response = await fetch(`${NOTAS_VOZ_URL}/subir`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Error al subir la nota de voz");
+  }
+  return response.json();
+};
+
+export const actualizarTranscripcionNotaVoz = async (
+  idAudio: number,
+  transcripcion: string
+): Promise<NotaDeVozDTO> => {
+  const response = await fetch(`${NOTAS_VOZ_URL}/${idAudio}/transcripcion`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ transcripcion }),
+  });
+  if (!response.ok) {
+    throw new Error("Error al actualizar la transcripción");
+  }
+  return response.json();
+};
+
+export const eliminarNotaDeVoz = async (idAudio: number): Promise<void> => {
+  const response = await fetch(`${NOTAS_VOZ_URL}/${idAudio}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error("Error al eliminar la nota de voz");
+  }
+};
+
+export const getAudioUrl = (idAudio: number): string => {
+  return `${NOTAS_VOZ_URL}/${idAudio}/audio`;
 };
