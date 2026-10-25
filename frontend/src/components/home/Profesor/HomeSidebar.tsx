@@ -14,21 +14,23 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Home,
-  GraduationCap,
   Briefcase,
   CalendarDays,
   ClipboardCheck,
   CalendarPlus,
   MessageSquareCheck,
+  FolderGit2,
   LogOut,
 } from "lucide-react";
 import { sileo } from "sileo";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomeSidebarProps {
   user?: UserSession;
   activeMenu: ProfesorMenuKey;
   onSelectMenu: (menu: ProfesorMenuKey) => void;
   onLogout?: () => void;
+  esProfesorOctavoONoveno?: boolean;
 }
 
 function AdeccaLogo() {
@@ -60,10 +62,19 @@ function AdeccaLogo() {
 }
 
 export function HomeSidebar({
+  user,
   activeMenu,
   onSelectMenu,
   onLogout,
+  esProfesorOctavoONoveno = false,
 }: HomeSidebarProps) {
+  const { hasPermission } = usePermissions(user);
+
+  const esProfesor = [user?.rol, ...(user?.roles ?? [])]
+    .some((r) => String(r ?? "").toUpperCase().includes("PROFESOR"));
+  // Documentos de Práctica: solo profesores con asignatura de semestre >= 8
+  const puedeVerDocumentosPractica = esProfesor && esProfesorOctavoONoveno;
+
   const handleSelectMockup = (menu: ProfesorMenuKey, modulo: string) => {
     onSelectMenu(menu);
     sileo.warning({
@@ -121,95 +132,105 @@ export function HomeSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Revisión y Retroalimentación */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "revision-retroalimentacion"}
-                  onClick={() => onSelectMenu("revision-retroalimentacion")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "revision-retroalimentacion"
-                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <MessageSquareCheck className="size-4.5 text-slate-900 shrink-0" />
-                    <span>Retroalimentación</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {/* Revisión y Retroalimentación (Solo para profesores de 8.º y 9.º semestre) */}
+              {esProfesorOctavoONoveno && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "revision-retroalimentacion"}
+                    onClick={() => onSelectMenu("revision-retroalimentacion")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "revision-retroalimentacion"
+                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <MessageSquareCheck className="size-4.5 text-slate-900 shrink-0" />
+                      <span>Retroalimentación</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Documentos de Práctica (Solo profesores con semestre >= 8) */}
+              {puedeVerDocumentosPractica && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "documentos-practica"}
+                    onClick={() => onSelectMenu("documentos-practica")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "documentos-practica"
+                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FolderGit2 className="size-4.5 text-slate-900 shrink-0" />
+                      <span>Documentos de Práctica</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Planificación (Solo para profesores de 8.º y 9.º semestre) */}
+              {esProfesorOctavoONoveno && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "planificacion"}
+                    onClick={() => handleSelectMockup("planificacion", "Planificación")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "planificacion"
+                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <CalendarDays className="size-4.5 text-slate-900 shrink-0" />
+                      <span>Planificación</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Evaluaciones (visible para quien puede consultar o realizar evaluaciones) */}
+              {(hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")) && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "evaluaciones"}
+                    onClick={() => onSelectMenu("evaluaciones")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "evaluaciones"
+                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ClipboardCheck className="size-4.5 text-slate-900 shrink-0" />
+                      <span>Evaluaciones</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Portafolio */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "portafolio"}
-                  onClick={() => handleSelectMockup("portafolio", "Portafolios")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "portafolio"
-                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Briefcase className="size-4.5 text-slate-900 shrink-0" />
-                    <span>Portafolios</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Cursos / Práctica */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "cursos-practica"}
-                  onClick={() => handleSelectMockup("cursos-practica", "Cursos / Práctica")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "cursos-practica"
-                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <GraduationCap className="size-4.5 text-slate-900 shrink-0" />
-                    <span>Cursos / Práctica</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Planificación */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "planificacion"}
-                  onClick={() => handleSelectMockup("planificacion", "Planificación")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "planificacion"
-                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <CalendarDays className="size-4.5 text-slate-900 shrink-0" />
-                    <span>Planificación</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Evaluaciones */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={activeMenu === "evaluaciones"}
-                  onClick={() => handleSelectMockup("evaluaciones", "Evaluaciones")}
-                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                    activeMenu === "evaluaciones"
-                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <ClipboardCheck className="size-4.5 text-slate-900 shrink-0" />
-                    <span>Evaluaciones</span>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {(hasPermission("PORTAFOLIO_CONSULTAR") || hasPermission("PORTAFOLIO_SUBIR")) && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "portafolio"}
+                    onClick={() => onSelectMenu("portafolio")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "portafolio"
+                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Briefcase className="size-4.5 text-slate-900 shrink-0" />
+                      <span>Portafolios</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

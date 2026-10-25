@@ -1,15 +1,10 @@
 package com.backend.model;
 
-import java.util.Set;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -26,10 +21,6 @@ public class Asignatura {
     private String descripcion;
 
     private String semestre;
-
-    @JsonIgnore
-    @ManyToMany(mappedBy = "asignaturas")
-    private Set<Profesor> profesores;
 
     public Asignatura() {
     }
@@ -70,13 +61,5 @@ public class Asignatura {
 
     public void setSemestre(String semestre) {
         this.semestre = semestre;
-    }
-
-    public Set<Profesor> getProfesores() {
-        return profesores;
-    }
-
-    public void setProfesores(Set<Profesor> profesores) {
-        this.profesores = profesores;
     }
 }

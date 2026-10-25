@@ -5,15 +5,16 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { PerfilUsuario } from "./PerfilUsuario";
 import { Portafolio } from "./Portafolio";
-import { CursosPractica } from "./CursosPractica";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { Observaciones } from "./Observaciones";
 import { AsistentesIA } from "./AsistentesIA";
+import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { MallaCurricular } from "@/components/malla_curricular";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomePageProps {
   user: UserSession;
@@ -21,8 +22,21 @@ interface HomePageProps {
 }
 
 export function HomePage({ user, onLogout }: HomePageProps) {
-  const [activeMenu, setActiveMenu] = useState<HomeMenuKey>("inicio");
+  const [activeMenu, setActiveMenu] = useState<HomeMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_estudiante");
+      if (saved) return saved as HomeMenuKey;
+    } catch {}
+    return "inicio";
+  });
   const [formattedDate, setFormattedDate] = useState("");
+  const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_estudiante", activeMenu);
+    } catch {}
+  }, [activeMenu]);
 
   // Formato de fecha en español en tiempo real
   useEffect(() => {
@@ -46,17 +60,29 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "perfil":
         return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
-        return <Portafolio onBack={() => setActiveMenu("inicio")} />;
-      case "cursos-practica":
-        return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("PORTAFOLIO_SUBIR") && !hasPermission("PORTAFOLIO_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "documentos-practica":
+        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "planificacion":
-        return <Planificacion onBack={() => setActiveMenu("inicio")} />;
+        return <Planificacion user={user} onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
-        return <Evaluaciones onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "observaciones":
-        return <Observaciones onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("OBSERVACIONES_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Observaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "asistentes-ia":
-        return <AsistentesIA onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("IA_ACCESO")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <AsistentesIA user={user} />;
       case "inicio":
       case "malla-curricular":
       default:

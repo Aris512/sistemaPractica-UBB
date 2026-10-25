@@ -5,15 +5,15 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "./Portafolio";
-import { CursosPractica } from "./CursosPractica";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
-import { TableEstudiantes } from "./table";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
+import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomePageProps {
   user: UserSession;
@@ -21,8 +21,64 @@ interface HomePageProps {
 }
 
 export function HomePage({ user, onLogout }: HomePageProps) {
-  const [activeMenu, setActiveMenu] = useState<ProfesorMenuKey>("inicio");
+  const [activeMenu, setActiveMenu] = useState<ProfesorMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_profesor");
+      if (saved) return saved as ProfesorMenuKey;
+    } catch {}
+    return "inicio";
+  });
   const [formattedDate, setFormattedDate] = useState("");
+  const [esProfesorOctavoONoveno, setEsProfesorOctavoONoveno] = useState<boolean>(false);
+  const [cargandoProfesor, setCargandoProfesor] = useState<boolean>(true);
+  const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_profesor", activeMenu);
+    } catch {}
+  }, [activeMenu]);
+
+  useEffect(() => {
+    if (!user?.rut) {
+      setCargandoProfesor(false);
+      return;
+    }
+    fetch(`/api/profesores/rut/${encodeURIComponent(user.rut)}`)
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((profesorData) => {
+        if (!profesorData) {
+          setEsProfesorOctavoONoveno(false);
+          return;
+        }
+        // Asignatura del profesor (tabla profesor, columna id_asignatura)
+        const sem = String(profesorData.asignatura?.semestre ?? "").trim().toUpperCase();
+        const num = parseInt(sem.replace(/\D/g, ""), 10);
+        const tieneOctavoONoveno = !Number.isNaN(num)
+          ? num >= 8
+          : ["VIII", "IX", "X", "OCTAVO", "NOVENO", "DECIMO", "DÉCIMO"].includes(sem);
+        setEsProfesorOctavoONoveno(tieneOctavoONoveno);
+      })
+      .catch((err) => {
+        console.error("Error al cargar datos del profesor:", err);
+        setEsProfesorOctavoONoveno(false);
+      })
+      .finally(() => {
+        setCargandoProfesor(false);
+      });
+  }, [user?.rut]);
+
+  // Si el profesor no es de 8.º/9.º semestre, sacarlo de los módulos exclusivos
+  useEffect(() => {
+    if (cargandoProfesor || esProfesorOctavoONoveno) return;
+    const exclusivos: ProfesorMenuKey[] = ["documentos-practica", "revision-retroalimentacion", "planificacion"];
+    if (exclusivos.includes(activeMenu)) {
+      setActiveMenu("inicio");
+    }
+  }, [cargandoProfesor, esProfesorOctavoONoveno, activeMenu]);
 
   useEffect(() => {
     try {
@@ -53,23 +109,41 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           />
         );
       case "revision-retroalimentacion":
+        if (cargandoProfesor || !esProfesorOctavoONoveno) {
+          return null;
+        }
         return (
           <RevisionRetroalimentacion
             user={user}
             onBack={() => setActiveMenu("inicio")}
           />
         );
+      case "documentos-practica":
+        // Gestión de Documentos y Archivos: solo profesores de 8.º y 9.º semestre
+        if (cargandoProfesor || !esProfesorOctavoONoveno) {
+          return null;
+        }
+        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
-        return <Portafolio onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("PORTAFOLIO_CONSULTAR") && !hasPermission("PORTAFOLIO_SUBIR")) {
+          return null;
+        }
+        return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
-        return <CursosPractica onBack={() => setActiveMenu("inicio")} />;
+        return null;
       case "planificacion":
+        if (cargandoProfesor || !esProfesorOctavoONoveno) {
+          return null;
+        }
         return <Planificacion onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
-        return <Evaluaciones onBack={() => setActiveMenu("inicio")} />;
+        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
+          return null;
+        }
+        return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
-        return <TableEstudiantes user={user} />;
+        return null;
     }
   };
 
@@ -83,6 +157,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         activeMenu={activeMenu}
         onSelectMenu={setActiveMenu}
         onLogout={onLogout}
+        esProfesorOctavoONoveno={esProfesorOctavoONoveno}
       />
 
       {/* Área principal */}

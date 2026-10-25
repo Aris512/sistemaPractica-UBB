@@ -25,6 +25,7 @@ export type HomeMenuKey =
   | "bodega"
   | "perfil"
   | "portafolio"
+  | "documentos-practica"
   | "cursos-practica"
   | "planificacion"
   | "evaluaciones"

@@ -1,6 +1,6 @@
 import type { Evaluacion, ObservacionEvaluacion } from "../types/evaluacion";
 
-const API_URL = "http://localhost:8080/api";
+const API_URL = "/api";
 
 export const getEvaluaciones = async (): Promise<Evaluacion[]> => {
   const response = await fetch(`${API_URL}/evaluaciones`);
@@ -14,13 +14,20 @@ export const getEvaluacionById = async (id: number): Promise<Evaluacion> => {
   return response.json();
 };
 
-export const getObservacionesByEvaluacion = async (idEvaluacion: number): Promise<ObservacionEvaluacion[]> => {
-  const response = await fetch(`${API_URL}/observaciones-evaluacion/evaluacion/${idEvaluacion}`);
+export const getObservacionesByEvaluacion = async (
+  idEvaluacion: number
+): Promise<ObservacionEvaluacion[]> => {
+  const response = await fetch(
+    `${API_URL}/observaciones-evaluacion/evaluacion/${idEvaluacion}`
+  );
   if (!response.ok) throw new Error("Error al obtener las observaciones");
   return response.json();
 };
 
-export const crearObservacion = async (observacion: { evaluacion: { idEvaluacion: number }, texto: string }): Promise<ObservacionEvaluacion> => {
+export const crearObservacion = async (observacion: {
+  evaluacion: { idEvaluacion: number };
+  texto: string;
+}): Promise<ObservacionEvaluacion> => {
   const response = await fetch(`${API_URL}/observaciones-evaluacion`, {
     method: "POST",
     headers: {
@@ -32,7 +39,10 @@ export const crearObservacion = async (observacion: { evaluacion: { idEvaluacion
   return response.json();
 };
 
-export const actualizarObservacion = async (id: number, texto: string): Promise<ObservacionEvaluacion> => {
+export const actualizarObservacion = async (
+  id: number,
+  texto: string
+): Promise<ObservacionEvaluacion> => {
   const response = await fetch(`${API_URL}/observaciones-evaluacion/${id}`, {
     method: "PUT",
     headers: {

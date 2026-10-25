@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { adminFetch } from "@/lib/adminAuth";
+import { sileo } from "sileo";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +18,9 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, UserCheck, BookOpen, Loader2, AlertCircle, Lock } from "lucide-react";
+import { Eye, EyeOff, UserCheck, BookOpen, Loader2, AlertCircle, Lock, Building2 } from "lucide-react";
 import type { UsuarioRow } from "../data-table-features";
+import { normalizeRole } from "./CreateModal";
 
 export interface EditUserData {
   rut: string;
@@ -28,6 +31,8 @@ export interface EditUserData {
   rol: string;
   asignatura?: string;
   idAsignatura?: number | null;
+  centroPractica?: string;
+  idCentro?: number | null;
   estado?: boolean;
 }
 
@@ -36,6 +41,12 @@ interface AsignaturaItem {
   nombre: string;
   descripcion?: string;
   semestre?: string;
+}
+
+interface CentroPracticaItem {
+  idCentro: number;
+  nombre: string;
+  direccion?: string;
 }
 
 interface RolItem {
@@ -89,6 +100,19 @@ export function EditModal({
   const [asignaturaId, setAsignaturaId] = useState("");
   const [loadingAsignaturas, setLoadingAsignaturas] = useState(false);
 
+  // Centros de práctica dinámicos cargados desde la base de datos
+  const [centros, setCentros] = useState<CentroPracticaItem[]>([]);
+  const [centroId, setCentroId] = useState("");
+  const [loadingCentros, setLoadingCentros] = useState(false);
+
+  // Solo Profesor Colaborador, Tutor de Práctica y Coordinador deben tener la opción de Centro de Práctica
+  // Profesor de Asignatura NO debe tener esta opción
+  const isProfesorColaborador =
+    !rol.toUpperCase().includes("ASIGNATURA") &&
+    (rol.toUpperCase().includes("COLABORADOR") ||
+    rol.toUpperCase().includes("TUTOR") ||
+    rol.toUpperCase().includes("COORDINADOR"));
+
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -112,7 +136,8 @@ export function EditModal({
       setCorreo(targetUser.correo || "");
       setContrasena("");
       setShowPassword(false);
-      setRol(targetUser.rol || "ESTUDIANTE");
+      const initialRol = targetUser.rol || (Array.isArray(targetUser.roles) && targetUser.roles.length > 0 ? targetUser.roles[0] : "") || "ESTUDIANTE";
+      setRol(initialRol);
       setEstado(targetUser.estado !== undefined ? Boolean(targetUser.estado) : true);
       setServerError(null);
       setSubmitting(false);
@@ -122,7 +147,7 @@ export function EditModal({
       const fetchRoles = async () => {
         setLoadingRoles(true);
         try {
-          const res = await fetch("http://localhost:8080/api/roles");
+          const res = await fetch("/api/roles");
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -140,7 +165,7 @@ export function EditModal({
       const fetchAsignaturas = async () => {
         setLoadingAsignaturas(true);
         try {
-          const res = await fetch("http://localhost:8080/api/asignaturas");
+          const res = await fetch("/api/asignaturas");
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -172,8 +197,42 @@ export function EditModal({
         }
       };
 
+      // Cargar centros de práctica desde la base de datos (/api/centros-practica)
+      const fetchCentros = async () => {
+        setLoadingCentros(true);
+        try {
+          const res = await fetch("/api/centros-practica");
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              setCentros(data);
+              // Preseleccionar si el usuario ya tiene centro de práctica
+              if (targetUser.idCentro) {
+                setCentroId(String(targetUser.idCentro));
+              } else if (targetUser.centroPractica && targetUser.centroPractica !== "—" && targetUser.centroPractica !== "-") {
+                const found = data.find(
+                  (c: CentroPracticaItem) => c.nombre.toLowerCase() === targetUser.centroPractica.toLowerCase()
+                );
+                if (found) {
+                  setCentroId(String(found.idCentro));
+                } else {
+                  setCentroId("");
+                }
+              } else {
+                setCentroId("");
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Error al cargar centros de práctica:", err);
+        } finally {
+          setLoadingCentros(false);
+        }
+      };
+
       fetchRoles();
       fetchAsignaturas();
+      fetchCentros();
     }
   }, [isOpen, targetUser]);
 
@@ -207,6 +266,11 @@ export function EditModal({
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      const firstError = Object.values(newErrors)[0];
+      sileo.error({
+        title: "Error de validación",
+        description: firstError || "Revisa los campos del formulario.",
+      });
       return;
     }
 
@@ -214,26 +278,32 @@ export function EditModal({
       (a) => String(a.idAsignatura) === asignaturaId
     );
 
+    const selectedCentro = centros.find(
+      (c) => String(c.idCentro) === centroId
+    );
+
     setSubmitting(true);
     setServerError(null);
 
+    const rolNormalizado = normalizeRole(rol);
+
     try {
-      const credentials = btoa("admin:admin123");
-      const res = await fetch(`http://localhost:8080/admin/usuarios/${encodeURIComponent(rut)}`, {
+      const res = await adminFetch(`/admin/usuarios/${encodeURIComponent(rut)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Basic ${credentials}`,
         },
         body: JSON.stringify({
           nombre: nombre.trim(),
           apellido: apellido.trim(),
           correo: correo.trim(),
           contrasena: contrasena.trim() || null,
-          rol,
+          rol: rolNormalizado,
           estado,
           idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
           asignatura: selectedAsig ? selectedAsig.nombre : null,
+          idCentro: isProfesorColaborador && selectedCentro ? selectedCentro.idCentro : null,
+          centroPractica: isProfesorColaborador && selectedCentro ? selectedCentro.nombre : null,
         }),
       });
 
@@ -241,24 +311,33 @@ export function EditModal({
 
       if (!res.ok) {
         throw new Error(
-          json?.error || `Error ${res.status}: No se pudieron guardar los cambios en la base de datos.`
+          json?.error || json?.message || `Error ${res.status}: No se pudieron guardar los cambios en la base de datos.`
         );
       }
 
       onSave?.(rut, {
         rut,
-        nombre: `${nombre.trim()} ${apellido.trim()}`,
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
         correo: correo.trim(),
-        rol,
-        curso: selectedAsig ? selectedAsig.nombre : "—",
+        rol: rolNormalizado,
         asignatura: selectedAsig ? selectedAsig.nombre : "—",
+        idAsignatura: selectedAsig ? selectedAsig.idAsignatura : null,
+        centroPractica: isProfesorColaborador && selectedCentro ? selectedCentro.nombre : "—",
+        idCentro: isProfesorColaborador && selectedCentro ? selectedCentro.idCentro : null,
+        curso: selectedAsig ? selectedAsig.nombre : "—",
         estado,
       });
 
       onClose();
     } catch (err: any) {
       console.error("Error al actualizar usuario en la base de datos:", err);
-      setServerError(err.message || "Error al conectar con la base de datos.");
+      const errorMsg = err.message || "Error al conectar con la base de datos.";
+      setServerError(errorMsg);
+      sileo.error({
+        title: "Error al modificar usuario",
+        description: errorMsg,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -266,7 +345,7 @@ export function EditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg bg-white border border-slate-200">
+      <DialogContent className={`bg-white border border-slate-200 transition-all duration-300 ${isProfesorColaborador ? "sm:max-w-2xl lg:max-w-3xl" : "sm:max-w-lg"}`}>
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="p-2 bg-blue-50 text-blue-700 rounded-lg">
@@ -342,45 +421,96 @@ export function EditModal({
               </Field>
             </div>
 
-            {/* Asignatura disponible para todos los roles */}
-            <Field className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 transition-all">
-              <FieldLabel
-                htmlFor="edit-user-asignatura"
-                className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
-              >
-                <BookOpen className="size-3.5 text-blue-600" />
-                Asignatura (Tabla &quot;asignatura&quot;)
-                {loadingAsignaturas && (
-                  <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
-                )}
-              </FieldLabel>
-              <select
-                id="edit-user-asignatura"
-                value={asignaturaId}
-                onChange={(e) => {
-                  setAsignaturaId(e.target.value);
-                  if (errors.asignatura) {
-                    setErrors((prev) => ({ ...prev, asignatura: undefined }));
-                  }
-                }}
-                disabled={loadingAsignaturas}
-                className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="">
-                  {loadingAsignaturas
-                    ? "Cargando asignaturas de la BD..."
-                    : "-- Sin Asignatura (Opcional) --"}
-                </option>
-                {asignaturas.map((asig) => (
-                  <option key={asig.idAsignatura} value={String(asig.idAsignatura)}>
-                    {asig.nombre} {asig.semestre ? `(Semestre ${asig.semestre})` : ""}
+            {/* Asignatura y Lugar de Práctica (visible si es Profesor Colaborador) */}
+            <div className={`grid gap-3 transition-all duration-300 ${isProfesorColaborador ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+              {/* Asignatura */}
+              <Field className="p-3 bg-slate-50/80 rounded-lg border border-slate-200/80 transition-all">
+                <FieldLabel
+                  htmlFor="edit-user-asignatura"
+                  className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
+                >
+                  <BookOpen className="size-3.5 text-blue-600" />
+                  Asignatura (Tabla &quot;asignatura&quot;)
+                  {loadingAsignaturas && (
+                    <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                  )}
+                </FieldLabel>
+                <select
+                  id="edit-user-asignatura"
+                  value={asignaturaId}
+                  onChange={(e) => {
+                    setAsignaturaId(e.target.value);
+                    if (errors.asignatura) {
+                      setErrors((prev) => ({ ...prev, asignatura: undefined }));
+                    }
+                  }}
+                  disabled={loadingAsignaturas}
+                  className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <option value="">
+                    {loadingAsignaturas
+                      ? "Cargando asignaturas de la BD..."
+                      : "-- Sin Asignatura (Opcional) --"}
                   </option>
-                ))}
-              </select>
-              <FieldDescription className="text-slate-500 text-[11px]">
-                Asignatura vinculada a este usuario obtenida directamente de la base de datos.
-              </FieldDescription>
-            </Field>
+                  {asignaturas.map((asig) => (
+                    <option key={asig.idAsignatura} value={String(asig.idAsignatura)}>
+                      {asig.nombre} {asig.semestre ? `(Sem. ${asig.semestre})` : ""}
+                    </option>
+                  ))}
+                </select>
+                {errors.asignatura && (
+                  <FieldError className="text-rose-600 mt-1">{errors.asignatura}</FieldError>
+                )}
+                <FieldDescription className="text-slate-500 text-[11px]">
+                  Asignatura vinculada desde la base de datos.
+                </FieldDescription>
+              </Field>
+
+              {/* Lugar de Práctica (Solo para Profesor Colaborador) */}
+              {isProfesorColaborador && (
+                <Field className="p-3 bg-blue-50/40 rounded-lg border border-blue-200/70 transition-all animate-in fade-in-50 duration-200">
+                  <FieldLabel
+                    htmlFor="edit-user-centro"
+                    className="flex items-center gap-1.5 text-slate-800 font-semibold text-xs"
+                  >
+                    <Building2 className="size-3.5 text-blue-600" />
+                    Lugar de Práctica (Tabla &quot;centro_practica&quot;)
+                    {loadingCentros && (
+                      <Loader2 className="size-3 animate-spin text-blue-500 ml-1" />
+                    )}
+                  </FieldLabel>
+                  <select
+                    id="edit-user-centro"
+                    value={centroId}
+                    onChange={(e) => {
+                      setCentroId(e.target.value);
+                      if (errors.centro) {
+                        setErrors((prev) => ({ ...prev, centro: undefined }));
+                      }
+                    }}
+                    disabled={loadingCentros}
+                    className="mt-1 h-8 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <option value="">
+                      {loadingCentros
+                        ? "Cargando centros de práctica..."
+                        : "-- Selecciona Lugar de Práctica --"}
+                    </option>
+                    {centros.map((c) => (
+                      <option key={c.idCentro} value={String(c.idCentro)}>
+                        {c.nombre} {c.direccion ? `(${c.direccion})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.centro && (
+                    <FieldError className="text-rose-600 mt-1">{errors.centro}</FieldError>
+                  )}
+                  <FieldDescription className="text-slate-500 text-[11px]">
+                    Institución o colegio asignado al profesor colaborador o tutor de práctica.
+                  </FieldDescription>
+                </Field>
+              )}
+            </div>
 
             {/* Nombre y Apellido */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

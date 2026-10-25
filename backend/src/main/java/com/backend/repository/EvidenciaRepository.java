@@ -24,4 +24,24 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
     long countByActividadIdActividad(Long idActividad);
 
     long countByActividadIdActividadAndEstado(Long idActividad, String estado);
+
+    List<Evidencia> findByEstudianteIdEstudiante(Long idEstudiante);
+
+    List<Evidencia> findByEstudianteIdEstudianteAndActividadAsignaturaIdAsignatura(Long idEstudiante, Long idAsignatura);
+
+    List<Evidencia> findByNotaIdNota(Long idNota);
+
+    boolean existsByEstudianteIdEstudianteAndActividadProfesorUsuarioRutAndActividadAsignaturaIdAsignatura(
+        Long idEstudiante, String rutProfesor, Long idAsignatura
+    );
+
+    Optional<Evidencia> findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(
+        Long idEstudiante, String rutProfesor
+    );
+
+    long countByArchivoUrlIn(java.util.Collection<String> ubicaciones);
+
+    long countByArchivoRevisionUrlIn(java.util.Collection<String> ubicaciones);
+
+    List<Evidencia> findByArchivoProfesorIdDocumento(Long idDocumento);
 }

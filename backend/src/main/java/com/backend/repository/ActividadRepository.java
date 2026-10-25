@@ -15,4 +15,8 @@ public interface ActividadRepository extends JpaRepository<Actividad, Long> {
     List<Actividad> findByProfesorUsuarioRutOrderByFechaCreacionDesc(String rut);
 
     List<Actividad> findByAsignaturaIdAsignaturaOrderByFechaCreacionDesc(Long idAsignatura);
+
+    boolean existsByProfesorUsuarioRutAndAsignaturaIdAsignatura(String rutProfesor, Long idAsignatura);
+
+    List<Actividad> findByTituloIn(List<String> titulos);
 }

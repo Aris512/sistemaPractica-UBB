@@ -7,6 +7,7 @@ export interface Evaluacion {
   puntajeMinimo: number;
   puntajeMaximo: number;
   fechaLimite: string;
+  observacion?: string;
   practica?: {
     idPractica: number;
   };

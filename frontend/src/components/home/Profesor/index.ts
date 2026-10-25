@@ -6,5 +6,5 @@ export { Portafolio } from "./Portafolio";
 export { CursosPractica } from "./CursosPractica";
 export { Planificacion } from "./Planificacion";
 export { Evaluaciones } from "./Evaluaciones";
-export { TableEstudiantes, TableEstudiantes as Table } from "./table";
+export { ModalEvaluaciones } from "./ModalEvaluaciones";
 export * from "./types";

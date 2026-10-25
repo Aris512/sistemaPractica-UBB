@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.backend.dto.ActividadEstudianteDTO;
 import com.backend.dto.CrearActividadDTO;
 import com.backend.model.Actividad;
 import com.backend.service.ActividadService;
@@ -50,6 +51,16 @@ public class ActividadController {
     @GetMapping("/estudiante/{rut}")
     public ResponseEntity<List<Actividad>> obtenerParaEstudiante(@PathVariable String rut) {
         return ResponseEntity.ok(actividadService.obtenerParaEstudiante(rut));
+    }
+
+    /**
+     * Devuelve las actividades de la asignatura del estudiante junto con el estado
+     * de su evidencia (si ya entregó o no). Solo muestra actividades de la
+     * asignatura a la que pertenece el estudiante (validado en backend).
+     */
+    @GetMapping("/estudiante/{rut}/enriquecido")
+    public ResponseEntity<List<ActividadEstudianteDTO>> obtenerParaEstudianteEnriquecido(@PathVariable String rut) {
+        return ResponseEntity.ok(actividadService.obtenerParaEstudianteEnriquecido(rut));
     }
 
     @PostMapping

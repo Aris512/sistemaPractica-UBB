@@ -1,0 +1,61 @@
+# Despliegue de producción (Podman o Docker).
+#
+#   podman compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Solo el frontend (Nginx) publica un puerto. MySQL y el backend no se exponen: se comunican por la
+# red interna de la composición usando el nombre del servicio como host (mysql, backend).
+# Los valores se leen del archivo .env del servidor (plantilla en .env.example); nunca se versiona.
+
+services:
+  mysql:
+    image: docker.io/library/mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-proyecto_db}
+      MYSQL_USER: ${DB_USER:-proyecto_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en .env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # Por TCP (127.0.0.1) y no por socket: en el primer arranque MySQL levanta un servidor temporal
+      # solo por socket mientras crea la base; el backend conecta por TCP y debe esperar al definitivo.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME:-proyecto_db}
+      DB_USER: ${DB_USER:-proyecto_user}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      JPA_SHOW_SQL: "false"
+      ADMIN_BASIC_USERNAME: ${ADMIN_BASIC_USERNAME:?Define ADMIN_BASIC_USERNAME en .env}
+      ADMIN_BASIC_PASSWORD: ${ADMIN_BASIC_PASSWORD:?Define ADMIN_BASIC_PASSWORD en .env}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+    volumes:
+      # Archivos subidos (documentos, evidencias, portafolios): persisten entre reinicios.
+      - uploads_data:/app/uploads
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # Único puerto publicado. Con Podman sin root el puerto del host debe ser >= 1024.
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  mysql_data:
+  uploads_data:
