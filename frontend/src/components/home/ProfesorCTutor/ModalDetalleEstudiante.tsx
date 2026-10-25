@@ -9,8 +9,10 @@ import {
   FileText,
   Award,
   Clock,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
 
 interface ModalDetalleEstudianteProps {
   student: EstudianteTutorRow | null;
@@ -140,6 +142,20 @@ export function ModalDetalleEstudiante({ student, onClose }: ModalDetalleEstudia
                 No hay observaciones registradas para este estudiante actualmente.
               </div>
             )}
+          </div>
+
+          {/* Notas de Voz y Audio */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Volume2 className="size-3.5 text-sky-700" />
+              Notas de Voz Registradas
+            </h4>
+            <VoiceNoteRecorder
+              idEvaluacion={student.idEvaluacion}
+              idEstudiante={student.idEstudiante ? Number(student.idEstudiante) : undefined}
+              readOnly={true}
+              defaultCollapsed={false}
+            />
           </div>
 
           {/* Fecha de actualización */}
