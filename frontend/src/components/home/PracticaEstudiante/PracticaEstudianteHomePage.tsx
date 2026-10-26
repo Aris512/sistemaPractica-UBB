@@ -6,7 +6,7 @@ import { HomeHeader } from "@/components/home/Estudiante/HomeHeader";
 import { PerfilUsuario } from "@/components/home/Estudiante/PerfilUsuario";
 import { Portafolio } from "@/components/home/Estudiante/Portafolio";
 import { Planificacion } from "@/components/home/Estudiante/Planificacion";
-import { AsistentesIA } from "@/components/home/Estudiante/AsistentesIA";
+import { PracticaAsistentesIAView } from "./views/PracticaAsistentesIAView";
 import { PracticaInicioView } from "./views/PracticaInicioView";
 import { PracticaEquipoView } from "./views/PracticaEquipoView";
 import { PracticaRetroalimentacionView } from "./views/PracticaRetroalimentacionView";
@@ -116,7 +116,7 @@ export function PracticaEstudianteHomePage({
         return <Planificacion user={user} onBack={volverAlInicio} />;
       case "asistentes-ia":
         if (hasPermission("IA_ACCESO")) {
-          return <AsistentesIA user={user} />;
+          return <PracticaAsistentesIAView user={user} />;
         }
         break;
       case "equipo":

@@ -15,6 +15,7 @@ import {
   renombrarConversacion,
 } from "@/services/chatApi";
 import type { ChatConversacion, ChatMensaje } from "@/types/chat";
+import type { InicioRevision } from "@/types/retroalimentacion";
 import { EntradaMensaje, type EntradaMensajeHandle } from "./EntradaMensaje";
 import { ListaConversaciones } from "./ListaConversaciones";
 import { IndicadorRespondiendo, MensajeChat } from "./MensajeChat";
@@ -66,11 +67,21 @@ function useEnLinea(): boolean {
   return enLinea;
 }
 
-interface ChatIAProps {
-  rut: string;
+/** Conversaciones de revisión de planificación: habilitan el botón + para subir una versión corregida. */
+export interface RevisionChat {
+  esRevision: (idConversacion: number) => boolean;
+  /** Reemplaza el archivo de la planificación y devuelve la conversación a mostrar (nueva si se reinició el ciclo). */
+  reemplazarArchivo: (idConversacion: number, archivo: File) => Promise<InicioRevision>;
 }
 
-export function ChatIA({ rut }: ChatIAProps) {
+interface ChatIAProps {
+  rut: string;
+  revision?: RevisionChat;
+}
+
+const AYUDA_ADJUNTAR = "Usa + para reemplazar tu planificación por una versión corregida (.docx o .pdf).";
+
+export function ChatIA({ rut, revision }: ChatIAProps) {
   const claveActiva = `ubb_chat_activa_${rut}`;
   const enLinea = useEnLinea();
 
@@ -95,6 +106,7 @@ export function ChatIA({ rut }: ChatIAProps) {
   const [eliminando, setEliminando] = useState<ChatConversacion | null>(null);
   const [confirmarEliminarAbierto, setConfirmarEliminarAbierto] = useState(false);
   const [listaMovilAbierta, setListaMovilAbierta] = useState(false);
+  const [adjuntando, setAdjuntando] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pegadoAlFinalRef = useRef(true);
@@ -207,6 +219,35 @@ export function ChatIA({ rut }: ChatIAProps) {
       irAlFinal();
     }
   }, [mensajes, enCurso, fallido, activaId, irAlFinal]);
+
+  // ---------------------------------------------------------------------------------------------
+  // Adjuntar nueva versión de la planificación (solo conversaciones de revisión)
+  // ---------------------------------------------------------------------------------------------
+
+  const puedeAdjuntar = !!revision && activaId !== null && revision.esRevision(activaId);
+
+  const adjuntarArchivo = async (archivo: File) => {
+    if (!revision || activaId === null || adjuntando || !enLinea) return;
+    setAdjuntando(true);
+    try {
+      const inicio = await revision.reemplazarArchivo(activaId, archivo);
+      await cargarConversaciones();
+      seleccionar(inicio.idConversacion);
+      sileo.success({
+        title: "Planificación actualizada",
+        description: inicio.conversacionNueva
+          ? "Empezó una revisión nueva con tu versión corregida."
+          : (inicio.aviso ?? "La IA está revisando tu versión corregida."),
+      });
+      if (inicio.conversacionNueva && inicio.aviso) {
+        sileo.warning({ title: "Revisión con IA", description: inicio.aviso });
+      }
+    } catch (e) {
+      sileo.error({ title: "No se pudo adjuntar el archivo", description: aChatError(e).message });
+    } finally {
+      setAdjuntando(false);
+    }
+  };
 
   // ---------------------------------------------------------------------------------------------
   // Envío
@@ -492,6 +533,9 @@ export function ChatIA({ rut }: ChatIAProps) {
           enviando={enCurso !== null}
           deshabilitado={!enLinea || estadoMensajes === "cargando"}
           motivoDeshabilitado={!enLinea ? "Sin conexión" : undefined}
+          onAdjuntar={puedeAdjuntar ? (archivo) => void adjuntarArchivo(archivo) : undefined}
+          adjuntando={adjuntando}
+          ayudaAdjuntar={AYUDA_ADJUNTAR}
         />
       </section>
 

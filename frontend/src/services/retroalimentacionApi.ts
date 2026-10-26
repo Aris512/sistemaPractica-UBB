@@ -18,6 +18,13 @@ export function iniciarRevisionIa(rut: string, idPlanificacion: number): Promise
   return requestConUsuario(rut, `${BASE_URL}/planificacion/${idPlanificacion}/revision-ia`, { method: "POST" });
 }
 
+/** Botón + del chat: reemplaza el archivo «Planificación». Devuelve la conversación de revisión a mostrar (nueva si se reinició el ciclo). */
+export function reemplazarArchivoPlanificacion(rut: string, idPlanificacion: number, archivo: File): Promise<InicioRevision> {
+  const datos = new FormData();
+  datos.append("archivo", archivo);
+  return requestConUsuario(rut, `${BASE_URL}/planificacion/${idPlanificacion}/archivo`, { method: "POST", body: datos });
+}
+
 export function enviarAlProfesor(rut: string, id: number): Promise<Retroalimentacion> {
   return requestConUsuario(rut, `${BASE_URL}/${id}/enviar`, { method: "POST" });
 }
