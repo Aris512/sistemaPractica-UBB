@@ -27,6 +27,10 @@ export interface AsignaturaPractica {
   nombre: string;
   descripcion?: string;
   semestre?: string;
+  /** INICIAL | INTERMEDIA | PEDAGOGICA | PROFESIONAL */
+  nivel?: string;
+  requiereColaborador?: boolean;
+  requiereTutor?: boolean;
 }
 
 export interface TutorPracticaDTO {

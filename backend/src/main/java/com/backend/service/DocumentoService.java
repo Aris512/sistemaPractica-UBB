@@ -3,6 +3,7 @@ package com.backend.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.backend.model.Documento;
 import com.backend.repository.DocumentoRepository;
@@ -11,9 +12,11 @@ import com.backend.repository.DocumentoRepository;
 public class DocumentoService {
 
     private final DocumentoRepository documentoRepository;
+    private final FileStorageService fileStorageService;
 
-    public DocumentoService(DocumentoRepository documentoRepository) {
+    public DocumentoService(DocumentoRepository documentoRepository, FileStorageService fileStorageService) {
         this.documentoRepository = documentoRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     public List<Documento> obtenerTodos() {
@@ -28,7 +31,11 @@ public class DocumentoService {
         return documentoRepository.save(documento);
     }
 
+    @Transactional
     public void eliminar(Long id) {
-        documentoRepository.deleteById(id);
+        Documento documento = documentoRepository.findById(id).orElse(null);
+        if (documento == null) return;
+        documentoRepository.delete(documento);
+        fileStorageService.deleteFile(documento.getUbicacion());
     }
 }

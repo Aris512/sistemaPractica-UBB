@@ -1,0 +1,1935 @@
+[
+ {
+  "codigo": "INT-TC-COL",
+  "titulo": "Pauta de observación de clase – Trabajo Colaborativo en Aula (Profesor/a colaborador/a)",
+  "asignatura": "Trabajo Colaborativo en Aula",
+  "tipo": "Observación de clase",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "UNICA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 1,
+  "escalaMax": 7,
+  "modoCalculo": "PROMEDIO",
+  "exigencia": null,
+  "ponderacion": null,
+  "version": "2026-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se presenta a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar de manera formativa la realización de una clase de las/os estudiantes de Pedagogía de Educación Matemática de la Universidad del Bío-Bío de VI semestre, siendo esta su segunda experiencia en la docencia directa realizando una clase.\nLa evaluación se realiza considerando la dupla de docentes en formación, según corresponda.\nEn cada uno de los siguientes criterios marque con una X su apreciación de la observación realizada (1: Muy bajo; 7: Muy Alto).\nAl finalizar el instrumento se solicita indicar observaciones generales respecto de fortalezas y aspectos a mejorar que considere pertinente para complementar la evaluación realizada, refiriéndose en particular sobre las estrategias de trabajo colaborativo para las/os estudiantes implementadas en las actividades de la clase.\nAl finalizar la clase, por favor le solicitamos firmar y entregar este instrumento a las/os estudiantes antes de culminar el proceso de práctica.",
+  "criterios": [
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "1",
+    "texto": "El objetivo de la clase se presenta a los estudiantes. Es claro y pertinente al nivel."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "2",
+    "texto": "El profesor/a desarrolla un inicio de la clase generando retroalimentación y/o activación de conocimientos previos."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "3",
+    "texto": "El profesor/a realiza un desarrollo de la clase de manera pertinente al objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "4",
+    "texto": "El profesor/a realiza un desarrollo de la clase con tareas matemáticas pertinentes y coherentes con el objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "5",
+    "texto": "El profesor/a realiza un cierre de la clase con actividad(es) clave(s) para la verificación del cumplimiento del objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "6",
+    "texto": "El profesor/a realiza un cierre de la clase integrando y/o sintetizando los aprendizajes de la clase."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "7",
+    "texto": "El profesor/a hace uso de los errores y dificultades de los estudiantes como una instancia de devolución."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "8",
+    "texto": "El profesor/a propone tareas matemáticas que se relacionen con alguna de las habilidades de: resolución de problemas, representación, modelación y/o argumentación y comunicación."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "9",
+    "texto": "Las tareas matemáticas están contextualizadas al entorno de los estudiantes."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "10",
+    "texto": "El profesor/a propone variadas estrategias de resolución de las tareas matemáticas presentadas."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "11",
+    "texto": "El profesor/a explica, comprueba y/o demuestra las definiciones, teoremas, proposiciones o procedimientos de manera clara y adecuadas al nivel educativo."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "12",
+    "texto": "El profesor/a utiliza estrategias de trabajo colaborativo para las/os estudiantes en las actividades de la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "13",
+    "texto": "El profesor/a hace uso de un lenguaje acorde al nivel de enseñanza."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "14",
+    "texto": "El profesor/a genera oportunidades de participación de los estudiantes durante toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "15",
+    "texto": "El profesor/a propicia un ambiente para el desarrollo de toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "16",
+    "texto": "El profesor/a brinda atención a todos los estudiantes del aula."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "17",
+    "texto": "El profesor/a hace uso de materiales y/o recursos para el desarrollo de los aprendizajes en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "18",
+    "texto": "El profesor/a promueve la autoestima, evitando el rechazo, fobia o miedo a la matemática."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "19",
+    "texto": "El profesor/a promueve el diálogo y comunicación entre estudiantes favoreciendo la inclusión en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "20",
+    "texto": "El profesor/a realiza observación sistemática del proceso cognitivo de los estudiantes durante toda la clase."
+   }
+  ]
+ },
+ {
+  "codigo": "INT-TC-ACA",
+  "titulo": "Pauta de observación de clase – Trabajo Colaborativo en Aula (Académico/a (profesor de asignatura))",
+  "asignatura": "Trabajo Colaborativo en Aula",
+  "tipo": "Observación de clase",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "UNICA",
+  "evaluador": "ACADEMICO",
+  "escalaMin": 1,
+  "escalaMax": 7,
+  "modoCalculo": "PROMEDIO",
+  "exigencia": null,
+  "ponderacion": null,
+  "version": "2026-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se presenta a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar de manera formativa la realización de una clase de las/os estudiantes de Pedagogía de Educación Matemática de la Universidad del Bío-Bío de VI semestre, siendo esta su segunda experiencia en la docencia directa realizando una clase.\nLa evaluación se realiza considerando la dupla de docentes en formación, según corresponda.\nEn cada uno de los siguientes criterios marque con una X su apreciación de la observación realizada (1: Muy bajo; 7: Muy Alto).\nSe solicita al finalizar indicar observaciones generales respecto de fortalezas y aspectos a mejorar que considere pertinente para complementar la evaluación realizada, refiriéndose en particular sobre las estrategias de trabajo colaborativo para las/os estudiantes implementadas en las actividades de la clase.\nAl finalizar la clase, por favor le solicitamos firmar y entregar este instrumento a las/os estudiantes.",
+  "criterios": [
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "1",
+    "texto": "El objetivo de la clase se presenta a los estudiantes. Es claro y pertinente al nivel."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "2",
+    "texto": "El profesor/a desarrolla un inicio de la clase generando retroalimentación y/o activación de conocimientos previos."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "3",
+    "texto": "El profesor/a realiza un desarrollo de la clase de manera pertinente al objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "4",
+    "texto": "El profesor/a realiza un desarrollo de la clase con tareas matemáticas pertinentes y coherentes con el objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "5",
+    "texto": "El profesor/a realiza un cierre de la clase con actividad(es) clave(s) para la verificación del cumplimiento del objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "6",
+    "texto": "El profesor/a realiza un cierre de la clase integrando y/o sintetizando los aprendizajes de la clase."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "7",
+    "texto": "El profesor/a hace uso de los errores y dificultades de los estudiantes como una instancia de devolución."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "8",
+    "texto": "El profesor/a propone tareas matemáticas que se relacionen con alguna de las habilidades de: resolución de problemas, representación, modelación y/o argumentación y comunicación."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "9",
+    "texto": "Las tareas matemáticas están contextualizadas al entorno de los estudiantes."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "10",
+    "texto": "El profesor/a propone variadas estrategias de resolución de las tareas matemáticas presentadas."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "11",
+    "texto": "El profesor/a explica, comprueba y/o demuestra las definiciones, teoremas, proposiciones o procedimientos de manera clara y adecuadas al nivel educativo."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "12",
+    "texto": "El profesor/a utiliza estrategias de trabajo colaborativo para las/os estudiantes en las actividades de la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "13",
+    "texto": "El profesor/a hace uso de un lenguaje acorde al nivel de enseñanza."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "14",
+    "texto": "El profesor/a genera oportunidades de participación de los estudiantes durante toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "15",
+    "texto": "El profesor/a propicia un ambiente para el desarrollo de toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "16",
+    "texto": "El profesor/a brinda atención a todos los estudiantes del aula."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "17",
+    "texto": "El profesor/a hace uso de materiales y/o recursos para el desarrollo de los aprendizajes en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "18",
+    "texto": "El profesor/a promueve la autoestima, evitando el rechazo, fobia o miedo a la matemática."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "19",
+    "texto": "El profesor/a promueve el diálogo y comunicación entre estudiantes favoreciendo la inclusión en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "20",
+    "texto": "El profesor/a realiza observación sistemática del proceso cognitivo de los estudiantes durante toda la clase."
+   }
+  ]
+ },
+ {
+  "codigo": "INT-IA-COL",
+  "titulo": "Pauta de observación de clase – Investigación en Aula (Profesor/a colaborador/a)",
+  "asignatura": "Investigación en Aula",
+  "tipo": "Observación de clase",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "UNICA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 1,
+  "escalaMax": 7,
+  "modoCalculo": "PROMEDIO",
+  "exigencia": null,
+  "ponderacion": null,
+  "version": "2026-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se presenta a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar de manera formativa la realización de una clase de las/os estudiantes de Pedagogía de Educación Matemática de la Universidad del Bío-Bío de VI semestre, siendo esta su segunda experiencia en la docencia directa realizando una clase.\nLa evaluación se realiza considerando la dupla de docentes en formación, según corresponda.\nEn cada uno de los siguientes criterios marque con una X su apreciación de la observación realizada (1: Muy bajo; 7: Muy Alto).\nAl finalizar el instrumento se solicita indicar observaciones generales respecto de fortalezas y aspectos a mejorar que considere pertinente para complementar la evaluación realizada, refiriéndose en particular sobre las estrategias de trabajo colaborativo para las/os estudiantes implementadas en las actividades de la clase.\nAl finalizar la clase, por favor le solicitamos firmar y entregar este instrumento a las/os estudiantes antes de culminar el proceso de práctica.",
+  "criterios": [
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "1",
+    "texto": "El objetivo de la clase se presenta a los estudiantes. Es claro y pertinente al nivel."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "2",
+    "texto": "El profesor/a desarrolla un inicio de la clase generando retroalimentación y/o activación de conocimientos previos."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "3",
+    "texto": "El profesor/a realiza un desarrollo de la clase de manera pertinente al objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "4",
+    "texto": "El profesor/a realiza un desarrollo de la clase con tareas matemáticas pertinentes y coherentes con el objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "5",
+    "texto": "El profesor/a realiza un cierre de la clase con actividad(es) clave(s) para la verificación del cumplimiento del objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "6",
+    "texto": "El profesor/a realiza un cierre de la clase integrando y/o sintetizando los aprendizajes de la clase."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "7",
+    "texto": "El profesor/a hace uso de los errores y dificultades de los estudiantes como una instancia de devolución."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "8",
+    "texto": "El profesor/a propone tareas matemáticas que se relacionen con alguna de las habilidades de: resolución de problemas, representación, modelación y/o argumentación y comunicación."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "9",
+    "texto": "Las tareas matemáticas están contextualizadas al entorno de los estudiantes."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "10",
+    "texto": "El profesor/a propone variadas estrategias de resolución de las tareas matemáticas presentadas."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "11",
+    "texto": "El profesor/a explica, comprueba y/o demuestra las definiciones, teoremas, proposiciones o procedimientos de manera clara y adecuadas al nivel educativo."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "12",
+    "texto": "El profesor/a utiliza estrategias de trabajo colaborativo para las/os estudiantes en las actividades de la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "13",
+    "texto": "El profesor/a hace uso de un lenguaje acorde al nivel de enseñanza."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "14",
+    "texto": "El profesor/a genera oportunidades de participación de los estudiantes durante toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "15",
+    "texto": "El profesor/a propicia un ambiente para el desarrollo de toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "16",
+    "texto": "El profesor/a brinda atención a todos los estudiantes del aula."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "17",
+    "texto": "El profesor/a hace uso de materiales y/o recursos para el desarrollo de los aprendizajes en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "18",
+    "texto": "El profesor/a promueve la autoestima, evitando el rechazo, fobia o miedo a la matemática."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "19",
+    "texto": "El profesor/a promueve el diálogo y comunicación entre estudiantes favoreciendo la inclusión en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "20",
+    "texto": "El profesor/a realiza observación sistemática del proceso cognitivo de los estudiantes durante toda la clase."
+   }
+  ]
+ },
+ {
+  "codigo": "INT-IA-ACA",
+  "titulo": "Pauta de observación de clase – Investigación en Aula (Académico/a (profesor de asignatura))",
+  "asignatura": "Investigación en Aula",
+  "tipo": "Observación de clase",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "UNICA",
+  "evaluador": "ACADEMICO",
+  "escalaMin": 1,
+  "escalaMax": 7,
+  "modoCalculo": "PROMEDIO",
+  "exigencia": null,
+  "ponderacion": null,
+  "version": "2026-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se presenta a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar de manera formativa la realización de una clase de las/os estudiantes de Pedagogía de Educación Matemática de la Universidad del Bío-Bío de VI semestre, siendo esta su segunda experiencia en la docencia directa realizando una clase.\nLa evaluación se realiza considerando la dupla de docentes en formación, según corresponda.\nEn cada uno de los siguientes criterios marque con una X su apreciación de la observación realizada (1: Muy bajo; 7: Muy Alto).\nSe solicita al finalizar indicar observaciones generales respecto de fortalezas y aspectos a mejorar que considere pertinente para complementar la evaluación realizada, refiriéndose en particular sobre las estrategias de trabajo colaborativo para las/os estudiantes implementadas en las actividades de la clase.\nAl finalizar la clase, por favor le solicitamos firmar y entregar este instrumento a las/os estudiantes.",
+  "criterios": [
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "1",
+    "texto": "El objetivo de la clase se presenta a los estudiantes. Es claro y pertinente al nivel."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "2",
+    "texto": "El profesor/a desarrolla un inicio de la clase generando retroalimentación y/o activación de conocimientos previos."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "3",
+    "texto": "El profesor/a realiza un desarrollo de la clase de manera pertinente al objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "4",
+    "texto": "El profesor/a realiza un desarrollo de la clase con tareas matemáticas pertinentes y coherentes con el objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "5",
+    "texto": "El profesor/a realiza un cierre de la clase con actividad(es) clave(s) para la verificación del cumplimiento del objetivo planteado."
+   },
+   {
+    "dimension": "ASPECTOS DE LA ESTRUCTURA DE LA CLASE",
+    "numero": "6",
+    "texto": "El profesor/a realiza un cierre de la clase integrando y/o sintetizando los aprendizajes de la clase."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "7",
+    "texto": "El profesor/a hace uso de los errores y dificultades de los estudiantes como una instancia de devolución."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "8",
+    "texto": "El profesor/a propone tareas matemáticas que se relacionen con alguna de las habilidades de: resolución de problemas, representación, modelación y/o argumentación y comunicación."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "9",
+    "texto": "Las tareas matemáticas están contextualizadas al entorno de los estudiantes."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "10",
+    "texto": "El profesor/a propone variadas estrategias de resolución de las tareas matemáticas presentadas."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "11",
+    "texto": "El profesor/a explica, comprueba y/o demuestra las definiciones, teoremas, proposiciones o procedimientos de manera clara y adecuadas al nivel educativo."
+   },
+   {
+    "dimension": "TAREAS MATEMÁTICAS PROPUESTAS",
+    "numero": "12",
+    "texto": "El profesor/a utiliza estrategias de trabajo colaborativo para las/os estudiantes en las actividades de la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "13",
+    "texto": "El profesor/a hace uso de un lenguaje acorde al nivel de enseñanza."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "14",
+    "texto": "El profesor/a genera oportunidades de participación de los estudiantes durante toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "15",
+    "texto": "El profesor/a propicia un ambiente para el desarrollo de toda la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "16",
+    "texto": "El profesor/a brinda atención a todos los estudiantes del aula."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "17",
+    "texto": "El profesor/a hace uso de materiales y/o recursos para el desarrollo de los aprendizajes en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "18",
+    "texto": "El profesor/a promueve la autoestima, evitando el rechazo, fobia o miedo a la matemática."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "19",
+    "texto": "El profesor/a promueve el diálogo y comunicación entre estudiantes favoreciendo la inclusión en la clase."
+   },
+   {
+    "dimension": "AMBIENTE DE AULA Y RECURSOS DE APRENDIZAJE",
+    "numero": "20",
+    "texto": "El profesor/a realiza observación sistemática del proceso cognitivo de los estudiantes durante toda la clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PED-ESP-1-COL",
+  "titulo": "Pauta 1ª observación – Especialidad (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Pedagógica",
+  "tipo": "Observación de aula",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "PRIMERA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": "5%",
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Comprende las bases curriculares y su respectivo programa de estudio de la disciplina que enseña."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Conoce las características del desarrollo correspondiente a las edades de sus estudiantes y sus necesidades educativas."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Incorpora en sus planificaciones variadas estrategias de enseñanza."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Elabora secuencias de contenidos coherentes con los objetivos de aprendizaje del marco curricular."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "1",
+    "texto": "Establece un clima de relaciones interpersonales respetuosas y empáticas con sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "2",
+    "texto": "Presenta situaciones didácticas que motivan la participación de sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "3",
+    "texto": "Establece normas de comportamiento que son conocidas y comprensibles para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "4",
+    "texto": "Utiliza estrategias para crear y mantener un ambiente sano y seguro al interior del aula."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "1",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "2",
+    "texto": "Desarrolla los contenidos a través de una estrategia de enseñanza clara y definida."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos en forma clara, precisa y adecuada al nivel de las/os estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "4",
+    "texto": "Desarrolla los contenidos con una secuencia adecuada a la comprensión de las/os estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "5",
+    "texto": "Formula preguntas, problemas, y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "6",
+    "texto": "Utiliza estrategias pertinentes para evaluar el logro de los objetivos de aprendizaje definidos para sus clases."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "1",
+    "texto": "Evalúa el grado en que los estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "2",
+    "texto": "Dialoga con su profesor/a colaborador/a sobre aspectos pedagógicos y didácticos del proceso enseñanza - aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "3",
+    "texto": "Identifica las fortalezas de sus estudiantes y procura potenciarlas."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "4",
+    "texto": "Demuestra sentido de responsabilidad frente a las tareas asignadas asociadas a su práctica profesional."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de su clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PED-ESP-2-COL",
+  "titulo": "Pauta 2ª observación – Especialidad (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Pedagógica",
+  "tipo": "Observación de aula",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "SEGUNDA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": "13%",
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Demuestra conocimiento la relación de los contenidos que enseña y los vincula a la realidad personal de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Domina los principios de las bases curriculares y logra alcanzar los objetivos de aprendizaje propuestos durante sus clases."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Identifica las fortalezas y debilidades de las y los estudiantes, respecto de los contenidos que se ha propuesto enseñar."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Distingue los distintos estilos y ritmos de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "5",
+    "texto": "Selecciona distintos recursos de aprendizajes relacionados con los contenidos curriculares, considerando las características de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "6",
+    "texto": "Establece estrategias de evaluación que permitan oportunidades equitativas a los estudiantes, en relación al aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "1",
+    "texto": "Demuestra actitudes de compromiso, responsabilidad y solidaridad con las y los estudiantes durante las clases."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "2",
+    "texto": "Demuestra respeto por la diversidad cultural, étnica, de género y socioeconómica del estudiantado."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "3",
+    "texto": "Favorece el desarrollo de la autonomía de las y los estudiantes en las diferentes situaciones de aprendizaje que les propone."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "4",
+    "texto": "Promueve el esfuerzo y perseverancia en las y los estudiantes para alcanzar el aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "5",
+    "texto": "Modela estrategias de diálogo y resolución de conflictos al interior del aula."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "1",
+    "texto": "Socializa con las y los estudiantes los criterios que los orientarán tanto para autoevaluarse como para ser evaluados/as."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "2",
+    "texto": "Propone actividades que involucran el desarrollo cognitivo y emocional de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos curriculares en forma clara, precisa y adecuada al nivel y a las condiciones personales de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "4",
+    "texto": "Utiliza lenguaje preciso y pertinente de manera gradual."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "5",
+    "texto": "Utiliza estrategias de retroalimentación que permiten a las/los estudiantes tomar conciencia de sus logros de aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "6",
+    "texto": "Adapta las actividades de enseñanza de acuerdo a las evidencias que recoge sobre los aprendizajes de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "7",
+    "texto": "Utiliza recursos didácticos coherentes con las actividades de aprendizaje, facilitando los objetivos de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "1",
+    "texto": "Evalúa el grado en que las los estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "2",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "3",
+    "texto": "Cumple con las normas y responsabilidades profesionales establecidas en la institución educativa donde trabaja, para la realización de las tareas comprometidas."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "4",
+    "texto": "Demuestra un trabajo asertivo frente a las dificultades que se presentan en el aula."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de su clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PED-ORI-1-COL",
+  "titulo": "Pauta 1ª observación – Orientación (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Pedagógica",
+  "tipo": "Observación de aula",
+  "especialidad": "ORIENTACION",
+  "momento": "PRIMERA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": "3%",
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Utiliza el tiempo disponible para la enseñanza en función de los objetivos de la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Especifica en las unidades pedagógicas de orientación, los tres momentos de la clase: inicio, desarrollo y cierre."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "1",
+    "texto": "Formula preguntas y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "2",
+    "texto": "Posee la capacidad de empatía, de atención personalizada propiciada por la clase y escucha activamente a los y las estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "3",
+    "texto": "Establece un clima de relaciones interpersonales respetuosas y empáticas con sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "4",
+    "texto": "Establece normas de comportamiento que son conocidas y comprensibles para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "1",
+    "texto": "Utiliza diferentes metodologías pedagógicas, que motiven el interés de los y las estudiantes durante las clases."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "2",
+    "texto": "Ofrece oportunidades y desafíos de participación activas a los y las estudiantes del grupo curso, considerando su diversidad."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "3",
+    "texto": "Demuestra conocer variadas estrategias de enseñanza y actividades congruentes con el proceso de enseñanza y aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "1",
+    "texto": "Emplea instrumentos de evaluación, acorde a las temáticas desarrolladas en el grupo curso."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "2",
+    "texto": "Utiliza criterios de evaluación coherentes con los objetivos de aprendizaje propuestos."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "3",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "1",
+    "texto": "Reflexiona sobre la propia práctica pedagógica, considerando la capacidad de preparar y gestionar curricularmente sus clases en el área de orientación, considerando la potenciación de sus fortalezas y la mejora de sus debilidades docentes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "2",
+    "texto": "Evalúa el nivel de logro de los objetivos de aprendizaje planteados, valorando los aciertos, analizando los errores y planteándose metas para su desempeño profesional futuro."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "3",
+    "texto": "Evidencia el cumplimiento de los compromisos contraídos, presentación personal, asistencia, puntualidad en los talleres de reflexión y en la práctica en general."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "4",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de la clase, de acuerdo a la unidad didáctica, para su debida retroalimentación."
+   }
+  ]
+ },
+ {
+  "codigo": "PED-ORI-2-COL",
+  "titulo": "Pauta 2ª observación – Orientación (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Pedagógica",
+  "tipo": "Observación de aula",
+  "especialidad": "ORIENTACION",
+  "momento": "SEGUNDA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": "5%",
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Contextualiza el diseño de unidades didácticas coherentes a temáticas a desarrollar según la base curricular y el programa de estudio."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos de la clase especificando los aprendizajes que se desean alcanzar."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Utiliza un lenguaje y conceptos de manera precisa y comprensible para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "5",
+    "texto": "Estructura las situaciones de aprendizajes considerando los saberes, intereses y experiencia de los y las estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "6",
+    "texto": "Planifica Unidad Pedagógica, a partir de los Conocimientos, Habilidades y Actitudes, en función de las experiencias previas, y el aporte reflexivo como desafío personal."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "7",
+    "texto": "Especifica en las unidades pedagógicas de orientación: los tres momentos de la clase: inicio, desarrollo y cierre."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "1",
+    "texto": "Formula preguntas y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "2",
+    "texto": "Proporciona a los y las estudiantes oportunidades de participación."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "3",
+    "texto": "Estimula la sensibilización y socialización en la interacción durante la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "4",
+    "texto": "Demuestra capacidades para crear y mantener un clima grato durante el desarrollo de la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "1",
+    "texto": "Ofrece oportunidades y desafíos de participación activas a los y las estudiantes del grupo curso, considerando su diversidad."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "2",
+    "texto": "Aplica estrategias metodológicas activas y desafiantes para el grupo curso, involucrando dimensiones cognitivas, procedimentales y emocionales, que capten el interés y la motivación de todos los/as estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "3",
+    "texto": "Considera en el proceso didáctico, el respeto por las diferencias de géneros, culturas, y etnias."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "4",
+    "texto": "Utiliza estrategias metodologías de enseñanza para generar aprendizajes significativos."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "1",
+    "texto": "Los procedimientos de evaluación son coherentes con la complejidad de los contenidos, incluidos en pautas."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "2",
+    "texto": "Emplea la retroalimentación que permite a las/os estudiantes tomar conciencia de sus logros de aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "3",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "1",
+    "texto": "Reflexiona sobre la propia práctica pedagógica, considerando la capacidad de preparar y gestionar curricularmente sus clases en el área de orientación, considerando la potenciación de sus fortalezas y la mejora de sus debilidades docentes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "2",
+    "texto": "Evalúa el nivel de logro de los objetivos de aprendizaje planteados, valorando los aciertos, analizando los errores y planteándose metas para su desempeño profesional futuro."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "3",
+    "texto": "Evidencia el cumplimiento de los compromisos contraídos, presentación personal, asistencia, puntualidad en los talleres de reflexión y en la práctica en general."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "4",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de la clase, de acuerdo a unidad didáctica, para su debida retroalimentación."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ESP-1-COL",
+  "titulo": "Pauta 1ª observación – Especialidad (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "PRIMERA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Comprende las bases curriculares y su respectivo programa de estudio de la disciplina que enseña."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Conoce las características del desarrollo correspondiente a las edades de sus estudiantes y sus necesidades educativas."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Incorpora en sus planificaciones variadas estrategias de enseñanza."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Elabora secuencias de contenidos coherentes con los objetivos de aprendizaje del marco curricular."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "1",
+    "texto": "Establece un clima de relaciones interpersonales respetuosas y empáticas con sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "2",
+    "texto": "Presenta situaciones didácticas que motivan la participación de sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "3",
+    "texto": "Establece normas de comportamiento que son conocidas y comprensibles para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "4",
+    "texto": "Utiliza estrategias para crear y mantener un ambiente sano y seguro al interior del aula."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "1",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "2",
+    "texto": "Desarrolla los contenidos a través de una estrategia de enseñanza clara y definida."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos en forma clara, precisa y adecuada al nivel de las/os estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "4",
+    "texto": "Desarrolla los contenidos con una secuencia adecuada a la comprensión de las/os estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "5",
+    "texto": "Formula preguntas, problemas, y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "6",
+    "texto": "Utiliza estrategias pertinentes para evaluar el logro de los objetivos de aprendizaje definidos para sus clases."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "1",
+    "texto": "Evalúa el grado en que los estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "2",
+    "texto": "Dialoga con su profesor/a colaborador/a sobre aspectos pedagógicos y didácticos del proceso enseñanza - aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "3",
+    "texto": "Identifica las fortalezas de sus estudiantes y procura potenciarlas."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "4",
+    "texto": "Demuestra sentido de responsabilidad frente a las tareas asignadas asociadas a su práctica profesional."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de su clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ESP-1-TUT",
+  "titulo": "Pauta 1ª observación – Especialidad (Tutor/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "PRIMERA",
+  "evaluador": "TUTOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Comprende las bases curriculares y su respectivo programa de estudio de la disciplina que enseña."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Conoce las características del desarrollo correspondiente a las edades de sus estudiantes y sus necesidades educativas."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Incorpora en sus planificaciones variadas estrategias de enseñanza."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Elabora secuencias de contenidos coherentes con los objetivos de aprendizaje del marco curricular."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "1",
+    "texto": "Establece un clima de relaciones interpersonales respetuosas y empáticas con sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "2",
+    "texto": "Presenta situaciones didácticas que motivan la participación de sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "3",
+    "texto": "Establece normas de comportamiento que son conocidas y comprensibles para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "4",
+    "texto": "Utiliza estrategias para crear y mantener un ambiente sano y seguro al interior del aula."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "1",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "2",
+    "texto": "Desarrolla los contenidos a través de una estrategia de enseñanza clara y definida."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos en forma clara, precisa y adecuada al nivel de las/os estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "4",
+    "texto": "Desarrolla los contenidos con una secuencia adecuada a la comprensión de las/os estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "5",
+    "texto": "Formula preguntas, problemas, y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "6",
+    "texto": "Utiliza estrategias pertinentes para evaluar el logro de los objetivos de aprendizaje definidos para sus clases."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "1",
+    "texto": "Evalúa el grado en que los estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "2",
+    "texto": "Dialoga con su profesor/a colaborador/a sobre aspectos pedagógicos y didácticos del proceso enseñanza - aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "3",
+    "texto": "Identifica las fortalezas de sus estudiantes y procura potenciarlas."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "4",
+    "texto": "Demuestra sentido de responsabilidad frente a las tareas asignadas asociadas a su práctica profesional."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de su clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ESP-2-COL",
+  "titulo": "Pauta 2ª observación – Especialidad (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "SEGUNDA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Demuestra conocimiento la relación de los contenidos que enseña y los vincula a la realidad personal de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Domina los principios de las bases curriculares y logra alcanzar los objetivos de aprendizaje propuestos durante sus clases."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Identifica las fortalezas y debilidades de las y los estudiantes, respecto de los contenidos que se ha propuesto enseñar."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Distingue los distintos estilos y ritmos de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "5",
+    "texto": "Selecciona distintos recursos de aprendizajes relacionados con los contenidos curriculares, considerando las características de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "6",
+    "texto": "Establece estrategias de evaluación que permitan oportunidades equitativas a los estudiantes, en relación al aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "1",
+    "texto": "Demuestra actitudes de compromiso, responsabilidad y solidaridad con las y los estudiantes durante las clases."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "2",
+    "texto": "Demuestra respeto por la diversidad cultural, étnica, de género y socioeconómica del estudiantado."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "3",
+    "texto": "Favorece el desarrollo de la autonomía de las y los estudiantes en las diferentes situaciones de aprendizaje que les propone."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "4",
+    "texto": "Promueve el esfuerzo y perseverancia en las y los estudiantes para alcanzar el aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "5",
+    "texto": "Modela estrategias de diálogo y resolución de conflictos al interior del aula."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "1",
+    "texto": "Socializa con las y los estudiantes los criterios que los orientarán tanto para autoevaluarse como para ser evaluados/as."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "2",
+    "texto": "Propone actividades que involucran el desarrollo cognitivo y emocional de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos curriculares en forma clara, precisa y adecuada al nivel y a las condiciones personales de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "4",
+    "texto": "Utiliza lenguaje preciso y pertinente de manera gradual."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "5",
+    "texto": "Utiliza estrategias de retroalimentación que permiten a las/los estudiantes tomar conciencia de sus logros de aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "6",
+    "texto": "Adapta las actividades de enseñanza de acuerdo a las evidencias que recoge sobre los aprendizajes de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "7",
+    "texto": "Utiliza recursos didácticos coherentes con las actividades de aprendizaje, facilitando los objetivos de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "1",
+    "texto": "Evalúa el grado en que las los estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "2",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "3",
+    "texto": "Cumple con las normas y responsabilidades profesionales establecidas en la institución educativa donde trabaja, para la realización de las tareas comprometidas."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "4",
+    "texto": "Demuestra un trabajo asertivo frente a las dificultades que se presentan en el aula."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de su clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ESP-2-TUT",
+  "titulo": "Pauta 2ª observación – Especialidad (Tutor/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ESPECIALIDAD",
+  "momento": "SEGUNDA",
+  "evaluador": "TUTOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Demuestra conocimiento la relación de los contenidos que enseña y los vincula a la realidad personal de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Domina los principios de las bases curriculares y logra alcanzar los objetivos de aprendizaje propuestos durante sus clases."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Identifica las fortalezas y debilidades de las y los estudiantes, respecto de los contenidos que se ha propuesto enseñar."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Distingue los distintos estilos y ritmos de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "5",
+    "texto": "Selecciona distintos recursos de aprendizajes relacionados con los contenidos curriculares, considerando las características de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA",
+    "numero": "6",
+    "texto": "Establece estrategias de evaluación que permitan oportunidades equitativas a los estudiantes, en relación al aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "1",
+    "texto": "Demuestra actitudes de compromiso, responsabilidad y solidaridad con las y los estudiantes durante las clases."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "2",
+    "texto": "Demuestra respeto por la diversidad cultural, étnica, de género y socioeconómica del estudiantado."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "3",
+    "texto": "Favorece el desarrollo de la autonomía de las y los estudiantes en las diferentes situaciones de aprendizaje que les propone."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "4",
+    "texto": "Promueve el esfuerzo y perseverancia en las y los estudiantes para alcanzar el aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN B CONVIVENCIA AL INTERIOR DEL AULA",
+    "numero": "5",
+    "texto": "Modela estrategias de diálogo y resolución de conflictos al interior del aula."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "1",
+    "texto": "Socializa con las y los estudiantes los criterios que los orientarán tanto para autoevaluarse como para ser evaluados/as."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "2",
+    "texto": "Propone actividades que involucran el desarrollo cognitivo y emocional de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos curriculares en forma clara, precisa y adecuada al nivel y a las condiciones personales de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "4",
+    "texto": "Utiliza lenguaje preciso y pertinente de manera gradual."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "5",
+    "texto": "Utiliza estrategias de retroalimentación que permiten a las/los estudiantes tomar conciencia de sus logros de aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "6",
+    "texto": "Adapta las actividades de enseñanza de acuerdo a las evidencias que recoge sobre los aprendizajes de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C TRANSPOSICIÓN DIDÁCTICA",
+    "numero": "7",
+    "texto": "Utiliza recursos didácticos coherentes con las actividades de aprendizaje, facilitando los objetivos de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "1",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "2",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "3",
+    "texto": "Cumple con las normas y responsabilidades profesionales establecidas en la institución educativa donde trabaja, para la realización de las tareas comprometidas."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "4",
+    "texto": "Demuestra un trabajo asertivo frente a las dificultades que se presentan en el aula."
+   },
+   {
+    "dimension": "DIMENSIÓN D RESPONSABILIDAD Y ÉTICA PROFESIONAL",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de su clase."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ORI-1-COL",
+  "titulo": "Pauta 1ª observación – Orientación (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ORIENTACION",
+  "momento": "PRIMERA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Utiliza el tiempo disponible para la enseñanza en función de los objetivos de la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Especifica en las unidades pedagógicas de orientación, los tres momentos de la clase: inicio, desarrollo y cierre."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "1",
+    "texto": "Formula preguntas y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "2",
+    "texto": "Posee la capacidad de empatía, de atención personalizada propiciada por la clase y escucha activamente a los y las estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "3",
+    "texto": "Establece un clima de relaciones interpersonales respetuosas y empáticas con sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "4",
+    "texto": "Establece normas de comportamiento que son conocidas y comprensibles para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "1",
+    "texto": "Utiliza diferentes metodologías pedagógicas, que motiven el interés de los y las estudiantes durante las clases."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "2",
+    "texto": "Ofrece oportunidades y desafíos de participación activas a los y las estudiantes del grupo curso, considerando su diversidad."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "3",
+    "texto": "Demuestra conocer variadas estrategias de enseñanza y actividades congruentes con el proceso de enseñanza y aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "1",
+    "texto": "Emplea instrumentos de evaluación, acorde a las temáticas desarrolladas en el grupo curso."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "2",
+    "texto": "Utiliza criterios de evaluación coherentes con los objetivos de aprendizaje propuestos."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "3",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "1",
+    "texto": "Reflexiona sobre la propia práctica pedagógica, considerando la capacidad de preparar y gestionar curricularmente sus clases en el área de orientación, considerando la potenciación de sus fortalezas y la mejora de sus debilidades docentes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "2",
+    "texto": "Evalúa el nivel de logro de los objetivos de aprendizaje planteados, valorando los aciertos, analizando los errores y planteándose metas para su desempeño profesional futuro."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "3",
+    "texto": "Evidencia el cumplimiento de los compromisos contraídos, presentación personal, asistencia, puntualidad en los talleres de reflexión y en la práctica en general."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "4",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de la clase, de acuerdo a la unidad didáctica, para su debida retroalimentación."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ORI-1-TUT",
+  "titulo": "Pauta 1ª observación – Orientación (Tutor/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ORIENTACION",
+  "momento": "PRIMERA",
+  "evaluador": "TUTOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Utiliza el tiempo disponible para la enseñanza en función de los objetivos de la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Especifica en las unidades pedagógicas de orientación, los tres momentos de la clase: inicio, desarrollo y cierre."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "1",
+    "texto": "Formula preguntas y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "2",
+    "texto": "Posee la capacidad de empatía, de atención personalizada propiciada por la clase y escucha activamente a los y las estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "3",
+    "texto": "Establece un clima de relaciones interpersonales respetuosas y empáticas con sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "4",
+    "texto": "Establece normas de comportamiento que son conocidas y comprensibles para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "1",
+    "texto": "Utiliza diferentes metodologías pedagógicas, que motiven el interés de los y las estudiantes durante las clases."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "2",
+    "texto": "Ofrece oportunidades y desafíos de participación activas a los y las estudiantes del grupo curso, considerando su diversidad."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "3",
+    "texto": "Demuestra conocer variadas estrategias de enseñanza y actividades congruentes con el proceso de enseñanza y aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "1",
+    "texto": "Emplea instrumentos de evaluación, acorde a las temáticas desarrolladas en el grupo curso."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "2",
+    "texto": "Utiliza criterios de evaluación coherentes con los objetivos de aprendizaje propuestos."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "3",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "1",
+    "texto": "Reflexiona sobre la propia práctica pedagógica, considerando la capacidad de preparar y gestionar curricularmente sus clases en el área de orientación, considerando la potenciación de sus fortalezas y la mejora de sus debilidades docentes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "2",
+    "texto": "Evalúa el nivel de logro de los objetivos de aprendizaje planteados, valorando los aciertos, analizando los errores y planteándose metas para su desempeño profesional futuro."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "3",
+    "texto": "Evidencia el cumplimiento de los compromisos contraídos, presentación personal, asistencia, puntualidad en los talleres de reflexión y en la práctica en general."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "4",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de la clase, de acuerdo a la unidad didáctica, para su debida retroalimentación."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ORI-2-COL",
+  "titulo": "Pauta 2ª observación – Orientación (Profesor/a colaborador/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ORIENTACION",
+  "momento": "SEGUNDA",
+  "evaluador": "COLABORADOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Contextualiza el diseño de unidades didácticas coherentes a temáticas a desarrollar según la base curricular y el programa de estudio."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos de la clase especificando los aprendizajes que se desean alcanzar."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Utiliza un lenguaje y conceptos de manera precisa y comprensible para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "5",
+    "texto": "Estructura las situaciones de aprendizajes considerando los saberes, intereses y experiencia de los y las estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "6",
+    "texto": "Planifica Unidad Pedagógica, a partir de los Conocimientos, Habilidades y Actitudes, en función de las experiencias previas, y el aporte reflexivo como desafío personal."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "7",
+    "texto": "Especifica en las unidades pedagógicas de orientación: los tres momentos de la clase: inicio, desarrollo y cierre."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "1",
+    "texto": "Formula preguntas y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "2",
+    "texto": "Proporciona a los y las estudiantes oportunidades de participación."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "3",
+    "texto": "Estimula la sensibilización y socialización en la interacción durante la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "4",
+    "texto": "Demuestra capacidades para crear y mantener un clima grato durante el desarrollo de la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "1",
+    "texto": "Ofrece oportunidades y desafíos de participación activas a los y las estudiantes del grupo curso, considerando su diversidad."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "2",
+    "texto": "Aplica estrategias metodológicas activas y desafiantes para el grupo curso, involucrando dimensiones cognitivas, procedimentales y emocionales, que capten el interés y la motivación de todos los/as estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "3",
+    "texto": "Considera en el proceso didáctico, el respeto por las diferencias de géneros, culturas, y etnias."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "4",
+    "texto": "Utiliza estrategias metodologías de enseñanza para generar aprendizajes significativos."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "1",
+    "texto": "Los procedimientos de evaluación son coherentes con la complejidad de los contenidos, incluidos en pautas."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "2",
+    "texto": "Emplea la retroalimentación que permite a las/os estudiantes tomar conciencia de sus logros de aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "3",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "1",
+    "texto": "Reflexiona sobre la propia práctica pedagógica, considerando la capacidad de preparar y gestionar curricularmente sus clases en el área de orientación, considerando la potenciación de sus fortalezas y la mejora de sus debilidades docentes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "2",
+    "texto": "Evalúa el nivel de logro de los objetivos de aprendizaje planteados, valorando los aciertos, analizando los errores y planteándose metas para su desempeño profesional futuro."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "3",
+    "texto": "Evidencia el cumplimiento de los compromisos contraídos, presentación personal, asistencia, puntualidad en los talleres de reflexión y en la práctica en general."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "4",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de la clase, de acuerdo a unidad didáctica, para su debida retroalimentación."
+   }
+  ]
+ },
+ {
+  "codigo": "PRO-ORI-2-TUT",
+  "titulo": "Pauta 2ª observación – Orientación (Tutor/a)",
+  "asignatura": "Práctica Profesional",
+  "tipo": "Observación de aula",
+  "especialidad": "ORIENTACION",
+  "momento": "SEGUNDA",
+  "evaluador": "TUTOR",
+  "escalaMin": 2,
+  "escalaMax": 7,
+  "modoCalculo": "ESCALA_EXIGENCIA",
+  "exigencia": 60,
+  "ponderacion": null,
+  "version": "2025-2",
+  "instrucciones": "La Pauta de Evaluación del desempeño docente que se anexa a continuación, ha sido creada con el propósito de contar con un instrumento que permita evaluar la práctica de docencia de las/os estudiantes de Pedagogía de Educación Media de la Universidad del Bío-Bío. El siguiente documento ha sido construido, teniendo en consideración la integración de los siguientes elementos: Marco para la Buena Enseñanza, Estándares para egresados de Pedagogía y el Perfil General de Egreso de Estudiantes de la Universidad del Bío-Bío.",
+  "criterios": [
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "1",
+    "texto": "Contextualiza el diseño de unidades didácticas coherentes a temáticas a desarrollar según la base curricular y el programa de estudio."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "2",
+    "texto": "Comunica a las/os estudiantes los propósitos de la clase y los aprendizajes a lograr."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "3",
+    "texto": "Desarrolla los contenidos de la clase especificando los aprendizajes que se desean alcanzar."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "4",
+    "texto": "Utiliza un lenguaje y conceptos de manera precisa y comprensible para sus estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "5",
+    "texto": "Estructura las situaciones de aprendizajes considerando los saberes, intereses y experiencia de los y las estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "6",
+    "texto": "Planifica Unidad Pedagógica, a partir de los Conocimientos, Habilidades y Actitudes, en función de las experiencias previas, y el aporte reflexivo como desafío personal."
+   },
+   {
+    "dimension": "DIMENSIÓN A DISEÑO DE LA CLASE PLANIFICACIÓN DE LA ENSEÑANZA",
+    "numero": "7",
+    "texto": "Especifica en las unidades pedagógicas de orientación: los tres momentos de la clase: inicio, desarrollo y cierre."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "1",
+    "texto": "Formula preguntas y concede el tiempo necesario para resolverlos."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "2",
+    "texto": "Proporciona a los y las estudiantes oportunidades de participación."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "3",
+    "texto": "Estimula la sensibilización y socialización en la interacción durante la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN B GENERACIÓN DE AMBIENTE PROPICIO PARA EL APRENDIZAJE",
+    "numero": "4",
+    "texto": "Demuestra capacidades para crear y mantener un clima grato durante el desarrollo de la clase."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "1",
+    "texto": "Ofrece oportunidades y desafíos de participación activas a los y las estudiantes del grupo curso, considerando su diversidad."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "2",
+    "texto": "Aplica estrategias metodológicas activas y desafiantes para el grupo curso, involucrando dimensiones cognitivas, procedimentales y emocionales, que capten el interés y la motivación de todos los/as estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "3",
+    "texto": "Considera en el proceso didáctico, el respeto por las diferencias de géneros, culturas, y etnias."
+   },
+   {
+    "dimension": "DIMENSIÓN C USO DE METODOLOGÍAS Y DIDÁCTICA PARA LA ENSEÑANZA DEL/DE LA PROFESOR/A EN FORMACIÓN",
+    "numero": "4",
+    "texto": "Utiliza estrategias metodologías de enseñanza para generar aprendizajes significativos."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "1",
+    "texto": "Los procedimientos de evaluación son coherentes con la complejidad de los contenidos, incluidos en pautas."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "2",
+    "texto": "Emplea la retroalimentación que permite a las/os estudiantes tomar conciencia de sus logros de aprendizaje."
+   },
+   {
+    "dimension": "DIMENSIÓN D EVALUACIÓN DE LOS APRENDIZAJES",
+    "numero": "3",
+    "texto": "Evalúa el grado en que las/os estudiantes alcanzaron los aprendizajes esperados."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "1",
+    "texto": "Reflexiona sobre la propia práctica pedagógica, considerando la capacidad de preparar y gestionar curricularmente sus clases en el área de orientación, considerando la potenciación de sus fortalezas y la mejora de sus debilidades docentes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "2",
+    "texto": "Evalúa el nivel de logro de los objetivos de aprendizaje planteados, valorando los aciertos, analizando los errores y planteándose metas para su desempeño profesional futuro."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "3",
+    "texto": "Evidencia el cumplimiento de los compromisos contraídos, presentación personal, asistencia, puntualidad en los talleres de reflexión y en la práctica en general."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "4",
+    "texto": "Analiza críticamente su desempeño durante las clases, a partir de los resultados de aprendizaje de las y los estudiantes."
+   },
+   {
+    "dimension": "DIMENSIÓN E EVALUACIÓN DE SU DESEMPEÑO",
+    "numero": "5",
+    "texto": "Presenta anticipadamente la planificación de la clase, de acuerdo a unidad didáctica, para su debida retroalimentación."
+   }
+  ]
+ }
+]

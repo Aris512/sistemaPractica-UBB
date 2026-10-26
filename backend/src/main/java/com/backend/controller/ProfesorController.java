@@ -38,6 +38,15 @@ public class ProfesorController {
         return ResponseEntity.ok(profesor);
     }
 
+    @GetMapping("/rut/{rut}")
+    public ResponseEntity<Profesor> obtenerPorRut(@PathVariable String rut) {
+        Profesor profesor = profesorService.obtenerPorRut(rut);
+        if (profesor == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(profesor);
+    }
+
     @PostMapping
     public ResponseEntity<Profesor> crear(@RequestBody Profesor profesor) {
         return ResponseEntity.ok(profesorService.crear(profesor));

@@ -1,5 +1,6 @@
 package com.backend.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -20,8 +21,8 @@ public class TutorPractica {
 
     private String nombre;
 
-    @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
     public TutorPractica() {

@@ -1,5 +1,6 @@
 import type { UserSession } from "@/types/auth";
 import type { CoordinadorMenuKey } from "./types";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Sidebar,
   SidebarHeader,
@@ -59,11 +60,14 @@ function AdeccaLogo() {
 }
 
 export function HomeSidebar({
-  user: _user,
+  user,
   activeMenu,
   onSelectMenu,
   onLogout,
 }: HomeSidebarProps) {
+  const { hasPermission } = usePermissions(user);
+  const puedeAsociar = hasPermission("PRACTICAS_ASOCIAR");
+
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
       <SidebarHeader className="p-4 border-b border-slate-100">
@@ -94,6 +98,7 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Asociar Docentes y Tutores */}
+              {puedeAsociar && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "asociar"}
@@ -108,6 +113,7 @@ export function HomeSidebar({
                   <span>Asociar</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Centros de Práctica (Reutilización de admin/centros_practica) */}
               <SidebarMenuItem>

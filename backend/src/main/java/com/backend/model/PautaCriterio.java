@@ -2,6 +2,7 @@ package com.backend.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,7 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-/** Indicador / criterio de una pauta, en el mismo orden y texto que la pauta en papel. */
+/** Indicador/criterio de una pauta, en el mismo orden y con el mismo texto que el instrumento en papel. */
 @Entity
 @Table(name = "pauta_criterio")
 public class PautaCriterio {
@@ -18,24 +19,27 @@ public class PautaCriterio {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "pauta_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "pauta_id", nullable = false)
     private Pauta pauta;
 
-    /** Posición global dentro de la pauta (1..n). */
+    /** Posición global dentro de la pauta (1..n); define el orden en que se muestran. */
+    @Column(nullable = false)
     private Integer orden;
 
-    /** Dimensión o bloque al que pertenece (ej. "Dimensión A: CONOCIMIENTO ..."). */
-    @Column(length = 500)
+    /** Dimensión o sección a la que pertenece (ej. "DIMENSIÓN A CONOCIMIENTO Y PREPARACIÓN DE LA ENSEÑANZA"). */
+    @Column(length = 400)
     private String dimension;
 
-    /** Numeración tal como aparece en el papel (ej. "A.1" o "7"). */
+    /** Número impreso en la pauta original (se reinicia en cada dimensión). */
+    @Column(length = 20)
     private String numero;
 
-    @Column(length = 1500, nullable = false)
+    @Column(nullable = false, length = 1000)
     private String texto;
 
-    public PautaCriterio() {}
+    public PautaCriterio() {
+    }
 
     public PautaCriterio(Pauta pauta, Integer orden, String dimension, String numero, String texto) {
         this.pauta = pauta;
@@ -46,7 +50,6 @@ public class PautaCriterio {
     }
 
     public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
     public Pauta getPauta() { return pauta; }
     public void setPauta(Pauta pauta) { this.pauta = pauta; }
     public Integer getOrden() { return orden; }

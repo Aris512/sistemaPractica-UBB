@@ -1,0 +1,10 @@
+export { HomePage } from "./HomePage";
+export { HomeSidebar } from "./HomeSidebar";
+export { HomeHeader } from "./HomeHeader";
+export { PerfilUsuario } from "./PerfilUsuario";
+export { Portafolio } from "./Portafolio";
+export { Planificacion } from "./Planificacion";
+export { Evaluaciones } from "./Evaluaciones";
+export { Observaciones } from "./Observaciones";
+export { AsistentesIA } from "./AsistentesIA";
+export * from "./types";

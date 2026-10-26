@@ -116,7 +116,7 @@ export function HomeSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "pautas"}
-                    onClick={() => onSelectMenu("pautas")}
+                    onClick={() => handleSelectMockup("pautas", "Pautas y Rúbricas")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "pautas"
                         ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"

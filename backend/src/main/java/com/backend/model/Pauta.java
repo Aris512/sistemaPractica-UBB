@@ -13,6 +13,10 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
+/**
+ * Instrumento de evaluación (HU-21). Se identifica por asignatura, especialidad, momento de aplicación
+ * y evaluador, y contiene los criterios en el orden del instrumento original.
+ */
 @Entity
 @Table(name = "pauta")
 public class Pauta {
@@ -27,6 +31,7 @@ public class Pauta {
     @Column(nullable = false)
     private String titulo;
 
+    /** Nombre de la asignatura de práctica; debe coincidir con {@code Asignatura.nombre}. */
     private String asignatura;
 
     private String tipo;
@@ -41,13 +46,13 @@ public class Pauta {
 
     private String version;
 
-    /** ESPECIALIDAD | ORIENTACION */
+    /** ESPECIALIDAD | ORIENTACION. */
     private String especialidad;
 
-    /** PRIMERA | SEGUNDA | UNICA (momento de evaluación; en el catálogo: M1/M2 se normalizan a PRIMERA/SEGUNDA) */
+    /** PRIMERA | SEGUNDA | UNICA. */
     private String momento;
 
-    /** COLABORADOR | TUTOR | ACADEMICO */
+    /** COLABORADOR | TUTOR | ACADEMICO: quién completa la pauta. */
     private String evaluador;
 
     @Column(name = "escala_min")
@@ -56,17 +61,17 @@ public class Pauta {
     @Column(name = "escala_max")
     private Integer escalaMax;
 
-    /** ESCALA_EXIGENCIA (puntaje total -> nota con exigencia) | PROMEDIO */
+    /** ESCALA_EXIGENCIA (puntaje total → nota 2.0–7.0 con exigencia) | PROMEDIO (promedio de los puntajes). */
     @Column(name = "modo_calculo")
     private String modoCalculo;
 
-    /** Porcentaje de exigencia para nota 4.0 (solo ESCALA_EXIGENCIA) */
+    /** Porcentaje de exigencia para la nota 4.0 (ej. 60). Solo aplica a ESCALA_EXIGENCIA. */
     private Integer exigencia;
 
-    @Column(length = 2000)
+    @Column(length = 4000)
     private String instrucciones;
 
-    private Boolean activa = true;
+    private Boolean activa = Boolean.TRUE;
 
     @OneToMany(mappedBy = "pauta", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orden ASC")
@@ -87,105 +92,42 @@ public class Pauta {
         this.version = version;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getCodigo() {
-        return codigo;
-    }
-
-    public void setCodigo(String codigo) {
-        this.codigo = codigo;
-    }
-
-    public String getTitulo() {
-        return titulo;
-    }
-
-    public void setTitulo(String titulo) {
-        this.titulo = titulo;
-    }
-
-    public String getAsignatura() {
-        return asignatura;
-    }
-
-    public void setAsignatura(String asignatura) {
-        this.asignatura = asignatura;
-    }
-
-    public String getTipo() {
-        return tipo;
-    }
-
-    public void setTipo(String tipo) {
-        this.tipo = tipo;
-    }
-
-    public Integer getCriteriosCount() {
-        return criteriosCount;
-    }
-
-    public void setCriteriosCount(Integer criteriosCount) {
-        this.criteriosCount = criteriosCount;
-    }
-
-    public String getDescripcion() {
-        return descripcion;
-    }
-
-    public void setDescripcion(String descripcion) {
-        this.descripcion = descripcion;
-    }
-
-    public String getPonderacion() {
-        return ponderacion;
-    }
-
-    public void setPonderacion(String ponderacion) {
-        this.ponderacion = ponderacion;
-    }
-
-    public String getVersion() {
-        return version;
-    }
-
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getCodigo() { return codigo; }
+    public void setCodigo(String codigo) { this.codigo = codigo; }
+    public String getTitulo() { return titulo; }
+    public void setTitulo(String titulo) { this.titulo = titulo; }
+    public String getAsignatura() { return asignatura; }
+    public void setAsignatura(String asignatura) { this.asignatura = asignatura; }
+    public String getTipo() { return tipo; }
+    public void setTipo(String tipo) { this.tipo = tipo; }
+    public Integer getCriteriosCount() { return criteriosCount; }
+    public void setCriteriosCount(Integer criteriosCount) { this.criteriosCount = criteriosCount; }
+    public String getDescripcion() { return descripcion; }
+    public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
+    public String getPonderacion() { return ponderacion; }
+    public void setPonderacion(String ponderacion) { this.ponderacion = ponderacion; }
+    public String getVersion() { return version; }
+    public void setVersion(String version) { this.version = version; }
     public String getEspecialidad() { return especialidad; }
     public void setEspecialidad(String especialidad) { this.especialidad = especialidad; }
-
     public String getMomento() { return momento; }
     public void setMomento(String momento) { this.momento = momento; }
-
     public String getEvaluador() { return evaluador; }
     public void setEvaluador(String evaluador) { this.evaluador = evaluador; }
-
     public Integer getEscalaMin() { return escalaMin; }
     public void setEscalaMin(Integer escalaMin) { this.escalaMin = escalaMin; }
-
     public Integer getEscalaMax() { return escalaMax; }
     public void setEscalaMax(Integer escalaMax) { this.escalaMax = escalaMax; }
-
     public String getModoCalculo() { return modoCalculo; }
     public void setModoCalculo(String modoCalculo) { this.modoCalculo = modoCalculo; }
-
     public Integer getExigencia() { return exigencia; }
     public void setExigencia(Integer exigencia) { this.exigencia = exigencia; }
-
     public String getInstrucciones() { return instrucciones; }
     public void setInstrucciones(String instrucciones) { this.instrucciones = instrucciones; }
-
     public Boolean getActiva() { return activa; }
     public void setActiva(Boolean activa) { this.activa = activa; }
-
     public List<PautaCriterio> getCriterios() { return criterios; }
     public void setCriterios(List<PautaCriterio> criterios) { this.criterios = criterios; }
 }

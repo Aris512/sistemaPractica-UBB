@@ -23,7 +23,7 @@ public class ProfesorColaborador {
     private Long idColaborador;
 
     @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
     @ManyToOne
@@ -38,15 +38,17 @@ public class ProfesorColaborador {
         joinColumns = @JoinColumn(name = "id_colaborador"),
         inverseJoinColumns = @JoinColumn(name = "id_practica")
     )
-    private Set<Practica> practicas;
+    private Set<Practica> practicas = new java.util.HashSet<>();
 
     public ProfesorColaborador() {
+        this.practicas = new java.util.HashSet<>();
     }
 
     public ProfesorColaborador(Usuario usuario, CentroPractica centroPractica, String especialidad) {
         this.usuario = usuario;
         this.centroPractica = centroPractica;
         this.especialidad = especialidad;
+        this.practicas = new java.util.HashSet<>();
     }
 
     public Long getIdColaborador() {

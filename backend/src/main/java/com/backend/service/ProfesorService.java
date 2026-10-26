@@ -24,6 +24,10 @@ public class ProfesorService {
         return profesorRepository.findById(id).orElse(null);
     }
 
+    public Profesor obtenerPorRut(String rut) {
+        return profesorRepository.findByUsuarioRut(rut).orElse(null);
+    }
+
     public Profesor crear(Profesor profesor) {
         return profesorRepository.save(profesor);
     }

@@ -14,14 +14,23 @@ import org.springframework.web.bind.annotation.RestController;
 import com.backend.model.Practica;
 import com.backend.service.PracticaService;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+import com.backend.dto.EstudianteTutorDTO;
+
 @RestController
 @RequestMapping("/api/practicas")
+@CrossOrigin(origins = "*")
 public class PracticaController {
 
     private final PracticaService practicaService;
 
     public PracticaController(PracticaService practicaService) {
         this.practicaService = practicaService;
+    }
+
+    @GetMapping("/seguimiento/{rut}")
+    public ResponseEntity<List<EstudianteTutorDTO>> obtenerSeguimiento(@PathVariable String rut) {
+        return ResponseEntity.ok(practicaService.obtenerSeguimientoTutorColaborador(rut));
     }
 
     @GetMapping

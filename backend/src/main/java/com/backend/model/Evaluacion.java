@@ -20,6 +20,12 @@ public class Evaluacion {
     @Column(name = "id_evaluacion")
     private Long idEvaluacion;
 
+    @Column(name = "id_evaluador")
+    private Long idEvaluador;
+
+    @Column(name = "tipo_evaluador")
+    private String tipoEvaluador;
+
     @ManyToOne
     @JoinColumn(name = "id_practica")
     private Practica practica;
@@ -37,9 +43,19 @@ public class Evaluacion {
 
     private String observacion;
 
+    @Column(name = "fecha_limite")
+    private LocalDateTime fechaLimite;
+
+    @Column(name = "archivo_url")
+    private String archivoUrl;
+
+    @Column(name = "nombre_archivo")
+    private String nombreArchivo;
+
     public Evaluacion() {
     }
 
+    /** Constructor original — mantiene compatibilidad con DataSeeder existente */
     public Evaluacion(Practica practica, String tipoEvaluacion, Double puntajeMinimo,
                       Double puntajeMaximo, String observacion) {
         this.practica = practica;
@@ -48,6 +64,20 @@ public class Evaluacion {
         this.puntajeMinimo = puntajeMinimo;
         this.puntajeMaximo = puntajeMaximo;
         this.observacion = observacion;
+        this.fechaLimite = LocalDateTime.now().plusDays(7);
+    }
+
+    /** Constructor nuevo (módulo Pedro) — incluye evaluador y fecha límite */
+    public Evaluacion(Practica practica, Long idEvaluador, String tipoEvaluador, String tipoEvaluacion,
+                      Double puntajeMinimo, Double puntajeMaximo, LocalDateTime fechaLimite) {
+        this.practica = practica;
+        this.idEvaluador = idEvaluador;
+        this.tipoEvaluador = tipoEvaluador;
+        this.fecha = LocalDateTime.now();
+        this.tipoEvaluacion = tipoEvaluacion;
+        this.puntajeMinimo = puntajeMinimo;
+        this.puntajeMaximo = puntajeMaximo;
+        this.fechaLimite = fechaLimite != null ? fechaLimite : LocalDateTime.now().plusDays(7);
     }
 
     public Long getIdEvaluacion() {
@@ -104,5 +134,45 @@ public class Evaluacion {
 
     public void setObservacion(String observacion) {
         this.observacion = observacion;
+    }
+
+    public Long getIdEvaluador() {
+        return idEvaluador;
+    }
+
+    public void setIdEvaluador(Long idEvaluador) {
+        this.idEvaluador = idEvaluador;
+    }
+
+    public String getTipoEvaluador() {
+        return tipoEvaluador;
+    }
+
+    public void setTipoEvaluador(String tipoEvaluador) {
+        this.tipoEvaluador = tipoEvaluador;
+    }
+
+    public LocalDateTime getFechaLimite() {
+        return fechaLimite;
+    }
+
+    public void setFechaLimite(LocalDateTime fechaLimite) {
+        this.fechaLimite = fechaLimite;
+    }
+
+    public String getArchivoUrl() {
+        return archivoUrl;
+    }
+
+    public void setArchivoUrl(String archivoUrl) {
+        this.archivoUrl = archivoUrl;
+    }
+
+    public String getNombreArchivo() {
+        return nombreArchivo;
+    }
+
+    public void setNombreArchivo(String nombreArchivo) {
+        this.nombreArchivo = nombreArchivo;
     }
 }

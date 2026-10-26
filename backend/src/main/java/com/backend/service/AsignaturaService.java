@@ -28,6 +28,21 @@ public class AsignaturaService {
         return asignaturaRepository.save(asignatura);
     }
 
+    public Asignatura actualizar(Long id, Asignatura asignaturaDetalles) {
+        return asignaturaRepository.findById(id).map(existente -> {
+            if (asignaturaDetalles.getNombre() != null) {
+                existente.setNombre(asignaturaDetalles.getNombre().trim());
+            }
+            if (asignaturaDetalles.getDescripcion() != null) {
+                existente.setDescripcion(asignaturaDetalles.getDescripcion().trim());
+            }
+            if (asignaturaDetalles.getSemestre() != null) {
+                existente.setSemestre(asignaturaDetalles.getSemestre().trim());
+            }
+            return asignaturaRepository.save(existente);
+        }).orElse(null);
+    }
+
     public void eliminar(Long id) {
         asignaturaRepository.deleteById(id);
     }

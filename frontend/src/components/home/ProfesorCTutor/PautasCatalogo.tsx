@@ -22,6 +22,46 @@ const EVALUADOR_LABEL: Record<string, string> = {
 const ESPECIALIDAD_LABEL: Record<string, string> = { ESPECIALIDAD: "Especialidad", ORIENTACION: "Orientación" };
 const MOMENTO_LABEL: Record<string, string> = { PRIMERA: "1ª observación", SEGUNDA: "2ª observación", UNICA: "Única" };
 
+const normalizar = (t: string) =>
+  t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+/** Línea de práctica completa, en orden de semestre. Las prácticas iniciales no usan pautas de visita. */
+const LINEA_PRACTICA: { nombre: string; nota: string; coincide: (clave: string) => boolean }[] = [
+  {
+    nombre: "Aproximación al Sistema Escolar",
+    nota: "Práctica inicial: se realiza en simulaciones en el aula universitaria, sin pautas de evaluación en establecimiento.",
+    coincide: (c) => c.includes("aproximacion"),
+  },
+  {
+    nombre: "Ambientes de Aprendizaje",
+    nota: "Práctica inicial: se realiza en simulaciones en el aula universitaria, sin pautas de evaluación en establecimiento.",
+    coincide: (c) => c.includes("ambientes"),
+  },
+  {
+    nombre: "Trabajo Colaborativo en el Aula",
+    nota: "Aún no hay pautas cargadas para esta práctica.",
+    coincide: (c) => c.includes("trabajo colaborativo"),
+  },
+  {
+    nombre: "Investigación en el Aula",
+    nota: "Aún no hay pautas cargadas para esta práctica.",
+    coincide: (c) => c.includes("investigacion"),
+  },
+  {
+    nombre: "Práctica Pedagógica",
+    nota: "Aún no hay pautas cargadas para esta práctica.",
+    coincide: (c) => c.includes("practica pedagogica"),
+  },
+  {
+    nombre: "Práctica Profesional",
+    nota: "Aún no hay pautas cargadas para esta práctica.",
+    coincide: (c) => c.includes("practica profesional"),
+  },
+];
+
 /** Catálogo de pautas por práctica, especialidad y momento (HU-21). */
 export function PautasCatalogo({ user }: PautasCatalogoProps) {
   const [pautas, setPautas] = useState<PautaResumen[]>([]);
@@ -48,14 +88,25 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
     };
   }, [user.rut]);
 
+  // Las 6 asignaturas de la línea de práctica se muestran siempre, aunque aún no tengan pautas cargadas.
   const porAsignatura = useMemo(() => {
-    const mapa = new Map<string, PautaResumen[]>();
+    const grupos = LINEA_PRACTICA.map((g) => ({ ...g, lista: [] as PautaResumen[] }));
+    const otras = new Map<string, PautaResumen[]>();
     pautas.forEach((p) => {
-      const lista = mapa.get(p.asignatura) ?? [];
-      lista.push(p);
-      mapa.set(p.asignatura, lista);
+      const clave = normalizar(p.asignatura);
+      const grupo = grupos.find((g) => g.coincide(clave));
+      if (grupo) {
+        grupo.lista.push(p);
+      } else {
+        const lista = otras.get(p.asignatura) ?? [];
+        lista.push(p);
+        otras.set(p.asignatura, lista);
+      }
     });
-    return Array.from(mapa.entries());
+    return [
+      ...grupos.map((g) => ({ nombre: g.nombre, nota: g.nota, lista: g.lista })),
+      ...Array.from(otras.entries()).map(([nombre, lista]) => ({ nombre, nota: "", lista })),
+    ];
   }, [pautas]);
 
   const alternar = async (p: PautaResumen) => {
@@ -109,9 +160,12 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
         Pautas oficiales organizadas por práctica, especialidad y momento de evaluación. Una pauta desactivada deja de
         aparecer a los evaluadores, pero conserva las evaluaciones ya registradas.
       </p>
-      {porAsignatura.map(([asignatura, lista]) => (
+      {porAsignatura.map(({ nombre: asignatura, nota, lista }) => (
         <section key={asignatura} className="space-y-2">
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{asignatura}</h3>
+          {lista.length === 0 && (
+            <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">{nota}</p>
+          )}
           <ul className="space-y-2">
             {lista.map((p) => (
               <li key={p.id} className="bg-white rounded-2xl border border-slate-200/90 shadow-xs">

@@ -31,4 +31,27 @@ public class ObservacionEvaluacionService {
     public void eliminar(Long id) {
         observacionEvaluacionRepository.deleteById(id);
     }
+
+    /** Nuevo (módulo Pedro) — obtiene todas las observaciones de una evaluación */
+    public List<ObservacionEvaluacion> obtenerPorEvaluacion(Long idEvaluacion) {
+        return observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(idEvaluacion);
+    }
+
+    /** Nuevo (módulo Pedro) — actualiza el texto de una observación respetando fechaLimite */
+    public ObservacionEvaluacion actualizar(Long id, ObservacionEvaluacion detalles) {
+        ObservacionEvaluacion observacionExistente = observacionEvaluacionRepository.findById(id).orElse(null);
+        if (observacionExistente == null) {
+            return null;
+        }
+
+        if (observacionExistente.getEvaluacion() != null
+                && observacionExistente.getEvaluacion().getFechaLimite() != null) {
+            if (java.time.LocalDateTime.now().isAfter(observacionExistente.getEvaluacion().getFechaLimite())) {
+                throw new IllegalStateException("La evaluación está cerrada y no se pueden editar sus observaciones.");
+            }
+        }
+
+        observacionExistente.setTexto(detalles.getTexto());
+        return observacionEvaluacionRepository.save(observacionExistente);
+    }
 }

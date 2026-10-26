@@ -13,6 +13,7 @@ import { Portafolio } from "@/components/home/Profesor/Portafolio";
 import { DocumentosView } from "@/components/admin/documentos";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
+import { usePermissions } from "@/hooks/usePermissions";
 import "sileo/styles.css";
 
 interface CoordinadorHomePageProps {
@@ -29,6 +30,8 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
     return "inicio";
   });
   const [formattedDate, setFormattedDate] = useState("");
+  const { hasPermission, loading: cargandoPermisos } = usePermissions(user);
+  const puedeAsociar = hasPermission("PRACTICAS_ASOCIAR");
   const [preselectedEstudiante, setPreselectedEstudiante] = useState<EstudiantePractica | null>(null);
 
   useEffect(() => {
@@ -54,6 +57,7 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
   }, []);
 
   const handleGoToAsociar = (estudiante?: EstudiantePractica) => {
+    if (!puedeAsociar) return;
     if (estudiante) {
       setPreselectedEstudiante(estudiante);
     }
@@ -65,8 +69,17 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
       case "perfil":
         return <PerfilProfesor user={user} onBack={() => setActiveMenu("inicio")} />;
       case "asociar":
+        if (cargandoPermisos) return null;
+        if (!puedeAsociar) {
+          return (
+            <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200/90 p-6 text-sm text-slate-600">
+              No tienes permiso para asociar prácticas. Solicítalo al administrador.
+            </div>
+          );
+        }
         return (
           <AsociarPracticaView
+            user={user}
             initialEstudiante={preselectedEstudiante}
             onClearInitialEstudiante={() => setPreselectedEstudiante(null)}
           />
@@ -84,7 +97,7 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
-        return <EstudiantesPracticaList onGoToAsociar={handleGoToAsociar} />;
+        return <EstudiantesPracticaList onGoToAsociar={puedeAsociar ? handleGoToAsociar : undefined} />;
     }
   };
 

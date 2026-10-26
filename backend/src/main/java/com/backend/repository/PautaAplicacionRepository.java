@@ -10,7 +10,7 @@ import com.backend.model.PautaAplicacion;
 
 @Repository
 public interface PautaAplicacionRepository extends JpaRepository<PautaAplicacion, Long> {
-    Optional<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
     List<PautaAplicacion> findByPracticaIdPractica(Long idPractica);
+    Optional<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
     boolean existsByPautaId(Long pautaId);
 }

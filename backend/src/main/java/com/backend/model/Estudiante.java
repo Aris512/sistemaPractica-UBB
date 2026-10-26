@@ -19,19 +19,21 @@ public class Estudiante {
     private Long idEstudiante;
 
     @ManyToOne
-    @JoinColumn(name = "id_usuario")
+    @JoinColumn(name = "rut_usuario")
     private Usuario usuario;
 
-    private Integer semestre;
+    @ManyToOne
+    @JoinColumn(name = "id_asignatura")
+    private Asignatura asignatura;
 
     private String estado;
 
     public Estudiante() {
     }
 
-    public Estudiante(Usuario usuario, Integer semestre, String estado) {
+    public Estudiante(Usuario usuario, Asignatura asignatura, String estado) {
         this.usuario = usuario;
-        this.semestre = semestre;
+        this.asignatura = asignatura;
         this.estado = estado;
     }
 
@@ -51,12 +53,16 @@ public class Estudiante {
         this.usuario = usuario;
     }
 
-    public Integer getSemestre() {
-        return semestre;
+    public Asignatura getAsignatura() {
+        return asignatura;
     }
 
-    public void setSemestre(Integer semestre) {
-        this.semestre = semestre;
+    public Long getIdAsignatura() {
+        return asignatura != null ? asignatura.getIdAsignatura() : null;
+    }
+
+    public void setAsignatura(Asignatura asignatura) {
+        this.asignatura = asignatura;
     }
 
     public String getEstado() {

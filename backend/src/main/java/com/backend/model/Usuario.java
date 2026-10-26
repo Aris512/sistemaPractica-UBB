@@ -5,8 +5,6 @@ import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -18,9 +16,8 @@ import jakarta.persistence.Table;
 public class Usuario {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_usuario")
-    private Long idUsuario;
+    @Column(name = "rut", length = 12, nullable = false, unique = true)
+    private String rut;
 
     private String nombre;
 
@@ -34,31 +31,47 @@ public class Usuario {
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
 
+    @Column(name = "estado", length = 20, nullable = false)
+    private String estado = "activo";
+
     @ManyToMany
     @JoinTable(
         name = "usuario_rol",
-        joinColumns = @JoinColumn(name = "id_usuario"),
+        joinColumns = @JoinColumn(name = "rut_usuario"),
         inverseJoinColumns = @JoinColumn(name = "id_rol")
     )
     private Set<Rol> roles;
 
     public Usuario() {
+        this.estado = "activo";
     }
 
-    public Usuario(String nombre, String apellido, String correo, String contrasenaEncriptada) {
+    public Usuario(String rut, String nombre, String apellido, String correo, String contrasenaEncriptada) {
+        this.rut = rut;
         this.nombre = nombre;
         this.apellido = apellido;
         this.correo = correo;
         this.contrasenaEncriptada = contrasenaEncriptada;
         this.fechaCreacion = LocalDateTime.now();
+        this.estado = "activo";
     }
 
-    public Long getIdUsuario() {
-        return idUsuario;
+    public Usuario(String rut, String nombre, String apellido, String correo, String contrasenaEncriptada, String estado) {
+        this.rut = rut;
+        this.nombre = nombre;
+        this.apellido = apellido;
+        this.correo = correo;
+        this.contrasenaEncriptada = contrasenaEncriptada;
+        this.fechaCreacion = LocalDateTime.now();
+        this.estado = (estado != null && !estado.isBlank()) ? estado : "activo";
     }
 
-    public void setIdUsuario(Long idUsuario) {
-        this.idUsuario = idUsuario;
+    public String getRut() {
+        return rut;
+    }
+
+    public void setRut(String rut) {
+        this.rut = rut;
     }
 
     public String getNombre() {
@@ -107,5 +120,21 @@ public class Usuario {
 
     public void setRoles(Set<Rol> roles) {
         this.roles = roles;
+    }
+
+    public String getEstado() {
+        return estado != null ? estado : "activo";
+    }
+
+    public void setEstado(String estado) {
+        this.estado = (estado != null && !estado.isBlank()) ? estado : "activo";
+    }
+
+    public boolean isActivo() {
+        return "activo".equalsIgnoreCase(this.estado);
+    }
+
+    public void setActivo(boolean activo) {
+        this.estado = activo ? "activo" : "inactivo";
     }
 }

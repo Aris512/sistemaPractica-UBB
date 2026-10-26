@@ -1,0 +1,133 @@
+import { useState, useEffect } from "react";
+import type { UserSession } from "@/types/auth";
+import type { HomeMenuKey } from "./types";
+import { HomeSidebar } from "./HomeSidebar";
+import { HomeHeader } from "./HomeHeader";
+import { PerfilUsuario } from "./PerfilUsuario";
+import { Portafolio } from "./Portafolio";
+import { Evaluaciones } from "./Evaluaciones";
+import { Observaciones } from "./Observaciones";
+import { AsistentesIA } from "./AsistentesIA";
+import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
+import { MallaCurricular } from "@/components/malla_curricular";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Toaster } from "sileo";
+import "sileo/styles.css";
+import { usePermissions } from "@/hooks/usePermissions";
+
+interface HomePageProps {
+  user: UserSession;
+  onLogout: () => void;
+}
+
+export function HomePage({ user, onLogout }: HomePageProps) {
+  const [activeMenu, setActiveMenu] = useState<HomeMenuKey>(() => {
+    try {
+      const saved = sessionStorage.getItem("ubb_active_menu_estudiante");
+      if (saved) return saved as HomeMenuKey;
+    } catch {}
+    return "inicio";
+  });
+  const [formattedDate, setFormattedDate] = useState("");
+  const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_estudiante", activeMenu);
+    } catch {}
+  }, [activeMenu]);
+
+  // Formato de fecha en español en tiempo real
+  useEffect(() => {
+    try {
+      const now = new Date();
+      const options: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      };
+      const dateStr = new Intl.DateTimeFormat("es-CL", options).format(now);
+      setFormattedDate(dateStr.charAt(0).toUpperCase() + dateStr.slice(1));
+    } catch {
+      setFormattedDate("Martes, 15 de septiembre de 2026");
+    }
+  }, []);
+
+  const renderContent = () => {
+    switch (activeMenu) {
+      case "perfil":
+        return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "portafolio":
+        if (!hasPermission("PORTAFOLIO_SUBIR") && !hasPermission("PORTAFOLIO_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "documentos-practica":
+        return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "evaluaciones":
+        if (!hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "observaciones":
+        if (!hasPermission("OBSERVACIONES_CONSULTAR")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <Observaciones user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "asistentes-ia":
+        if (!hasPermission("IA_ACCESO")) {
+          return <MallaCurricular userRut={user?.rut} />;
+        }
+        return <AsistentesIA user={user} />;
+      case "inicio":
+      case "malla-curricular":
+      default:
+        return <MallaCurricular userRut={user?.rut} />;
+    }
+  };
+
+  return (
+    <SidebarProvider defaultOpen>
+      <Toaster position="top-center" theme="light" />
+      {/* Sidebar shadcn modular */}
+      <HomeSidebar
+        user={user}
+        activeMenu={activeMenu}
+        onSelectMenu={setActiveMenu}
+        onLogout={onLogout}
+      />
+
+      {/* Área principal */}
+      <SidebarInset className="bg-[#f8fafc] min-h-screen flex flex-col">
+        {/* Cabecera institucional con escudo UBB */}
+        <HomeHeader
+          user={user}
+          formattedDate={formattedDate}
+          onOpenProfile={() => setActiveMenu("perfil")}
+          onLogout={onLogout}
+        />
+
+        {/* Contenido principal según menú activo */}
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+          {renderContent()}
+        </main>
+
+        {/* Footer Institucional */}
+        <footer className="mt-auto border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500 space-y-2">
+          <p className="font-medium">
+            <a
+              href="https://www.ubiobio.cl"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-700 hover:underline font-semibold"
+            >
+              Acerca de Sistema de Práctica
+            </a>
+            , Universidad del Bío-Bío © 2026
+          </p>
+        </footer>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}

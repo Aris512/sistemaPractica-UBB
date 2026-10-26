@@ -1,0 +1,305 @@
+package com.backend.service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.backend.dto.PortafolioItemDTO;
+import com.backend.model.Documento;
+import com.backend.model.Estudiante;
+import com.backend.model.Usuario;
+import com.backend.repository.DocumentoRepository;
+import java.util.Optional;
+import com.backend.model.Asignatura;
+import com.backend.repository.AsignaturaRepository;
+import com.backend.repository.EstudianteRepository;
+import com.backend.repository.UsuarioRepository;
+import com.backend.util.RutUtils;
+
+@Service
+public class PortafolioService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PortafolioService.class);
+    private static final List<String> CATEGORIAS_PERMITIDAS = List.of(
+        "DOCUMENTO", "EVIDENCIA", "INFORME", "OTRO"
+    );
+
+    private final DocumentoRepository documentoRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final EstudianteRepository estudianteRepository;
+    private final AsignaturaRepository asignaturaRepository;
+    private final FileStorageService fileStorageService;
+
+    public PortafolioService(DocumentoRepository documentoRepository,
+                             UsuarioRepository usuarioRepository,
+                             EstudianteRepository estudianteRepository,
+                             AsignaturaRepository asignaturaRepository,
+                             FileStorageService fileStorageService) {
+        this.documentoRepository = documentoRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.estudianteRepository = estudianteRepository;
+        this.asignaturaRepository = asignaturaRepository;
+        this.fileStorageService = fileStorageService;
+    }
+
+    /**
+     * Obtiene todos los documentos del portafolio asociados a un estudiante.
+     */
+    @Transactional(readOnly = true)
+    public List<PortafolioItemDTO> obtenerDocumentosPorEstudiante(String rutEstudianteRaw) {
+        return obtenerDocumentosPorEstudiante(rutEstudianteRaw, false);
+    }
+
+    /**
+     * Obtiene los documentos del portafolio de un estudiante. Con soloPropios=true solo devuelve los
+     * que subió el propio estudiante: los archivos de profesores (p. ej. revisiones adjuntas a sus
+     * observaciones) no forman parte del portafolio que ve el alumno.
+     */
+    @Transactional(readOnly = true)
+    public List<PortafolioItemDTO> obtenerDocumentosPorEstudiante(String rutEstudianteRaw, boolean soloPropios) {
+        Usuario usuarioEstudiante = buscarUsuarioPorRut(rutEstudianteRaw);
+        String rutExacto = usuarioEstudiante != null ? usuarioEstudiante.getRut() : rutEstudianteRaw;
+        String rutLimpio = RutUtils.clean(rutEstudianteRaw);
+
+        List<Documento> docs = documentoRepository.findPortafolioByRut(rutExacto, rutLimpio);
+        return docs.stream()
+            .filter(d -> !soloPropios || subidoPorEstudiante(d, rutLimpio))
+            .map(d -> toDTO(d, rutExacto))
+            .collect(Collectors.toList());
+    }
+
+    private boolean subidoPorEstudiante(Documento doc, String rutEstudianteLimpio) {
+        return doc.getUsuario() != null
+            && doc.getUsuario().getRut() != null
+            && RutUtils.clean(doc.getUsuario().getRut()).equalsIgnoreCase(rutEstudianteLimpio);
+    }
+
+    /**
+     * Sube un documento al portafolio de un estudiante (sobrecarga sin idAsignatura explícito).
+     */
+    @Transactional
+    public PortafolioItemDTO subirDocumentoPortafolio(
+            MultipartFile file,
+            String rutEstudianteRaw,
+            String tipo,
+            String rutUsuarioSubioRaw,
+            String descripcion) {
+        return subirDocumentoPortafolio(file, rutEstudianteRaw, tipo, rutUsuarioSubioRaw, descripcion, null);
+    }
+
+    /**
+     * Sube un documento al portafolio de un estudiante asociando estudiante + asignatura + profesor + categoría.
+     */
+    @Transactional
+    public PortafolioItemDTO subirDocumentoPortafolio(
+            MultipartFile file,
+            String rutEstudianteRaw,
+            String tipo,
+            String rutUsuarioSubioRaw,
+            String descripcion,
+            Long idAsignatura) {
+
+        Usuario usuarioEstudiante = buscarUsuarioPorRut(rutEstudianteRaw);
+        if (usuarioEstudiante == null) {
+            throw new IllegalArgumentException("No se encontró usuario con RUT: " + rutEstudianteRaw);
+        }
+
+        Usuario usuarioSubio = (rutUsuarioSubioRaw != null && !rutUsuarioSubioRaw.isBlank())
+            ? buscarUsuarioPorRut(rutUsuarioSubioRaw)
+            : usuarioEstudiante;
+        if (usuarioSubio == null) {
+            usuarioSubio = usuarioEstudiante;
+        }
+
+        List<String> extensionesPermitidas = List.of(
+            ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".zip", ".rar", ".png", ".jpg", ".jpeg"
+        );
+
+        FileStorageService.StoredFileResult stored = fileStorageService.storeFile(
+            file,
+            "portafolios",
+            extensionesPermitidas
+        );
+
+        String tipoFinal = normalizarCategoria(tipo);
+
+        Documento doc = new Documento(
+            stored.originalFilename(),
+            tipoFinal,
+            stored.relativePath(),
+            usuarioSubio
+        );
+        // Se asegura utilizar la clave primaria exacta registrada en la tabla usuario
+        doc.setRutEstudiante(usuarioEstudiante.getRut());
+        doc.setTamanioBytes(stored.sizeBytes());
+        doc.setFechaCarga(LocalDateTime.now());
+
+        // Asociar Asignatura al documento
+        Asignatura asig = null;
+        if (idAsignatura != null) {
+            asig = asignaturaRepository.findById(idAsignatura).orElse(null);
+        }
+        if (asig == null) {
+            Optional<Estudiante> estOpt = estudianteRepository.findByUsuario(usuarioEstudiante);
+            if (estOpt.isPresent() && estOpt.get().getAsignatura() != null) {
+                asig = estOpt.get().getAsignatura();
+            }
+        }
+        if (asig != null) {
+            doc.setAsignatura(asig);
+        }
+
+        Documento guardado = documentoRepository.save(doc);
+        logger.info("Documento de portafolio guardado con éxito: ID {}, archivo {}, asignatura ID {}",
+                guardado.getIdDocumento(), guardado.getNombre(), asig != null ? asig.getIdAsignatura() : "sin-asignatura");
+
+        return toDTO(guardado, usuarioEstudiante.getRut());
+    }
+
+    private Usuario buscarUsuarioPorRut(String rutRaw) {
+        if (rutRaw == null || rutRaw.isBlank()) {
+            return null;
+        }
+        String trim = rutRaw.trim();
+        java.util.Optional<Usuario> directo = usuarioRepository.findByRut(trim);
+        if (directo.isPresent()) {
+            return directo.get();
+        }
+
+        String limpio = RutUtils.clean(trim);
+        return usuarioRepository.findAll().stream()
+            .filter(u -> RutUtils.clean(u.getRut()).equalsIgnoreCase(limpio))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private String normalizarCategoria(String categoria) {
+        String categoriaNormalizada = categoria == null || categoria.isBlank()
+            ? "EVIDENCIA"
+            : categoria.trim().toUpperCase();
+
+        if (categoriaNormalizada.startsWith("PORTAFOLIO_")) {
+            categoriaNormalizada = categoriaNormalizada.substring("PORTAFOLIO_".length());
+        }
+
+        if (!CATEGORIAS_PERMITIDAS.contains(categoriaNormalizada)) {
+            throw new IllegalArgumentException(
+                "Categoría no válida. Debe ser Documento, Evidencia, Informe u Otro."
+            );
+        }
+
+        return "PORTAFOLIO_" + categoriaNormalizada;
+    }
+
+    /**
+     * Elimina físicamente un archivo y su registro en la BD.
+     */
+    @Transactional
+    public void eliminarDocumento(Long idDocumento) {
+        Documento doc = documentoRepository.findById(idDocumento)
+            .orElseThrow(() -> new IllegalArgumentException("Documento no encontrado con ID: " + idDocumento));
+
+        documentoRepository.delete(doc);
+        fileStorageService.deleteFile(doc.getUbicacion());
+        logger.info("Documento de portafolio eliminado con éxito: ID {}", idDocumento);
+    }
+
+    /**
+     * Carga el archivo físico como recurso descargable.
+     */
+    public Resource obtenerRecursoArchivo(Long idDocumento) {
+        Documento doc = documentoRepository.findById(idDocumento)
+            .orElseThrow(() -> new IllegalArgumentException("Documento no encontrado con ID: " + idDocumento));
+
+        return fileStorageService.loadFileAsResource(doc.getUbicacion());
+    }
+
+    public Documento obtenerDocumentoPorId(Long idDocumento) {
+        return documentoRepository.findById(idDocumento).orElse(null);
+    }
+
+    /**
+     * Lista estudiantes que tienen portafolios para supervisión de profesores o coordinador,
+     * filtrando opcionalmente por asignatura.
+     */
+    @Transactional(readOnly = true)
+    public List<java.util.Map<String, Object>> obtenerEstudiantesConPortafolio(Long idAsignatura) {
+        List<Estudiante> estudiantes;
+        if (idAsignatura != null) {
+            estudiantes = estudianteRepository.findByAsignaturaIdAsignatura(idAsignatura);
+        } else {
+            estudiantes = estudianteRepository.findAll();
+        }
+        List<java.util.Map<String, Object>> resultado = new ArrayList<>();
+
+        for (Estudiante est : estudiantes) {
+            Usuario u = est.getUsuario();
+            if (u == null) continue;
+
+            String rutExacto = u.getRut();
+            String rutLimpio = RutUtils.clean(rutExacto);
+            List<Documento> docs = documentoRepository.findPortafolioByRut(rutExacto, rutLimpio);
+
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("rut", u.getRut());
+            map.put("nombre", (u.getNombre() != null ? u.getNombre() : "") + " " + (u.getApellido() != null ? u.getApellido() : ""));
+            map.put("correo", u.getCorreo());
+            map.put("carrera", est.getAsignatura() != null ? est.getAsignatura().getNombre() : "Pedagogía");
+            map.put("idAsignatura", est.getAsignatura() != null ? est.getAsignatura().getIdAsignatura() : null);
+            map.put("totalArchivos", docs.size());
+            map.put("ultimaActualizacion", docs.isEmpty() ? null : docs.get(0).getFechaCarga());
+            resultado.add(map);
+        }
+
+        return resultado;
+    }
+
+    @Transactional(readOnly = true)
+    public List<java.util.Map<String, Object>> obtenerEstudiantesConPortafolio() {
+        return obtenerEstudiantesConPortafolio(null);
+    }
+
+    private PortafolioItemDTO toDTO(Documento doc, String rutEstudianteFallback) {
+        String subidoPorNombre = "Desconocido";
+        String subidoPorRut = "";
+        if (doc.getUsuario() != null) {
+            subidoPorRut = doc.getUsuario().getRut();
+            subidoPorNombre = ((doc.getUsuario().getNombre() != null ? doc.getUsuario().getNombre() : "") + " " +
+                               (doc.getUsuario().getApellido() != null ? doc.getUsuario().getApellido() : "")).trim();
+        }
+
+        String rutEst = doc.getRutEstudiante() != null && !doc.getRutEstudiante().isBlank()
+            ? doc.getRutEstudiante()
+            : (doc.getUsuario() != null ? doc.getUsuario().getRut() : rutEstudianteFallback);
+
+        return new PortafolioItemDTO(
+            doc.getIdDocumento(),
+            doc.getNombre(),
+            doc.getTipo(),
+            doc.getUbicacion(),
+            doc.getFechaCarga(),
+            formatSize(doc.getTamanioBytes()),
+            doc.getTamanioBytes(),
+            rutEst,
+            subidoPorRut,
+            subidoPorNombre,
+            "/api/portafolio/archivos/" + doc.getIdDocumento() + "/descargar"
+        );
+    }
+
+    private String formatSize(Long bytes) {
+        if (bytes == null || bytes <= 0) return "—";
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        char pre = "KMGTPE".charAt(exp - 1);
+        return String.format("%.1f %cB", bytes / Math.pow(1024, exp), pre);
+    }
+}
