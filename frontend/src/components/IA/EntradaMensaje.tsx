@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, type KeyboardEvent } from "react";
-import { Loader2, SendHorizontal } from "lucide-react";
+import { Loader2, Plus, SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CHAT_MAX_CARACTERES } from "@/types/chat";
 
@@ -10,6 +10,10 @@ interface EntradaMensajeProps {
   enviando: boolean;
   deshabilitado: boolean;
   motivoDeshabilitado?: string;
+  /** Si se pasa, aparece el botón + para adjuntar un archivo (.docx o .pdf). */
+  onAdjuntar?: (archivo: File) => void;
+  adjuntando?: boolean;
+  ayudaAdjuntar?: string;
 }
 
 export interface EntradaMensajeHandle {
@@ -20,10 +24,11 @@ const ALTURA_MAXIMA_PX = 200;
 
 /** Caja de texto del chat: Enter envía, Shift+Enter inserta un salto de línea. */
 export const EntradaMensaje = forwardRef<EntradaMensajeHandle, EntradaMensajeProps>(function EntradaMensaje(
-  { valor, onCambiar, onEnviar, enviando, deshabilitado, motivoDeshabilitado },
+  { valor, onCambiar, onEnviar, enviando, deshabilitado, motivoDeshabilitado, onAdjuntar, adjuntando = false, ayudaAdjuntar },
   ref
 ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const archivoRef = useRef<HTMLInputElement>(null);
 
   useImperativeHandle(ref, () => ({ enfocar: () => textareaRef.current?.focus() }), []);
 
@@ -36,7 +41,7 @@ export const EntradaMensaje = forwardRef<EntradaMensajeHandle, EntradaMensajePro
   }, [valor]);
 
   const excedido = valor.length > CHAT_MAX_CARACTERES;
-  const puedeEnviar = valor.trim().length > 0 && !excedido && !enviando && !deshabilitado;
+  const puedeEnviar = valor.trim().length > 0 && !excedido && !enviando && !deshabilitado && !adjuntando;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -54,6 +59,33 @@ export const EntradaMensaje = forwardRef<EntradaMensajeHandle, EntradaMensajePro
             : "border-slate-200 focus-within:border-sky-400 focus-within:ring-sky-200/50"
         }`}
       >
+        {onAdjuntar && (
+          <>
+            <input
+              ref={archivoRef}
+              type="file"
+              accept=".docx,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const archivo = e.target.files?.[0];
+                e.target.value = ""; // permite volver a elegir el mismo archivo
+                if (archivo) onAdjuntar(archivo);
+              }}
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => archivoRef.current?.click()}
+              disabled={enviando || deshabilitado || adjuntando}
+              aria-label="Adjuntar nueva versión de la planificación"
+              title={ayudaAdjuntar ?? "Adjuntar un archivo"}
+              className="shrink-0 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100"
+            >
+              {adjuntando ? <Loader2 className="animate-spin" /> : <Plus />}
+            </Button>
+          </>
+        )}
         <textarea
           ref={textareaRef}
           value={valor}
@@ -79,6 +111,10 @@ export const EntradaMensaje = forwardRef<EntradaMensajeHandle, EntradaMensajePro
         <span>
           {deshabilitado && motivoDeshabilitado ? (
             <span className="text-amber-700">{motivoDeshabilitado}</span>
+          ) : adjuntando ? (
+            <span className="text-sky-700">Subiendo tu planificación y pidiendo la revisión a la IA…</span>
+          ) : onAdjuntar && ayudaAdjuntar ? (
+            <span>{ayudaAdjuntar}</span>
           ) : (
             <span className="hidden sm:inline">Enter para enviar · Shift + Enter para salto de línea</span>
           )}
