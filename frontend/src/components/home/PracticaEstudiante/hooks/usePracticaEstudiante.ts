@@ -391,14 +391,14 @@ export function usePracticaEstudiante(user: UserSession) {
             ? "Subir Informe Final de Práctica Profesional y Autoevaluación"
             : "Subir Informe de Avance N.° 2 de Práctica Pedagógica",
           fechaLimite: "Vence el 12 de octubre",
-          menuDestino: "documentos",
+          menuDestino: "portafolio",
           tipo: "documento",
         },
         {
           id: "p-2",
           titulo: "Revisar la retroalimentación de Luis Contreras en Bitácora",
           fechaLimite: "Pendiente de lectura",
-          menuDestino: "evaluaciones",
+          menuDestino: "observaciones",
           tipo: "observacion",
         },
         {
