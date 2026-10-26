@@ -15,11 +15,13 @@ import {
 import {
   Home,
   Briefcase,
-  FileText,
   ClipboardCheck,
+  MessageSquareText,
+  Bot,
   Users,
   LogOut,
 } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PracticaSidebarProps {
   user: UserSession;
@@ -59,20 +61,30 @@ function AdeccaLogo() {
 }
 
 export function PracticaSidebar({
+  user,
   activeMenu,
   onSelectMenu,
   onLogout,
 }: PracticaSidebarProps) {
+  const { hasPermission } = usePermissions(user);
+  // Mismas opciones y permisos que el estudiante regular, más el equipo de práctica.
   const menuItems: {
     key: PracticaMenuKey;
     label: string;
     icon: typeof Home;
+    visible: boolean;
   }[] = [
-    { key: "inicio", label: "Inicio", icon: Home },
-    { key: "portafolio", label: "Portafolio", icon: Briefcase },
-    { key: "documentos", label: "Documentos", icon: FileText },
-    { key: "evaluaciones", label: "Evaluaciones", icon: ClipboardCheck },
-    { key: "equipo", label: "Equipo de Práctica", icon: Users },
+    { key: "inicio", label: "Inicio", icon: Home, visible: true },
+    {
+      key: "portafolio",
+      label: "Portafolio",
+      icon: Briefcase,
+      visible: hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR"),
+    },
+    { key: "evaluaciones", label: "Evaluaciones", icon: ClipboardCheck, visible: hasPermission("EVALUACIONES_CONSULTAR") },
+    { key: "observaciones", label: "Observaciones", icon: MessageSquareText, visible: hasPermission("OBSERVACIONES_CONSULTAR") },
+    { key: "asistentes-ia", label: "Asistentes de IA", icon: Bot, visible: hasPermission("IA_ACCESO") },
+    { key: "equipo", label: "Equipo de Práctica", icon: Users, visible: true },
   ];
 
   return (
@@ -91,7 +103,7 @@ export function PracticaSidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {menuItems.filter((item) => item.visible).map((item) => {
                 const Icon = item.icon;
                 const isActive = activeMenu === item.key;
                 return (
