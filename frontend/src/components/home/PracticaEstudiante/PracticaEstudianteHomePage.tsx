@@ -6,8 +6,6 @@ import { HomeHeader } from "@/components/home/Estudiante/HomeHeader";
 import { PerfilUsuario } from "@/components/home/Estudiante/PerfilUsuario";
 import { Portafolio } from "@/components/home/Estudiante/Portafolio";
 import { Planificacion } from "@/components/home/Estudiante/Planificacion";
-import { Evaluaciones } from "@/components/home/Estudiante/Evaluaciones";
-import { Observaciones } from "@/components/home/Estudiante/Observaciones";
 import { AsistentesIA } from "@/components/home/Estudiante/AsistentesIA";
 import { PracticaInicioView } from "./views/PracticaInicioView";
 import { PracticaEquipoView } from "./views/PracticaEquipoView";
@@ -81,8 +79,9 @@ export function PracticaEstudianteHomePage({
       return null;
     }
 
-    // Portafolio, evaluaciones, observaciones e IA son los mismos módulos del estudiante regular,
-    // con los mismos permisos; sin permiso se vuelve a la línea de tiempo del inicio.
+    // Portafolio e IA son los mismos módulos del estudiante regular, con los mismos permisos; sin
+    // permiso se vuelve a la línea de tiempo del inicio. En práctica (8.° y 9.° semestre) no hay
+    // Evaluaciones ni Observaciones: los profesores evalúan con pautas.
     switch (activeMenu) {
       case "perfil":
         return <PerfilUsuario user={user} onBack={volverAlInicio} />;
@@ -93,16 +92,6 @@ export function PracticaEstudianteHomePage({
         break;
       case "planificacion":
         return <Planificacion user={user} onBack={volverAlInicio} />;
-      case "evaluaciones":
-        if (hasPermission("EVALUACIONES_CONSULTAR")) {
-          return <Evaluaciones user={user} onBack={volverAlInicio} />;
-        }
-        break;
-      case "observaciones":
-        if (hasPermission("OBSERVACIONES_CONSULTAR")) {
-          return <Observaciones user={user} onBack={volverAlInicio} />;
-        }
-        break;
       case "asistentes-ia":
         if (hasPermission("IA_ACCESO")) {
           return <AsistentesIA user={user} />;
@@ -116,7 +105,7 @@ export function PracticaEstudianteHomePage({
           />
         );
     }
-    return <PracticaInicioView user={user} datos={datos} onNavigate={setActiveMenu} />;
+    return <PracticaInicioView user={user} datos={datos} />;
   };
 
   return (
