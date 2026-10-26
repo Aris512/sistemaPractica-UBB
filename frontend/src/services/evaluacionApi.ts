@@ -2,14 +2,20 @@ import type { Evaluacion, ObservacionEvaluacion } from "../types/evaluacion";
 
 const API_URL = "/api";
 
-export const getEvaluaciones = async (): Promise<Evaluacion[]> => {
-  const response = await fetch(`${API_URL}/evaluaciones`);
+export const getEvaluaciones = async (rutProfesor?: string): Promise<Evaluacion[]> => {
+  const url = rutProfesor
+    ? `${API_URL}/evaluaciones?rutProfesor=${encodeURIComponent(rutProfesor)}`
+    : `${API_URL}/evaluaciones`;
+  const response = await fetch(url);
   if (!response.ok) throw new Error("Error al obtener las evaluaciones");
   return response.json();
 };
 
-export const getEvaluacionById = async (id: number): Promise<Evaluacion> => {
-  const response = await fetch(`${API_URL}/evaluaciones/${id}`);
+export const getEvaluacionById = async (id: number, rutProfesor?: string): Promise<Evaluacion> => {
+  const url = rutProfesor
+    ? `${API_URL}/evaluaciones/${id}?rutProfesor=${encodeURIComponent(rutProfesor)}`
+    : `${API_URL}/evaluaciones/${id}`;
+  const response = await fetch(url);
   if (!response.ok) throw new Error("Error al obtener la evaluación");
   return response.json();
 };

@@ -13,16 +13,22 @@ import com.backend.model.Usuario;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.PracticaRepository;
 
+import com.backend.repository.ProfesorRepository;
+import java.util.Collections;
+
 @Service
 public class PracticaService {
 
     private final PracticaRepository practicaRepository;
     private final EstudianteRepository estudianteRepository;
+    private final ProfesorRepository profesorRepository;
 
     public PracticaService(PracticaRepository practicaRepository,
-                           EstudianteRepository estudianteRepository) {
+                           EstudianteRepository estudianteRepository,
+                           ProfesorRepository profesorRepository) {
         this.practicaRepository = practicaRepository;
         this.estudianteRepository = estudianteRepository;
+        this.profesorRepository = profesorRepository;
     }
 
     public List<Practica> obtenerTodos() {
@@ -42,9 +48,31 @@ public class PracticaService {
     }
 
     public List<EstudianteTutorDTO> obtenerSeguimientoTutorColaborador(String rut) {
-        List<Practica> practicas = practicaRepository.findByTutorPracticaUsuarioRut(rut);
-        if (practicas == null || practicas.isEmpty()) {
-            practicas = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut);
+        if (rut == null || rut.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        List<Practica> practicas = new ArrayList<>();
+        List<Practica> byTutor = practicaRepository.findByTutorPracticaUsuarioRut(rut);
+        if (byTutor != null && !byTutor.isEmpty()) {
+            practicas.addAll(byTutor);
+        } else {
+            List<Practica> byColab = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut);
+            if (byColab != null && !byColab.isEmpty()) {
+                practicas.addAll(byColab);
+            }
+        }
+
+        if (practicas.isEmpty()) {
+            // Verificar si el usuario es un profesor de asignatura asignado a una práctica
+            profesorRepository.findByUsuarioRut(rut).ifPresent(prof -> {
+                if (prof.getAsignatura() != null && prof.getAsignatura().getIdAsignatura() != null) {
+                    List<Practica> practicasAsig = practicaRepository.findByAsignaturaIdAsignatura(prof.getAsignatura().getIdAsignatura());
+                    if (practicasAsig != null && !practicasAsig.isEmpty()) {
+                        practicas.addAll(practicasAsig);
+                    }
+                }
+            });
         }
 
         List<EstudianteTutorDTO> resultado = new ArrayList<>();
@@ -78,35 +106,9 @@ public class PracticaService {
                     LocalDateTime.now()
                 ));
             }
-            return resultado;
         }
 
-        // Fallback: listar estudiantes matriculados para el curso a evaluar
-        List<Estudiante> estudiantes = estudianteRepository.findAll();
-        for (Estudiante est : estudiantes) {
-            if (est.getUsuario() == null) continue;
-            Usuario u = est.getUsuario();
-            // Restricción: No incluir alumnos en estado inactivo
-            if (!u.isActivo() || "inactivo".equalsIgnoreCase(u.getEstado()) || "INACTIVO".equalsIgnoreCase(est.getEstado())) {
-                continue;
-            }
-            String asigNombre = est.getAsignatura() != null ? est.getAsignatura().getNombre() : "Práctica Pedagógica";
-            resultado.add(new EstudianteTutorDTO(
-                est.getIdEstudiante(),
-                null,
-                u.getRut(),
-                u.getNombre() + " " + u.getApellido(),
-                u.getCorreo(),
-                asigNombre,
-                "Colegio San Agustín",
-                "SIN_OBSERVACION",
-                "PENDIENTE",
-                null,
-                null,
-                LocalDateTime.now()
-            ));
-        }
-
+        // Filtro estricto: Nunca retornar todos los estudiantes del sistema si el usuario no tiene asignación
         return resultado;
     }
 }
