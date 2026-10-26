@@ -315,7 +315,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
 
       {/* Encabezado */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="size-14 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 shadow-2xs shrink-0">
               <CalendarDays className="size-7" />
@@ -329,11 +329,11 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-2 self-start lg:self-auto shrink-0">
             <button
               type="button"
               onClick={cargar}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
               title="Actualizar datos"
             >
               <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -343,9 +343,9 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
               type="button"
               onClick={crearPlanificacion}
               disabled={creando || loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-3.5 shrink-0" />
               <span>Nueva planificación</span>
             </button>
           </div>
@@ -391,18 +391,18 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
 
           {seleccionada && (
             <>
-              {/* Resumen de la planificación seleccionada */}
-              <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              {/* Resumen de la planificación seleccionada y lista de sus 5 archivos */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="size-4.5 text-sky-400" />
-                    <h2 className="text-base sm:text-lg font-bold">Planificación #{numero(seleccionada.idPlanificacion)}</h2>
+                    <BookOpen className="size-4.5 text-sky-600" />
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 whitespace-nowrap">Planificación #{numero(seleccionada.idPlanificacion)}</h2>
                     {seleccionada.completa ? (
-                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                         COMPLETA
                       </span>
                     ) : (
-                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                         INCOMPLETA
                       </span>
                     )}
@@ -411,7 +411,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                     <button
                       type="button"
                       onClick={abrirModal}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer whitespace-nowrap"
                     >
                       <Upload className="size-3.5" />
                       <span>Subir archivos</span>
@@ -419,7 +419,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                     <button
                       type="button"
                       onClick={() => setDeleteAction(() => () => eliminarPlanificacion(seleccionada))}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-300 hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                       title="Eliminar planificación"
                     >
                       <Trash2 className="size-4" />
@@ -428,103 +428,110 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-slate-300">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
                     <span>
                       {seleccionada.asignatura ? `${seleccionada.asignatura} • ` : ""}Creada el{" "}
                       {new Date(seleccionada.fechaCreacion).toLocaleDateString("es-CL")}
                     </span>
-                    <span className="font-semibold text-white">{subidos} de 5 archivos</span>
+                    <span className="font-semibold text-slate-800">{subidos} de 5 archivos</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className={`h-full transition-all ${seleccionada.completa ? "bg-emerald-400" : "bg-sky-400"}`}
+                      className={`h-full transition-all ${seleccionada.completa ? "bg-emerald-500" : "bg-sky-500"}`}
                       style={{ width: `${(subidos / 5) * 100}%` }}
                     />
                   </div>
                 </div>
 
                 {!seleccionada.completa && (
-                  <p className="text-xs text-amber-200 flex items-start gap-1.5">
+                  <p className="text-xs text-amber-700 flex items-start gap-1.5">
                     <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
                     <span>Pendiente de subir: {seleccionada.pendientes.map(etiqueta).join(", ")}.</span>
                   </p>
                 )}
-              </div>
 
-              {/* Las 5 categorías */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {CATEGORIAS.map((cat) => {
-                  const Icon = cat.icon;
-                  const archivo = seleccionada.archivos.find((a) => a.categoria === cat.key);
-                  const subido = !!archivo?.idDocumento;
-                  return (
-                    <div key={cat.key} className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`size-10 rounded-xl ${cat.colorBg} ${cat.colorText} flex items-center justify-center`}>
-                            <Icon className="size-5" />
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-bold text-slate-900">{cat.label}</h3>
-                            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{cat.descripcion}</p>
-                          </div>
-                        </div>
-                        {subido ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                            <CheckCircle2 className="size-3" />
-                            Subido
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                            <Clock className="size-3" />
-                            Pendiente
-                          </span>
-                        )}
-                      </div>
-
-                      {subido && archivo ? (
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
-                          <div className="flex items-center gap-2.5 overflow-hidden">
-                            <Icon className={`size-4 ${cat.colorText} shrink-0`} />
-                            <div className="overflow-hidden">
-                              <p className="text-xs font-semibold text-slate-800 truncate max-w-[220px]" title={archivo.nombre ?? ""}>
-                                {archivo.nombre}
-                              </p>
-                              <p className="text-[10px] text-slate-500">
-                                {formatoTamanio(archivo.tamanioBytes)} •{" "}
-                                {archivo.fechaCarga ? new Date(archivo.fechaCarga).toLocaleDateString("es-CL") : ""}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <a
-                              href={archivo.urlDescarga ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-colors"
-                              title="Descargar archivo"
-                            >
-                              <Download className="size-3.5" />
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteAction(() => () => eliminarArchivo(seleccionada, archivo))}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Eliminar archivo"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="py-3.5 border border-dashed border-amber-300 rounded-xl text-center bg-amber-50/40">
-                          <p className="text-xs font-semibold text-amber-700">Pendiente de subir</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Formatos: {cat.extensiones.join(", ")}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {/* Lista de archivos: nombre, tipo y estado */}
+                {/* w-0 min-w-full: la tabla hace scroll dentro de la tarjeta en vez de ensanchar toda la página */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 w-0 min-w-full">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2.5 font-semibold">Nombre</th>
+                        <th className="px-4 py-2.5 font-semibold">Tipo</th>
+                        <th className="px-4 py-2.5 font-semibold">Estado</th>
+                        <th className="px-4 py-2.5 font-semibold text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {CATEGORIAS.map((cat) => {
+                        const Icon = cat.icon;
+                        const archivo = seleccionada.archivos.find((a) => a.categoria === cat.key);
+                        const subido = !!archivo?.idDocumento;
+                        return (
+                          <tr key={cat.key} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-3">
+                              {subido && archivo ? (
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-800 truncate max-w-[260px]" title={archivo.nombre ?? ""}>
+                                    {archivo.nombre}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">
+                                    {formatoTamanio(archivo.tamanioBytes)} •{" "}
+                                    {archivo.fechaCarga ? new Date(archivo.fechaCarga).toLocaleDateString("es-CL") : ""}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">Sin archivo ({cat.extensiones.join(", ")})</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 whitespace-nowrap">
+                                <Icon className={`size-3.5 ${cat.colorText}`} />
+                                {cat.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {subido ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                  <CheckCircle2 className="size-3" />
+                                  Subido
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+                                  <Clock className="size-3" />
+                                  Pendiente de subir
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {subido && archivo && (
+                                <div className="flex items-center justify-end gap-1">
+                                  <a
+                                    href={archivo.urlDescarga ?? undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-colors"
+                                    title="Descargar archivo"
+                                  >
+                                    <Download className="size-3.5" />
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteAction(() => () => eliminarArchivo(seleccionada, archivo))}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="Eliminar archivo"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}
