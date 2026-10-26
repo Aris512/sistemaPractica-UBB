@@ -27,7 +27,6 @@ export type HomeMenuKey =
   | "portafolio"
   | "documentos-practica"
   | "cursos-practica"
-  | "planificacion"
   | "evaluaciones"
   | "observaciones"
   | "asistentes-ia";
