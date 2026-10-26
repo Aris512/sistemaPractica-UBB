@@ -5,6 +5,7 @@ import { PracticaSidebar } from "./PracticaSidebar";
 import { HomeHeader } from "@/components/home/Estudiante/HomeHeader";
 import { PerfilUsuario } from "@/components/home/Estudiante/PerfilUsuario";
 import { Portafolio } from "@/components/home/Estudiante/Portafolio";
+import { Planificacion } from "@/components/home/Estudiante/Planificacion";
 import { Evaluaciones } from "@/components/home/Estudiante/Evaluaciones";
 import { Observaciones } from "@/components/home/Estudiante/Observaciones";
 import { AsistentesIA } from "@/components/home/Estudiante/AsistentesIA";
@@ -90,6 +91,8 @@ export function PracticaEstudianteHomePage({
           return <Portafolio user={user} onBack={volverAlInicio} />;
         }
         break;
+      case "planificacion":
+        return <Planificacion user={user} onBack={volverAlInicio} />;
       case "evaluaciones":
         if (hasPermission("EVALUACIONES_CONSULTAR")) {
           return <Evaluaciones user={user} onBack={volverAlInicio} />;

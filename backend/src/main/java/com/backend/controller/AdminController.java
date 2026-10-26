@@ -827,7 +827,10 @@ public class AdminController {
         if (idsDocumento.isEmpty()) return;
         String inDocsClause = String.join(",", Collections.nCopies(idsDocumento.size(), "?"));
         Object[] docArgs = idsDocumento.toArray();
-        jdbcTemplate.update("DELETE FROM documento_planificacion WHERE id_documento IN (" + inDocsClause + ")", docArgs);
+        for (String columna : List.of("id_planificacion_archivo", "id_presentacion", "id_guia_actividades",
+                "id_rubrica_evaluacion", "id_material_didactico")) {
+            jdbcTemplate.update("UPDATE documento_planificacion SET " + columna + " = NULL WHERE " + columna + " IN (" + inDocsClause + ")", docArgs);
+        }
         jdbcTemplate.update("UPDATE proyecto_intervencion SET id_documento = NULL WHERE id_documento IN (" + inDocsClause + ")", docArgs);
         jdbcTemplate.update("UPDATE evidencia SET id_archivo_alumno = NULL WHERE id_archivo_alumno IN (" + inDocsClause + ")", docArgs);
         jdbcTemplate.update("UPDATE evidencia SET id_archivo_profesor = NULL WHERE id_archivo_profesor IN (" + inDocsClause + ")", docArgs);
