@@ -162,7 +162,9 @@ export function Pautas({ user, onBack }: PautasProps) {
         )}
         {!cargandoPautas && !errorPautas && pautasFiltradas.length === 0 && (
           <p className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl p-6 text-center">
-            No hay pautas para esta práctica con los filtros seleccionados.
+            {pautas.length === 0
+              ? "No hay pautas asignadas a su rol en esta práctica. El tutor evalúa solo en Práctica Profesional; en Práctica Pedagógica evalúa el profesor colaborador."
+              : "No hay pautas para esta práctica con los filtros seleccionados."}
           </p>
         )}
 
