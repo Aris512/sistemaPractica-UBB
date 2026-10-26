@@ -16,6 +16,7 @@ import {
   Home,
   Briefcase,
   CalendarDays,
+  MessageSquareCheck,
   Bot,
   Users,
   LogOut,
@@ -81,6 +82,7 @@ export function PracticaSidebar({
       visible: hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR"),
     },
     { key: "planificacion", label: "Planificación", icon: CalendarDays, visible: true },
+    { key: "retroalimentacion", label: "Retroalimentación", icon: MessageSquareCheck, visible: hasPermission("IA_ACCESO") },
     { key: "asistentes-ia", label: "Asistentes de IA", icon: Bot, visible: hasPermission("IA_ACCESO") },
     { key: "equipo", label: "Equipo de Práctica", icon: Users, visible: true },
   ];

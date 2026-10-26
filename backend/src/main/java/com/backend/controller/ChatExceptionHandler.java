@@ -19,9 +19,9 @@ import com.backend.service.ChatException;
 
 /**
  * Traduce los errores del chatbot a JSON { error, codigo, reintentarEnSegundos? }.
- * Solo aplica a ChatController para no alterar el comportamiento del resto de la API.
+ * Solo aplica al chat y a la retroalimentación con IA para no alterar el comportamiento del resto de la API.
  */
-@RestControllerAdvice(assignableTypes = ChatController.class)
+@RestControllerAdvice(assignableTypes = { ChatController.class, RetroalimentacionIAController.class })
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ChatExceptionHandler {
 
