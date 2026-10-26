@@ -4,16 +4,18 @@ import type { PracticaMenuKey } from "./types";
 import { PracticaSidebar } from "./PracticaSidebar";
 import { HomeHeader } from "@/components/home/Estudiante/HomeHeader";
 import { PerfilUsuario } from "@/components/home/Estudiante/PerfilUsuario";
+import { Portafolio } from "@/components/home/Estudiante/Portafolio";
+import { Evaluaciones } from "@/components/home/Estudiante/Evaluaciones";
+import { Observaciones } from "@/components/home/Estudiante/Observaciones";
+import { AsistentesIA } from "@/components/home/Estudiante/AsistentesIA";
 import { PracticaInicioView } from "./views/PracticaInicioView";
-import { PracticaPortafolioView } from "./views/PracticaPortafolioView";
-import { PracticaDocumentosView } from "./views/PracticaDocumentosView";
-import { PracticaEvaluacionesView } from "./views/PracticaEvaluacionesView";
 import { PracticaEquipoView } from "./views/PracticaEquipoView";
 import { usePracticaEstudiante } from "./hooks/usePracticaEstudiante";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
 import { RefreshCw } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PracticaEstudianteHomePageProps {
   user: UserSession;
@@ -33,7 +35,9 @@ export function PracticaEstudianteHomePage({
   });
 
   const [formattedDate, setFormattedDate] = useState("");
-  const { datos, loading, recargar } = usePracticaEstudiante(user);
+  const { datos, loading } = usePracticaEstudiante(user);
+  const { hasPermission } = usePermissions(user);
+  const volverAlInicio = () => setActiveMenu("inicio");
 
   useEffect(() => {
     try {
@@ -76,33 +80,31 @@ export function PracticaEstudianteHomePage({
       return null;
     }
 
+    // Portafolio, evaluaciones, observaciones e IA son los mismos módulos del estudiante regular,
+    // con los mismos permisos; sin permiso se vuelve a la línea de tiempo del inicio.
     switch (activeMenu) {
       case "perfil":
-        return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
+        return <PerfilUsuario user={user} onBack={volverAlInicio} />;
       case "portafolio":
-        return (
-          <PracticaPortafolioView
-            user={user}
-            datos={datos}
-            onNavigate={setActiveMenu}
-            onReload={recargar}
-          />
-        );
-      case "documentos":
-        return (
-          <PracticaDocumentosView
-            user={user}
-            datos={datos}
-            onReload={recargar}
-          />
-        );
+        if (hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR")) {
+          return <Portafolio user={user} onBack={volverAlInicio} />;
+        }
+        break;
       case "evaluaciones":
-        return (
-          <PracticaEvaluacionesView
-            user={user}
-            datos={datos}
-          />
-        );
+        if (hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <Evaluaciones user={user} onBack={volverAlInicio} />;
+        }
+        break;
+      case "observaciones":
+        if (hasPermission("OBSERVACIONES_CONSULTAR")) {
+          return <Observaciones user={user} onBack={volverAlInicio} />;
+        }
+        break;
+      case "asistentes-ia":
+        if (hasPermission("IA_ACCESO")) {
+          return <AsistentesIA user={user} />;
+        }
+        break;
       case "equipo":
         return (
           <PracticaEquipoView
@@ -110,16 +112,8 @@ export function PracticaEstudianteHomePage({
             datos={datos}
           />
         );
-      case "inicio":
-      default:
-        return (
-          <PracticaInicioView
-            user={user}
-            datos={datos}
-            onNavigate={setActiveMenu}
-          />
-        );
     }
+    return <PracticaInicioView user={user} datos={datos} onNavigate={setActiveMenu} />;
   };
 
   return (
