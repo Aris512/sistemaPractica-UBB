@@ -27,7 +27,7 @@ public class PlanificacionTextoExtractor {
     private final int maxCaracteres;
 
     public PlanificacionTextoExtractor(FileStorageService fileStorageService,
-                                       @Value("${retroalimentacion.max-caracteres-planificacion:12000}") int maxCaracteres) {
+                                       @Value("${retroalimentacion.max-caracteres-planificacion:8000}") int maxCaracteres) {
         this.fileStorageService = fileStorageService;
         this.maxCaracteres = maxCaracteres;
     }
