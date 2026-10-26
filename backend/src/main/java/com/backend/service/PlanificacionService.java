@@ -163,6 +163,11 @@ public class PlanificacionService {
             .map(c -> planificacion.getDocumentoPlanificacion().getArchivo(c))
             .filter(Objects::nonNull)
             .toList();
+        // Hijas de la retroalimentación primero, para no romper sus FK
+        jdbcTemplate.update("DELETE rp FROM respuesta_pregunta rp JOIN pregunta_diagnostica pd ON pd.id_pregunta = rp.id_pregunta "
+            + "JOIN retroalimentacion_ia r ON r.id_retroalimentacion = pd.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
+        jdbcTemplate.update("DELETE pd FROM pregunta_diagnostica pd JOIN retroalimentacion_ia r "
+            + "ON r.id_retroalimentacion = pd.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
         jdbcTemplate.update("DELETE FROM retroalimentacion_ia WHERE id_planificacion = ?", idPlanificacion);
         planificacionRepository.delete(planificacion);
         planificacionRepository.flush();

@@ -24,10 +24,15 @@ export class ChatApiError extends Error {
   }
 }
 
-async function request<T>(rut: string, path: string, init: RequestInit = {}): Promise<T> {
+function request<T>(rut: string, path: string, init: RequestInit = {}): Promise<T> {
+  return requestConUsuario<T>(rut, `${BASE_URL}${path}`, init);
+}
+
+/** fetch a la API identificando al usuario con X-Usuario-Rut; los errores llegan como ChatApiError con su código. */
+export async function requestConUsuario<T>(rut: string, url: string, init: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
+    res = await fetch(url, {
       ...init,
       headers: {
         ...(init.body ? { "Content-Type": "application/json" } : {}),

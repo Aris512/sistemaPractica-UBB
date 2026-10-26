@@ -54,6 +54,7 @@ public class ChatService {
     private final PermisoService permisoService;
     private final GroqClient groqClient;
     private final ChatUsoLimiter usoLimiter;
+    private final RevisionIAPlanificacion revisionPlanificacion;
     private final TransactionTemplate transaccion;
 
     private final int maxCaracteresMensaje;
@@ -69,6 +70,7 @@ public class ChatService {
                        PermisoService permisoService,
                        GroqClient groqClient,
                        ChatUsoLimiter usoLimiter,
+                       RevisionIAPlanificacion revisionPlanificacion,
                        PlatformTransactionManager transactionManager,
                        @Value("${chat.max-caracteres-mensaje:4000}") int maxCaracteresMensaje,
                        @Value("${chat.max-mensajes-contexto:20}") int maxMensajesContexto,
@@ -82,6 +84,7 @@ public class ChatService {
         this.permisoService = permisoService;
         this.groqClient = groqClient;
         this.usoLimiter = usoLimiter;
+        this.revisionPlanificacion = revisionPlanificacion;
         this.transaccion = new TransactionTemplate(transactionManager);
         this.maxCaracteresMensaje = maxCaracteresMensaje;
         this.maxMensajesContexto = maxMensajesContexto;
@@ -97,6 +100,16 @@ public class ChatService {
 
     /** Resuelve el usuario a partir del RUT enviado por el cliente y verifica estado y permiso IA_ACCESO. */
     public String resolverUsuario(String rutCliente) {
+        Usuario usuario = buscarUsuarioActivo(rutCliente);
+        if (!permisoService.obtenerPermisosEfectivosUsuario(usuario.getRut()).contains(PERMISO_IA)) {
+            throw new ChatException(HttpStatus.FORBIDDEN, "CHAT_SIN_PERMISO",
+                    "No tienes acceso a los asistentes de IA.");
+        }
+        return usuario.getRut();
+    }
+
+    /** Usuario activo a partir del RUT enviado por el cliente (acepta con o sin puntos y guion). */
+    public Usuario buscarUsuarioActivo(String rutCliente) {
         if (rutCliente == null || rutCliente.isBlank()) {
             throw new ChatException(HttpStatus.UNAUTHORIZED, "CHAT_SIN_USUARIO",
                     "Debes iniciar sesión para usar el asistente de IA.");
@@ -112,11 +125,7 @@ public class ChatService {
             throw new ChatException(HttpStatus.FORBIDDEN, "CHAT_USUARIO_INACTIVO",
                     "Tu cuenta está inactiva. Contacta al administrador.");
         }
-        if (!permisoService.obtenerPermisosEfectivosUsuario(usuario.getRut()).contains(PERMISO_IA)) {
-            throw new ChatException(HttpStatus.FORBIDDEN, "CHAT_SIN_PERMISO",
-                    "No tienes acceso a los asistentes de IA.");
-        }
-        return usuario.getRut();
+        return usuario;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -185,6 +194,13 @@ public class ChatService {
         }
 
         obtenerPropia(rut, idConversacion);
+        // Las conversaciones de revisión de planificación usan el prompt RetroPlani con la planificación adjunta
+        String promptSistema = revisionPlanificacion.deConversacion(idConversacion)
+                .map(retro -> {
+                    revisionPlanificacion.validarPuedeConversar(retro);
+                    return revisionPlanificacion.promptSistema(retro);
+                })
+                .orElse(PROMPT_SISTEMA);
         List<ChatMensaje> historial = mensajeRepository.findByConversacionIdConversacionOrderByOrdenAsc(idConversacion);
         if (historial.size() + 2 > maxMensajesPorConversacion) {
             throw new ChatException(HttpStatus.CONFLICT, "CHAT_CONVERSACION_LLENA",
@@ -200,7 +216,7 @@ public class ChatService {
         String respuesta;
         usoLimiter.adquirir(rut);
         try {
-            respuesta = groqClient.completar(construirContexto(historial, texto));
+            respuesta = groqClient.completar(construirContexto(promptSistema, historial, texto));
         } finally {
             usoLimiter.liberar(rut);
         }
@@ -221,6 +237,8 @@ public class ChatService {
                 conversacion.setTitulo(tituloDesdeMensaje(texto));
             }
             conversacion.setFechaActualizacion(mensajeAsistente.getFecha());
+            revisionPlanificacion.deConversacion(idConversacion)
+                    .ifPresent(retro -> revisionPlanificacion.registrarRespuesta(retro, respuesta));
 
             return new IntercambioDTO(ConversacionDTO.de(conversacion),
                     MensajeDTO.de(mensajeUsuario), MensajeDTO.de(mensajeAsistente));
@@ -228,7 +246,7 @@ public class ChatService {
     }
 
     /** Prompt de sistema + los mensajes más recientes que quepan en el presupuesto de caracteres + el nuevo mensaje. */
-    private List<GroqClient.Mensaje> construirContexto(List<ChatMensaje> historial, String nuevoMensaje) {
+    private List<GroqClient.Mensaje> construirContexto(String promptSistema, List<ChatMensaje> historial, String nuevoMensaje) {
         List<GroqClient.Mensaje> recientes = new ArrayList<>();
         int caracteres = nuevoMensaje.length();
         for (int i = historial.size() - 1; i >= 0 && recientes.size() < maxMensajesContexto; i--) {
@@ -240,7 +258,7 @@ public class ChatService {
         Collections.reverse(recientes);
 
         List<GroqClient.Mensaje> mensajes = new ArrayList<>();
-        mensajes.add(new GroqClient.Mensaje("system", PROMPT_SISTEMA));
+        mensajes.add(new GroqClient.Mensaje("system", promptSistema));
         mensajes.addAll(recientes);
         mensajes.add(new GroqClient.Mensaje("user", nuevoMensaje));
         return mensajes;
