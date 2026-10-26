@@ -9,6 +9,7 @@ import { Planificacion } from "@/components/home/Estudiante/Planificacion";
 import { AsistentesIA } from "@/components/home/Estudiante/AsistentesIA";
 import { PracticaInicioView } from "./views/PracticaInicioView";
 import { PracticaEquipoView } from "./views/PracticaEquipoView";
+import { PracticaRetroalimentacionView } from "./views/PracticaRetroalimentacionView";
 import { usePracticaEstudiante } from "./hooks/usePracticaEstudiante";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
@@ -37,6 +38,16 @@ export function PracticaEstudianteHomePage({
   const { datos, loading } = usePracticaEstudiante(user);
   const { hasPermission } = usePermissions(user);
   const volverAlInicio = () => setActiveMenu("inicio");
+
+  // Abre «Asistentes de IA» con esa conversación: ChatIA restaura la conversación guardada en esta clave al montarse
+  const abrirChat = (idConversacion: number) => {
+    try {
+      sessionStorage.setItem(`ubb_chat_activa_${user.rut}`, String(idConversacion));
+    } catch {
+      // sin sessionStorage el chat abre sin conversación seleccionada
+    }
+    setActiveMenu("asistentes-ia");
+  };
 
   useEffect(() => {
     try {
@@ -88,6 +99,17 @@ export function PracticaEstudianteHomePage({
       case "portafolio":
         if (hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR")) {
           return <Portafolio user={user} onBack={volverAlInicio} />;
+        }
+        break;
+      case "retroalimentacion":
+        if (hasPermission("IA_ACCESO")) {
+          return (
+            <PracticaRetroalimentacionView
+              user={user}
+              onAbrirChat={abrirChat}
+              onIrAPlanificacion={() => setActiveMenu("planificacion")}
+            />
+          );
         }
         break;
       case "planificacion":
