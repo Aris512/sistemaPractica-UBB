@@ -2,8 +2,6 @@ export type PracticaMenuKey =
   | "inicio"
   | "portafolio"
   | "planificacion"
-  | "evaluaciones"
-  | "observaciones"
   | "asistentes-ia"
   | "equipo"
   | "perfil";
@@ -19,14 +17,6 @@ export interface EtapaPractica {
   estado: EstadoEtapa;
   completada: boolean;
   actual: boolean;
-}
-
-export interface ItemPendiente {
-  id: string | number;
-  titulo: string;
-  fechaLimite?: string;
-  menuDestino: PracticaMenuKey;
-  tipo: "documento" | "evaluacion" | "observacion" | "aviso";
 }
 
 export interface PersonaEquipo {
@@ -75,7 +65,6 @@ export interface DatosPracticaEstudiante {
   periodo: string;
   etapaActual: string;
   etapas: EtapaPractica[];
-  pendientes: ItemPendiente[];
   equipo: PersonaEquipo[];
   actividades: ActividadRecienteItem[];
 }

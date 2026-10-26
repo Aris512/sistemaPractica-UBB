@@ -16,8 +16,6 @@ import {
   Home,
   Briefcase,
   CalendarDays,
-  ClipboardCheck,
-  MessageSquareText,
   Bot,
   Users,
   LogOut,
@@ -83,8 +81,6 @@ export function PracticaSidebar({
       visible: hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR"),
     },
     { key: "planificacion", label: "Planificación", icon: CalendarDays, visible: true },
-    { key: "evaluaciones", label: "Evaluaciones", icon: ClipboardCheck, visible: hasPermission("EVALUACIONES_CONSULTAR") },
-    { key: "observaciones", label: "Observaciones", icon: MessageSquareText, visible: hasPermission("OBSERVACIONES_CONSULTAR") },
     { key: "asistentes-ia", label: "Asistentes de IA", icon: Bot, visible: hasPermission("IA_ACCESO") },
     { key: "equipo", label: "Equipo de Práctica", icon: Users, visible: true },
   ];
