@@ -24,7 +24,8 @@ export function PracticaInicioView({
 }: PracticaInicioViewProps) {
 
   const curIndex = datos.etapas.findIndex((e) => e.estado === "cur");
-  const progressValue = curIndex >= 0 ? (curIndex + 1) * 25 : 75;
+  const todasCompletas = datos.etapas.every((e) => e.estado === "done");
+  const progressValue = curIndex >= 0 ? (curIndex + 1) * 25 : todasCompletas ? 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -37,14 +38,14 @@ export function PracticaInicioView({
               <span>Proceso de {datos.asignaturaNombre} ({datos.semestre}.º Semestre)</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Hola, {user.nombre}. Vas en la etapa de seguimiento.
+              Hola, {user.nombre}. {todasCompletas ? "Completaste tu práctica." : `Vas en la etapa de ${datos.etapaActual.toLowerCase()}.`}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-800">{datos.asignaturaNombre} ({datos.codigoAsignatura})</span>
+              <span className="font-semibold text-slate-800">{datos.asignaturaNombre}</span>
               <span className="text-slate-300">•</span>
               <span className="inline-flex items-center gap-1">
                 <Building2 className="size-3.5 text-slate-400" />
-                {datos.centroPractica}
+                {datos.centroPractica || "Centro de práctica por asignar"}
               </span>
               <span className="text-slate-300">•</span>
               <span className="inline-flex items-center gap-1">
@@ -132,6 +133,9 @@ export function PracticaInicioView({
         </div>
 
         <div className="divide-y divide-slate-100">
+          {datos.pendientes.length === 0 && (
+            <p className="py-3 text-sm text-slate-500">No tienes entregas pendientes.</p>
+          )}
           {datos.pendientes.map((p) => (
             <div key={p.id} className="py-3.5 px-2 -mx-2 rounded-xl flex items-center justify-between gap-3 group hover:bg-slate-50/70 transition-colors">
               <div className="min-w-0 flex-1">
@@ -164,6 +168,9 @@ export function PracticaInicioView({
           Actividad Reciente
         </h2>
         <div className="divide-y divide-slate-100">
+          {datos.actividades.length === 0 && (
+            <p className="py-3 text-sm text-slate-500">Aún no hay actividad registrada en tu práctica.</p>
+          )}
           {datos.actividades.map((act) => (
             <div key={act.id} className="py-3 flex items-start gap-3">
               <div className="size-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 mt-0.5">
