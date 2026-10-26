@@ -10,7 +10,6 @@ import type {
   EtapaPractica,
   EstadoEtapa,
   SemestrePractica,
-  ItemPendiente,
   PersonaEquipo,
   ActividadRecienteItem,
 } from "../types";
@@ -140,21 +139,6 @@ export function usePracticaEstudiante(user: UserSession) {
       });
       const etapaActual = etapas.find((e) => e.estado === "cur")?.titulo ?? "Evaluación final";
 
-      // Pendientes del propio alumno: actividades activas, sin entregar y dentro de plazo
-      const ahora = Date.now();
-      const pendientes: ItemPendiente[] = actividadesAlumno
-        .filter((a) => a.estado === "ACTIVA" && !a.idEvidencia)
-        .filter((a) => !a.fechaLimite || new Date(a.fechaLimite).getTime() >= ahora)
-        .map((a) => ({
-          id: `act-${a.idActividad}`,
-          titulo: `Entregar «${a.titulo}»`,
-          fechaLimite: a.fechaLimite
-            ? `Vence el ${new Date(a.fechaLimite).toLocaleDateString("es-CL", { day: "numeric", month: "long" })}`
-            : undefined,
-          menuDestino: "evaluaciones",
-          tipo: "evaluacion",
-        }));
-
       // Actividad reciente: evaluaciones completadas, entregas y revisiones, de la más nueva a la más antigua
       const eventos: (ActividadRecienteItem & { fecha: Date })[] = [];
       completadas.forEach((r) => {
@@ -219,7 +203,6 @@ export function usePracticaEstudiante(user: UserSession) {
         periodo: `${hoy.getFullYear()} - ${hoy.getMonth() >= 6 ? "2 (Segundo Semestre)" : "1 (Primer Semestre)"}`,
         etapaActual,
         etapas,
-        pendientes,
         equipo,
         actividades,
       });
