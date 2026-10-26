@@ -67,10 +67,28 @@ public class NotaDeVozController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "duracion", required = false) String duracion,
             @RequestParam(value = "transcripcion", required = false) String transcripcion,
-            @RequestParam(value = "rutGrabador", required = false) String rutGrabador) {
+            @RequestParam(value = "rutGrabador", required = false) String rutGrabador,
+            @RequestParam(value = "nombreGrabador", required = false) String nombreGrabador) {
         return ResponseEntity.ok(notaDeVozService.guardarNotaDeVoz(
-                idEvaluacion, idEstudiante, file, duracion, transcripcion, rutGrabador
+                idEvaluacion, idEstudiante, file, duracion, transcripcion, rutGrabador, nombreGrabador
         ));
+    }
+
+    @PostMapping(value = "/transcribir", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> transcribirAudio(@RequestParam("file") MultipartFile file) {
+        try {
+            String texto = notaDeVozService.transcribirAudio(file);
+            return ResponseEntity.ok(Map.of("transcripcion", texto != null ? texto : ""));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Error al procesar audio"));
+        }
     }
 
     @GetMapping("/{id}/audio")

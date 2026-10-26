@@ -41,6 +41,9 @@ public class NotaDeVoz {
     @Column(name = "rut_grabador")
     private String rutGrabador;
 
+    @Column(name = "nombre_grabador")
+    private String nombreGrabador;
+
     public NotaDeVoz() {
     }
 
@@ -52,12 +55,17 @@ public class NotaDeVoz {
     }
 
     public NotaDeVoz(Evaluacion evaluacion, String ubicacionArchivo, String nombreArchivo, String duracion, String transcripcion, String rutGrabador) {
+        this(evaluacion, ubicacionArchivo, nombreArchivo, duracion, transcripcion, rutGrabador, null);
+    }
+
+    public NotaDeVoz(Evaluacion evaluacion, String ubicacionArchivo, String nombreArchivo, String duracion, String transcripcion, String rutGrabador, String nombreGrabador) {
         this.evaluacion = evaluacion;
         this.ubicacionArchivo = ubicacionArchivo;
         this.nombreArchivo = nombreArchivo;
         this.duracion = duracion;
         this.transcripcion = transcripcion;
         this.rutGrabador = rutGrabador;
+        this.nombreGrabador = nombreGrabador;
         this.fechaGrabacion = LocalDateTime.now();
     }
 
@@ -123,5 +131,13 @@ public class NotaDeVoz {
 
     public void setRutGrabador(String rutGrabador) {
         this.rutGrabador = rutGrabador;
+    }
+
+    public String getNombreGrabador() {
+        return nombreGrabador;
+    }
+
+    public void setNombreGrabador(String nombreGrabador) {
+        this.nombreGrabador = nombreGrabador;
     }
 }

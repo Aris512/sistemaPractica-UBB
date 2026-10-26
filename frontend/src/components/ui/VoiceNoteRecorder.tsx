@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { sileo } from "sileo";
 import type { NotaDeVozDTO } from "../../services/profesorEvaluacionApi";
 import {
   getNotasDeVozPorEvaluacion,
@@ -22,6 +23,7 @@ import {
   eliminarNotaDeVoz,
   actualizarTranscripcionNotaVoz,
   getAudioUrl,
+  transcribirAudioConIA,
 } from "../../services/profesorEvaluacionApi";
 
 // Declaración global para Web Speech API
@@ -36,6 +38,7 @@ interface VoiceNoteRecorderProps {
   idEvaluacion?: number | null;
   idEstudiante?: number | null;
   rutGrabador?: string;
+  nombreGrabador?: string;
   onInsertTranscription?: (text: string) => void;
   onVoiceNoteCreated?: (nota: NotaDeVozDTO) => void;
   readOnly?: boolean;
@@ -46,6 +49,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   idEvaluacion,
   idEstudiante,
   rutGrabador,
+  nombreGrabador,
   onInsertTranscription,
   onVoiceNoteCreated,
   readOnly = false,
@@ -68,6 +72,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   const [isListeningSpeech, setIsListeningSpeech] = useState<boolean>(false);
   const [speechSupported, setSpeechSupported] = useState<boolean>(true);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isTranscribingIA, setIsTranscribingIA] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<number | string | null>(null);
 
@@ -141,6 +146,42 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
     }
   };
 
+  // Transcribir audio grabado con IA (Groq Whisper)
+  const handleTranscribirConIA = async (blobToUse?: Blob) => {
+    const targetBlob = blobToUse || audioBlob;
+    if (!targetBlob) return;
+    setIsTranscribingIA(true);
+    setErrorMsg(null);
+    try {
+      const texto = await transcribirAudioConIA(targetBlob);
+      if (texto && texto.trim()) {
+        setTranscription(texto.trim());
+        accumulatedFinalRef.current = texto.trim();
+        sileo.success({
+          title: "Transcripción con IA (Whisper) lista",
+          description: "Se convirtió el audio en texto con éxito.",
+        });
+      } else {
+        sileo.info({
+          title: "Audio procesado",
+          description: "La IA no detectó palabras audibles en la grabación.",
+        });
+      }
+    } catch (err: any) {
+      console.warn("Fallo al transcribir con IA:", err);
+      const msg = err.message?.includes("GROQ_API_KEY")
+        ? "El servidor no tiene configurada la clave GROQ_API_KEY en .env. Puedes escribir la observación manualmente o configurar la clave en el servidor."
+        : (err.message || "No se pudo transcribir el audio con IA.");
+      setErrorMsg(msg);
+      sileo.error({
+        title: "Transcripción IA no disponible",
+        description: msg,
+      });
+    } finally {
+      setIsTranscribingIA(false);
+    }
+  };
+
   // Iniciar grabación
   const handleStartRecording = async () => {
     setErrorMsg(null);
@@ -184,6 +225,11 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
         const url = URL.createObjectURL(fullBlob);
         setAudioUrlPreview(url);
         stream.getTracks().forEach((track) => track.stop());
+
+        // Si la transcripción en vivo del navegador no capturó texto, autotranscribir con IA Whisper
+        if (!accumulatedFinalRef.current.trim()) {
+          handleTranscribirConIA(fullBlob);
+        }
       };
 
       mediaRecorder.start(250);
@@ -201,8 +247,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
           recognition.interimResults = true;
-          // Idioma: español estándar
-          recognition.lang = "es-ES";
+          recognition.lang = "es-CL";
 
           recognition.onstart = () => {
             setIsListeningSpeech(true);
@@ -229,21 +274,13 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
             if (event.error === "no-speech") return;
             if (event.error === "network") {
               setErrorMsg(
-                "Aviso: La transcripción en vivo requiere conexión a los servicios de voz del navegador. Puedes escribir o editar la transcripción manualmente abajo."
+                "Aviso: La transcripción en vivo del navegador no respondió. Se utilizará Whisper IA al terminar de grabar."
               );
             }
           };
 
           recognition.onend = () => {
             setIsListeningSpeech(false);
-            // Si sigue grabando, reiniciar el reconocimiento para mantenerlo continuo
-            if (isRecordingRef.current) {
-              try {
-                recognition.start();
-              } catch (e) {
-                // ignore
-              }
-            }
           };
 
           // Pequeño retardo para no colisionar con el stream de audio
@@ -348,6 +385,9 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       formData.append("transcripcion", transcription.trim());
       if (rutGrabador) {
         formData.append("rutGrabador", rutGrabador);
+      }
+      if (nombreGrabador) {
+        formData.append("nombreGrabador", nombreGrabador);
       }
 
       const nuevaNota = await subirNotaDeVoz(formData);
@@ -542,26 +582,49 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
 
               {/* Vista previa de audio grabado */}
               {audioUrlPreview && !isRecording && (
-                <div className="rounded-md bg-slate-50 p-2 border border-slate-200 flex items-center gap-2">
-                  <Volume2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
-                  <audio controls src={audioUrlPreview} className="h-7 w-full" />
+                <div className="space-y-2">
+                  <div className="rounded-md bg-slate-50 p-2 border border-slate-200 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Volume2 className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+                      <audio controls src={audioUrlPreview} className="h-7 w-full" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTranscribirConIA()}
+                      disabled={isTranscribingIA || isUploading}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-sky-800 bg-sky-100/80 hover:bg-sky-200/80 border border-sky-300 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+                      title="Transcribir este audio a texto con IA Whisper"
+                    >
+                      {isTranscribingIA ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin text-sky-700" />
+                          <span>Transcribiendo...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 text-sky-600" />
+                          <span>{transcription ? "Re-transcribir con IA" : "Transcribir con IA (Whisper)"}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* Caja de transcripción */}
-              {(isRecording || transcription || interimTranscript) && (
+              {(isRecording || transcription || interimTranscript || isTranscribingIA) && (
                 <div className="rounded-md border border-sky-200 bg-sky-50/40 p-2 space-y-1.5">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-semibold text-sky-900 flex items-center gap-1">
                       <Sparkles className="h-3 w-3 text-sky-600" />
-                      Transcripción:
+                      Transcripción del Audio:
                     </span>
                     <div className="flex items-center gap-1">
                       {transcription && (
                         <button
                           type="button"
                           onClick={() => handleCopyText(transcription, "preview")}
-                          className="text-[10px] text-sky-700 hover:text-sky-900 px-1.5 py-0.5 rounded bg-white border border-sky-200 shadow-2xs"
+                          className="text-[10px] text-sky-700 hover:text-sky-900 px-1.5 py-0.5 rounded bg-white border border-sky-200 shadow-2xs cursor-pointer"
                         >
                           {copiedId === "preview" ? "Copiado" : "Copiar"}
                         </button>
@@ -570,7 +633,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                         <button
                           type="button"
                           onClick={() => onInsertTranscription(transcription || interimTranscript)}
-                          className="text-[10px] font-semibold text-sky-800 hover:bg-sky-100 px-1.5 py-0.5 rounded border border-sky-300"
+                          className="text-[10px] font-semibold text-sky-800 hover:bg-sky-100 px-1.5 py-0.5 rounded border border-sky-300 cursor-pointer"
                         >
                           Insertar en Observaciones
                         </button>
@@ -578,12 +641,17 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                     </div>
                   </div>
 
-                  {isRecording ? (
+                  {isTranscribingIA ? (
+                    <div className="flex items-center gap-2 p-2 bg-white rounded border border-sky-200 text-xs text-sky-700">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-600 shrink-0" />
+                      <span>Procesando audio con IA (Groq Whisper)... Generando texto.</span>
+                    </div>
+                  ) : isRecording ? (
                     <div className="text-xs text-slate-700 bg-white p-2 rounded border border-sky-100 min-h-[40px] whitespace-pre-wrap leading-relaxed">
                       <span>{transcription}</span>
                       <span className="italic text-sky-600 font-medium"> {interimTranscript}</span>
                       {!transcription && !interimTranscript && (
-                        <span className="text-slate-400 italic">Habla al micrófono... tus palabras aparecerán aquí.</span>
+                        <span className="text-slate-400 italic">Habla al micrófono... tus palabras aparecerán aquí o se transcribirán con Whisper al detener.</span>
                       )}
                     </div>
                   ) : (
@@ -628,8 +696,10 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                       <span className="text-slate-500">
                         {nota.fechaGrabacion ? new Date(nota.fechaGrabacion).toLocaleString("es-CL") : "Fecha no disp."}
                       </span>
-                      {nota.rutGrabador && (
-                        <span className="text-[10px] text-slate-400">• Por: {nota.rutGrabador}</span>
+                      {(nota.nombreGrabador || nota.rutGrabador) && (
+                        <span className="text-[10px] text-slate-600 font-medium">
+                          • Por: {nota.nombreGrabador || nota.rutGrabador}
+                        </span>
                       )}
                     </div>
 
