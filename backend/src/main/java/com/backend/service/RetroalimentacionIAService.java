@@ -83,7 +83,7 @@ public class RetroalimentacionIAService {
     public List<PlanificacionRetroDTO> listarDelEstudiante(String rutCliente) {
         Estudiante estudiante = estudianteEnPractica(rutCliente);
         return planificacionRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante()).stream()
-                .sorted(Comparator.comparing(Planificacion::getIdPlanificacion).reversed())
+                .sorted(Comparator.comparing((Planificacion p) -> p.getIdPlanificacion()).reversed())
                 .map(p -> {
                     Documento archivo = archivoPlanificacion(p);
                     RetroalimentacionIA retro = retroDe(p);
@@ -218,7 +218,7 @@ public class RetroalimentacionIAService {
         return repository.findByPlanificacionAsignaturaIdAsignaturaAndFechaEnvioProfesorIsNotNull(
                         profesor.getAsignatura().getIdAsignatura()).stream()
                 .sorted(Comparator.comparing((RetroalimentacionIA r) -> r.getEstado() != Estado.ESPERANDO_PROFESOR)
-                        .thenComparing(RetroalimentacionIA::getFechaEnvioProfesor, Comparator.reverseOrder()))
+                        .thenComparing((RetroalimentacionIA r) -> r.getFechaEnvioProfesor(), Comparator.reverseOrder()))
                 .map(this::aDTOProfesor)
                 .toList();
     }
