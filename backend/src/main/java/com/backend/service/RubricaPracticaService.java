@@ -87,7 +87,7 @@ public class RubricaPracticaService {
      * Un estudiante puede tener la práctica de 8.° y la de 9.° semestre: se usa la de la asignatura que cursa
      * ahora y, si ninguna coincide, la más reciente.
      */
-    private Practica practicaActual(String rutEstudiante) {
+    public Practica practicaActual(String rutEstudiante) {
         List<Practica> practicas = practicaRepository.findByEstudianteUsuarioRut(rutEstudiante);
         if (practicas.isEmpty()) return null;
         Asignatura actual = practicas.get(0).getEstudiante().getAsignatura();

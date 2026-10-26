@@ -1,6 +1,7 @@
 export type PracticaMenuKey =
   | "inicio"
   | "portafolio"
+  | "planificacion"
   | "evaluaciones"
   | "observaciones"
   | "asistentes-ia"
