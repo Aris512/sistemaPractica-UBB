@@ -3,6 +3,8 @@ package com.backend.controller;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,17 +17,18 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.backend.dto.ArchivoPlanificacionDTO;
 import com.backend.model.Documento;
-import com.backend.model.Planificacion;
 import com.backend.service.PlanificacionService;
 
+/**
+ * Planificaciones de clase del estudiante en práctica, cada una con 5 archivos obligatorios
+ * (planificación, presentación, guía de actividades, rúbrica de evaluación y material didáctico).
+ */
 @RestController
 @RequestMapping("/api/planificaciones")
 @CrossOrigin(origins = "*")
@@ -39,80 +42,40 @@ public class PlanificacionController {
         this.planificacionService = planificacionService;
     }
 
-    @GetMapping
-    public ResponseEntity<List<Planificacion>> obtenerTodos() {
-        return ResponseEntity.ok(planificacionService.obtenerTodos());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Planificacion> obtenerPorId(@PathVariable Long id) {
-        Planificacion planificacion = planificacionService.obtenerPorId(id);
-        if (planificacion == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(planificacion);
-    }
-
     @GetMapping("/estudiante/{rut}")
-    public ResponseEntity<List<Planificacion>> obtenerPorEstudiante(@PathVariable String rut) {
-        return ResponseEntity.ok(planificacionService.obtenerPlanificacionesPorEstudiante(rut));
+    public ResponseEntity<?> obtenerPorEstudiante(@PathVariable String rut) {
+        return responder(() -> planificacionService.obtenerPorEstudiante(rut));
     }
 
-    @PostMapping
-    public ResponseEntity<Planificacion> crear(@RequestBody Planificacion planificacion) {
-        return ResponseEntity.ok(planificacionService.crear(planificacion));
+    @PostMapping("/estudiante/{rut}")
+    public ResponseEntity<?> crear(@PathVariable String rut) {
+        return responder(() -> planificacionService.crear(rut));
+    }
+
+    /** Sube varios archivos a la vez; categorias[i] es la categoría de archivos[i]. */
+    @PostMapping("/{id}/archivos")
+    public ResponseEntity<?> subirArchivos(
+            @PathVariable Long id,
+            @RequestParam("archivos") List<MultipartFile> archivos,
+            @RequestParam("categorias") List<String> categorias,
+            @RequestParam("rutUsuario") String rutUsuario) {
+        return responder(() -> planificacionService.subirArchivos(id, archivos, categorias, rutUsuario));
+    }
+
+    @DeleteMapping("/{id}/archivos/{categoria}")
+    public ResponseEntity<?> eliminarArchivo(@PathVariable Long id, @PathVariable String categoria,
+                                             @RequestParam("rutUsuario") String rutUsuario) {
+        return responder(() -> planificacionService.eliminarArchivo(id, categoria, rutUsuario));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        planificacionService.eliminar(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<?> eliminar(@PathVariable Long id, @RequestParam("rutUsuario") String rutUsuario) {
+        return responder(() -> {
+            planificacionService.eliminar(id, rutUsuario);
+            return Map.of("message", "Planificación eliminada.");
+        });
     }
 
-    /**
-     * Adjunta un archivo a una planificación (Límite 20MB, categorías: GUIA, RECURSO, POWERPOINT, PAUTA_EVALUACION).
-     */
-    @PostMapping("/{id}/archivos")
-    public ResponseEntity<?> adjuntarArchivo(
-            @PathVariable Long id,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "tipo", defaultValue = "RECURSO") String tipo,
-            @RequestParam(value = "rutUsuario", required = false) String rutUsuario) {
-        try {
-            ArchivoPlanificacionDTO dto = planificacionService.adjuntarArchivo(id, file, tipo, rutUsuario);
-            return ResponseEntity.ok(dto);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Error al adjuntar archivo a planificación {}: {}", id, e.getMessage());
-            return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Error interno al adjuntar archivo: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * Obtiene la lista de archivos asociados a una planificación.
-     */
-    @GetMapping("/{id}/archivos")
-    public ResponseEntity<List<ArchivoPlanificacionDTO>> obtenerArchivosDePlanificacion(@PathVariable Long id) {
-        return ResponseEntity.ok(planificacionService.obtenerArchivosDePlanificacion(id));
-    }
-
-    /**
-     * Elimina un archivo adjunto de una planificación.
-     */
-    @DeleteMapping("/{id}/archivos/{idDocumento}")
-    public ResponseEntity<?> eliminarArchivo(@PathVariable Long id, @PathVariable Long idDocumento) {
-        try {
-            planificacionService.eliminarArchivo(id, idDocumento);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
-        }
-    }
-
-    /**
-     * Descarga de un archivo adjunto de planificación.
-     */
     @GetMapping("/archivos/{idDocumento}/descargar")
     public ResponseEntity<Resource> descargarArchivo(@PathVariable Long idDocumento) {
         try {
@@ -142,6 +105,18 @@ public class PlanificacionController {
         } catch (Exception e) {
             logger.error("Error al descargar archivo de planificación {}: {}", idDocumento, e.getMessage());
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /** Errores de validación como 400 con su mensaje; los demás como 500 sin detalles internos. */
+    private ResponseEntity<?> responder(Supplier<Object> accion) {
+        try {
+            return ResponseEntity.ok(accion.get());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Error en planificaciones: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", "No se pudo completar la operación de planificación."));
         }
     }
 }
