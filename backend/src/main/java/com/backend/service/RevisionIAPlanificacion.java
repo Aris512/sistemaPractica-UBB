@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -29,9 +30,13 @@ public class RevisionIAPlanificacion {
 
     private final RetroalimentacionIARepository repository;
     private final String promptRetroPlani;
+    private final int maxCaracteresHistorial;
 
-    public RevisionIAPlanificacion(RetroalimentacionIARepository repository) throws IOException {
+    public RevisionIAPlanificacion(RetroalimentacionIARepository repository,
+                                   @Value("${retroalimentacion.max-caracteres-historial:6000}") int maxCaracteresHistorial)
+            throws IOException {
         this.repository = repository;
+        this.maxCaracteresHistorial = maxCaracteresHistorial;
         try (InputStream entrada = new ClassPathResource("ia/retroplani-sistema.md").getInputStream()) {
             this.promptRetroPlani = new String(entrada.readAllBytes(), StandardCharsets.UTF_8);
         }
@@ -52,6 +57,14 @@ public class RevisionIAPlanificacion {
                     "Ya recibiste las " + RetroalimentacionIA.MAX_REVISIONES_IA + " revisiones de la IA para esta versión. "
                             + "Corrige tu planificación, súbela de nuevo y reinicia la revisión en «Retroalimentación».");
         }
+    }
+
+    /**
+     * Historial que cabe en una solicitud de revisión. Es menor que el del chat general porque el prompt y la
+     * planificación ya ocupan buena parte del límite de tokens por minuto de Groq (8.000 en el plan gratuito).
+     */
+    public int maxCaracteresHistorial() {
+        return maxCaracteresHistorial;
     }
 
     public String promptSistema(RetroalimentacionIA retro) {

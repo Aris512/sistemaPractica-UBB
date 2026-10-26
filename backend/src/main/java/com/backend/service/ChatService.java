@@ -19,6 +19,7 @@ import com.backend.dto.ChatDTOs.MensajeDTO;
 import com.backend.model.ChatConversacion;
 import com.backend.model.ChatMensaje;
 import com.backend.model.ChatRolMensaje;
+import com.backend.model.RetroalimentacionIA;
 import com.backend.model.Usuario;
 import com.backend.repository.ChatConversacionRepository;
 import com.backend.repository.ChatMensajeRepository;
@@ -195,12 +196,15 @@ public class ChatService {
 
         obtenerPropia(rut, idConversacion);
         // Las conversaciones de revisión de planificación usan el prompt RetroPlani con la planificación adjunta
-        String promptSistema = revisionPlanificacion.deConversacion(idConversacion)
-                .map(retro -> {
-                    revisionPlanificacion.validarPuedeConversar(retro);
-                    return revisionPlanificacion.promptSistema(retro);
-                })
-                .orElse(PROMPT_SISTEMA);
+        // y un historial más corto, para no pasar del límite de tokens por minuto de Groq
+        String promptSistema = PROMPT_SISTEMA;
+        int presupuestoHistorial = maxCaracteresContexto;
+        Optional<RetroalimentacionIA> revision = revisionPlanificacion.deConversacion(idConversacion);
+        if (revision.isPresent()) {
+            revisionPlanificacion.validarPuedeConversar(revision.get());
+            promptSistema = revisionPlanificacion.promptSistema(revision.get());
+            presupuestoHistorial = revisionPlanificacion.maxCaracteresHistorial();
+        }
         List<ChatMensaje> historial = mensajeRepository.findByConversacionIdConversacionOrderByOrdenAsc(idConversacion);
         if (historial.size() + 2 > maxMensajesPorConversacion) {
             throw new ChatException(HttpStatus.CONFLICT, "CHAT_CONVERSACION_LLENA",
@@ -216,7 +220,7 @@ public class ChatService {
         String respuesta;
         usoLimiter.adquirir(rut);
         try {
-            respuesta = groqClient.completar(construirContexto(promptSistema, historial, texto));
+            respuesta = groqClient.completar(construirContexto(promptSistema, presupuestoHistorial, historial, texto));
         } finally {
             usoLimiter.liberar(rut);
         }
@@ -246,13 +250,14 @@ public class ChatService {
     }
 
     /** Prompt de sistema + los mensajes más recientes que quepan en el presupuesto de caracteres + el nuevo mensaje. */
-    private List<GroqClient.Mensaje> construirContexto(String promptSistema, List<ChatMensaje> historial, String nuevoMensaje) {
+    private List<GroqClient.Mensaje> construirContexto(String promptSistema, int maxCaracteres,
+                                                       List<ChatMensaje> historial, String nuevoMensaje) {
         List<GroqClient.Mensaje> recientes = new ArrayList<>();
         int caracteres = nuevoMensaje.length();
         for (int i = historial.size() - 1; i >= 0 && recientes.size() < maxMensajesContexto; i--) {
             ChatMensaje m = historial.get(i);
             caracteres += m.getContenido().length();
-            if (caracteres > maxCaracteresContexto) break;
+            if (caracteres > maxCaracteres) break;
             recientes.add(new GroqClient.Mensaje(m.getRol() == ChatRolMensaje.USER ? "user" : "assistant", m.getContenido()));
         }
         Collections.reverse(recientes);
