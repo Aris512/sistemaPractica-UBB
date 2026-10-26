@@ -506,6 +506,7 @@ export function ModalEvaluarEstudianteTutor({
                 idEvaluacion={currentIdEvaluacion}
                 idEstudiante={student.idEstudiante ? Number(student.idEstudiante) : null}
                 rutGrabador={userRut}
+                nombreGrabador={userFullName}
                 onInsertTranscription={(transcripcion) => {
                   setObservacion((prev) =>
                     prev ? `${prev}\n${transcripcion}` : transcripcion

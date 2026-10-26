@@ -663,8 +663,12 @@ export function Observaciones({ user, onBack }: ObservacionesProps) {
 
             {/* Pie del modal */}
             <div className="flex items-center justify-between p-4 bg-slate-50 border-t border-slate-100 shrink-0">
-              <span className="text-2xs text-slate-400 font-mono">
-                {selectedEval.evaluadorRut ? `Docente: ${selectedEval.evaluadorRut}` : "Plataforma de Prácticas UBB"}
+              <span className="text-2xs text-slate-500 font-medium">
+                {selectedEval.evaluadorNombre
+                  ? `Docente: ${selectedEval.evaluadorNombre}`
+                  : selectedEval.evaluadorRut
+                    ? `Docente: ${selectedEval.evaluadorRut}`
+                    : "Plataforma de Prácticas UBB"}
               </span>
 
               <div className="flex items-center gap-2">

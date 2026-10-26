@@ -39,6 +39,7 @@ interface ModalEvaluacionesProps {
   student: EstudianteEvaluacion | null;
   profesorRut?: string;
   rutProfesor?: string;
+  profesorNombre?: string;
   onClose: () => void;
   onSaved: (updatedStudent: EstudianteEvaluacion) => void;
 }
@@ -48,6 +49,7 @@ export function ModalEvaluaciones({
   student,
   profesorRut,
   rutProfesor: rutProfesorProp,
+  profesorNombre,
   onClose,
   onSaved,
 }: ModalEvaluacionesProps) {
@@ -872,6 +874,7 @@ export function ModalEvaluaciones({
                     idEvaluacion={student.idEvaluacion ?? null}
                     idEstudiante={student.idEstudiante}
                     rutGrabador={rutProfesor}
+                    nombreGrabador={profesorNombre}
                     onInsertTranscription={(transcripcion) => {
                       setObservacion((prev) => (prev ? `${prev}\n${transcripcion}` : transcripcion));
                       sileo.info({

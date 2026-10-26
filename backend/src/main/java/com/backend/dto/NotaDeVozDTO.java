@@ -11,6 +11,7 @@ public class NotaDeVozDTO {
     private String transcripcion;
     private LocalDateTime fechaGrabacion;
     private String rutGrabador;
+    private String nombreGrabador;
     private String audioUrl;
 
     public NotaDeVozDTO() {
@@ -18,6 +19,11 @@ public class NotaDeVozDTO {
 
     public NotaDeVozDTO(Long idAudio, Long idEvaluacion, String nombreArchivo, String duracion,
                           String transcripcion, LocalDateTime fechaGrabacion, String rutGrabador, String audioUrl) {
+        this(idAudio, idEvaluacion, nombreArchivo, duracion, transcripcion, fechaGrabacion, rutGrabador, null, audioUrl);
+    }
+
+    public NotaDeVozDTO(Long idAudio, Long idEvaluacion, String nombreArchivo, String duracion,
+                          String transcripcion, LocalDateTime fechaGrabacion, String rutGrabador, String nombreGrabador, String audioUrl) {
         this.idAudio = idAudio;
         this.idEvaluacion = idEvaluacion;
         this.nombreArchivo = nombreArchivo;
@@ -25,6 +31,7 @@ public class NotaDeVozDTO {
         this.transcripcion = transcripcion;
         this.fechaGrabacion = fechaGrabacion;
         this.rutGrabador = rutGrabador;
+        this.nombreGrabador = nombreGrabador;
         this.audioUrl = audioUrl;
     }
 
@@ -82,6 +89,14 @@ public class NotaDeVozDTO {
 
     public void setRutGrabador(String rutGrabador) {
         this.rutGrabador = rutGrabador;
+    }
+
+    public String getNombreGrabador() {
+        return nombreGrabador;
+    }
+
+    public void setNombreGrabador(String nombreGrabador) {
+        this.nombreGrabador = nombreGrabador;
     }
 
     public String getAudioUrl() {

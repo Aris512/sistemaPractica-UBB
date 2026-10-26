@@ -57,6 +57,7 @@ export interface NotaDeVozDTO {
   transcripcion?: string | null;
   fechaGrabacion?: string | null;
   rutGrabador?: string | null;
+  nombreGrabador?: string | null;
 }
 
 const API_URL = "/api/evaluaciones";
@@ -310,4 +311,26 @@ export const eliminarNotaDeVoz = async (idAudio: number): Promise<void> => {
 
 export const getAudioUrl = (idAudio: number): string => {
   return `${NOTAS_VOZ_URL}/${idAudio}/audio`;
+};
+
+export const transcribirAudioConIA = async (audioBlob: Blob): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", audioBlob, "audio.webm");
+  const response = await fetch(`${NOTAS_VOZ_URL}/transcribir`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    let errorMsg = "Error al transcribir audio con IA";
+    try {
+      const errObj = await response.json();
+      if (errObj && errObj.error) errorMsg = errObj.error;
+    } catch {
+      const txt = await response.text().catch(() => "");
+      if (txt) errorMsg = txt;
+    }
+    throw new Error(errorMsg);
+  }
+  const data = await response.json();
+  return data.transcripcion || "";
 };

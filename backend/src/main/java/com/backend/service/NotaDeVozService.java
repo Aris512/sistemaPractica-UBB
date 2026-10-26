@@ -16,9 +16,11 @@ import com.backend.dto.NotaDeVozDTO;
 import com.backend.model.Evaluacion;
 import com.backend.model.NotaDeVoz;
 import com.backend.model.Practica;
+import com.backend.model.Usuario;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.NotaDeVozRepository;
 import com.backend.repository.PracticaRepository;
+import com.backend.repository.UsuarioRepository;
 
 @Service
 public class NotaDeVozService {
@@ -31,16 +33,22 @@ public class NotaDeVozService {
     private final NotaDeVozRepository notaDeVozRepository;
     private final EvaluacionRepository evaluacionRepository;
     private final PracticaRepository practicaRepository;
+    private final UsuarioRepository usuarioRepository;
     private final FileStorageService fileStorageService;
+    private final GroqClient groqClient;
 
     public NotaDeVozService(NotaDeVozRepository notaDeVozRepository,
                             EvaluacionRepository evaluacionRepository,
                             PracticaRepository practicaRepository,
-                            FileStorageService fileStorageService) {
+                            UsuarioRepository usuarioRepository,
+                            FileStorageService fileStorageService,
+                            GroqClient groqClient) {
         this.notaDeVozRepository = notaDeVozRepository;
         this.evaluacionRepository = evaluacionRepository;
         this.practicaRepository = practicaRepository;
+        this.usuarioRepository = usuarioRepository;
         this.fileStorageService = fileStorageService;
+        this.groqClient = groqClient;
     }
 
     public List<NotaDeVoz> obtenerTodos() {
@@ -75,7 +83,7 @@ public class NotaDeVozService {
                                          String duracion,
                                          String transcripcion,
                                          String rutGrabador) {
-        return guardarNotaDeVoz(idEvaluacion, null, file, duracion, transcripcion, rutGrabador);
+        return guardarNotaDeVoz(idEvaluacion, null, file, duracion, transcripcion, rutGrabador, null);
     }
 
     @Transactional
@@ -85,6 +93,17 @@ public class NotaDeVozService {
                                          String duracion,
                                          String transcripcion,
                                          String rutGrabador) {
+        return guardarNotaDeVoz(idEvaluacion, idEstudiante, file, duracion, transcripcion, rutGrabador, null);
+    }
+
+    @Transactional
+    public NotaDeVozDTO guardarNotaDeVoz(Long idEvaluacion,
+                                         Long idEstudiante,
+                                         MultipartFile file,
+                                         String duracion,
+                                         String transcripcion,
+                                         String rutGrabador,
+                                         String nombreGrabador) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("El archivo de audio es requerido.");
         }
@@ -105,12 +124,27 @@ public class NotaDeVozService {
                 evaluacion.setFecha(LocalDateTime.now());
                 evaluacion.setTipoEvaluacion("Evaluación Práctica");
                 evaluacion.setRutEvaluador(rutGrabador);
+                if (nombreGrabador != null && !nombreGrabador.isBlank()) {
+                    evaluacion.setNombreEvaluador(nombreGrabador);
+                }
                 evaluacion = evaluacionRepository.save(evaluacion);
             }
         }
 
         if (evaluacion == null) {
             throw new IllegalArgumentException("Se requiere el ID de la evaluación o el ID del estudiante para ligar la nota de voz.");
+        }
+
+        // Determinar nombre del grabador si no viene explícito
+        String nombreFinal = (nombreGrabador != null && !nombreGrabador.isBlank()) ? nombreGrabador.trim() : null;
+        if (nombreFinal == null && rutGrabador != null && !rutGrabador.isBlank()) {
+            Usuario u = usuarioRepository.findByRut(rutGrabador).orElse(null);
+            if (u != null) {
+                nombreFinal = (u.getNombre() + " " + (u.getApellido() != null ? u.getApellido() : "")).trim();
+            }
+        }
+        if (nombreFinal == null && evaluacion.getNombreEvaluador() != null) {
+            nombreFinal = evaluacion.getNombreEvaluador();
         }
 
         // Almacenar el archivo de audio usando FileStorageService en subdirectorio "notas_de_voz"
@@ -124,19 +158,52 @@ public class NotaDeVozService {
         String duracionFinal = (duracion != null && !duracion.trim().isEmpty()) ? duracion.trim() : "0:00";
         String transcripcionLimpia = (transcripcion != null && !transcripcion.trim().isEmpty()) ? transcripcion.trim() : null;
 
+        // Si no se proporcionó transcripción pero Groq Whisper está configurado, autotranscribir con IA
+        if (transcripcionLimpia == null && groqClient != null && groqClient.estaConfigurado()) {
+            try {
+                String textoWhisper = groqClient.transcribirAudio(file.getBytes(), file.getOriginalFilename());
+                if (textoWhisper != null && !textoWhisper.isBlank()) {
+                    transcripcionLimpia = textoWhisper.trim();
+                    logger.info("Transcripción automática con Groq Whisper generada para nota de voz.");
+                }
+            } catch (Exception e) {
+                logger.warn("No se pudo autotranscribir con Groq Whisper: {}", e.getMessage());
+            }
+        }
+
         NotaDeVoz nota = new NotaDeVoz(
                 evaluacion,
                 stored.relativePath(),
                 stored.originalFilename(),
                 duracionFinal,
                 transcripcionLimpia,
-                rutGrabador
+                rutGrabador,
+                nombreFinal
         );
         nota = notaDeVozRepository.save(nota);
-        logger.info("Nota de voz guardada con éxito (id: {}, evalId: {}, archivo: {})",
-                nota.getIdAudio(), evaluacion.getIdEvaluacion(), stored.relativePath());
+        logger.info("Nota de voz guardada con éxito (id: {}, evalId: {}, grabador: {}, archivo: {})",
+                nota.getIdAudio(), evaluacion.getIdEvaluacion(), nombreFinal, stored.relativePath());
 
         return convertirADTO(nota);
+    }
+
+    /**
+     * Endpoint directo de servicio para transcribir un archivo de audio a texto usando Groq Whisper.
+     */
+    public String transcribirAudio(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("El archivo de audio es requerido para transcripción.");
+        }
+        if (groqClient == null || !groqClient.estaConfigurado()) {
+            throw new IllegalStateException("El servicio de transcripción de IA no está configurado (falta GROQ_API_KEY).");
+        }
+        try {
+            String resultado = groqClient.transcribirAudio(file.getBytes(), file.getOriginalFilename());
+            return resultado != null ? resultado : "";
+        } catch (Exception e) {
+            logger.warn("Error al procesar audio en transcribirAudio: {}", e.getMessage());
+            throw new RuntimeException("Error al procesar la transcripción de audio: " + e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
@@ -178,6 +245,17 @@ public class NotaDeVozService {
         if (nota == null) return null;
         Long evalId = nota.getEvaluacion() != null ? nota.getEvaluacion().getIdEvaluacion() : null;
         String audioUrl = "/api/notas-de-voz/" + nota.getIdAudio() + "/audio";
+
+        String nombre = nota.getNombreGrabador();
+        if ((nombre == null || nombre.isBlank()) && nota.getRutGrabador() != null && !nota.getRutGrabador().isBlank()) {
+            Usuario u = usuarioRepository.findByRut(nota.getRutGrabador()).orElse(null);
+            if (u != null) {
+                nombre = (u.getNombre() + " " + (u.getApellido() != null ? u.getApellido() : "")).trim();
+            } else if (nota.getEvaluacion() != null && nota.getEvaluacion().getNombreEvaluador() != null) {
+                nombre = nota.getEvaluacion().getNombreEvaluador();
+            }
+        }
+
         return new NotaDeVozDTO(
                 nota.getIdAudio(),
                 evalId,
@@ -186,6 +264,7 @@ public class NotaDeVozService {
                 nota.getTranscripcion(),
                 nota.getFechaGrabacion(),
                 nota.getRutGrabador(),
+                nombre,
                 audioUrl
         );
     }
