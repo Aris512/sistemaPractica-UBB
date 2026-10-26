@@ -48,13 +48,13 @@ public class PlanificacionTextoExtractor {
             }
         } catch (IOException | RuntimeException e) {
             if (e instanceof ChatException ce) throw ce;
-            throw new ChatException(HttpStatus.UNPROCESSABLE_ENTITY, "RETRO_ARCHIVO_ILEGIBLE",
+            throw new ChatException(HttpStatus.UNPROCESSABLE_CONTENT, "RETRO_ARCHIVO_ILEGIBLE",
                     "No se pudo leer el archivo «" + nombre + "». Revisa que no esté dañado y vuelve a subirlo.");
         }
 
         texto = texto.replaceAll("[ \\t]+", " ").replaceAll("\\n{3,}", "\n\n").strip();
         if (texto.isBlank()) {
-            throw new ChatException(HttpStatus.UNPROCESSABLE_ENTITY, "RETRO_ARCHIVO_SIN_TEXTO",
+            throw new ChatException(HttpStatus.UNPROCESSABLE_CONTENT, "RETRO_ARCHIVO_SIN_TEXTO",
                     "El archivo «" + nombre + "» no tiene texto legible (por ejemplo, un PDF escaneado). Súbelo como .docx o como PDF con texto.");
         }
         if (texto.length() > maxCaracteres) {
