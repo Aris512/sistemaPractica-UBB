@@ -17,7 +17,15 @@ public interface EvaluacionRepository extends JpaRepository<Evaluacion, Long> {
 
     List<Evaluacion> findByPracticaEstudianteIdEstudiante(Long idEstudiante);
 
+    List<Evaluacion> findByPracticaEstudianteIdEstudianteOrderByFechaDesc(Long idEstudiante);
+
     Optional<Evaluacion> findFirstByPracticaEstudianteIdEstudianteOrderByFechaDesc(Long idEstudiante);
+
+    List<Evaluacion> findByPracticaEstudianteUsuarioRut(String rut);
+
+    List<Evaluacion> findByPracticaEstudianteAsignaturaIdAsignatura(Long idAsignatura);
+
+    List<Evaluacion> findByIdEvaluador(Long idEvaluador);
 
     long countByArchivoUrlIn(java.util.Collection<String> ubicaciones);
 }

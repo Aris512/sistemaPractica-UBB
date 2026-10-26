@@ -1,5 +1,10 @@
-import { ArrowLeft, GraduationCap, UserCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, GraduationCap, UserCheck, BookOpen } from "lucide-react";
 import type { UserSession } from "@/types/auth";
+import type { EstadoPractica, HistorialItem } from "@/types/historialEstudiante";
+import { getEstadoPracticaEstudiante } from "@/services/estudianteHistorialApi";
+import { LineaProgresoPractica } from "./LineaProgresoPractica";
+import { HistorialActividades } from "./HistorialActividades";
 
 interface PerfilUsuarioProps {
   user: UserSession;
@@ -9,6 +14,44 @@ interface PerfilUsuarioProps {
 export function PerfilUsuario({ user, onBack }: PerfilUsuarioProps) {
   const rolDisplay = (user.roles && user.roles[0]) || user.rol || "Estudiante";
   const fullName = `${user.nombre || ""} ${user.apellido || ""}`.trim().toUpperCase() || "ESTUDIANTE";
+
+  const [estadoPractica, setEstadoPractica] = useState<EstadoPractica | null>(null);
+  const [historial, setHistorial] = useState<HistorialItem[]>([]);
+  const [loadingDatos, setLoadingDatos] = useState(true);
+
+  useEffect(() => {
+    if (!user.rut) {
+      setLoadingDatos(false);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingDatos(true);
+
+    getEstadoPracticaEstudiante(user.rut)
+      .then((data) => {
+        if (!isMounted) return;
+        setEstadoPractica(data);
+        if (data.historial && data.historial.length > 0) {
+          setHistorial(data.historial);
+        }
+      })
+      .catch((err) => {
+        console.warn("No se pudo obtener el estado de práctica del estudiante:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingDatos(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user.rut]);
+
+  const esDePractica = estadoPractica?.esPractica ?? false;
+  const nombreAsignatura = estadoPractica?.asignaturaNombre && estadoPractica.asignaturaNombre !== "—"
+    ? estadoPractica.asignaturaNombre
+    : "Pedagogía en Educación Matemática";
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto py-2">
@@ -33,21 +76,30 @@ export function PerfilUsuario({ user, onBack }: PerfilUsuarioProps) {
         </h1>
       </div>
 
-      {/* Tarjeta 1: Detalles académicos (idéntica a la imagen de referencia) */}
+      {/* Tarjeta 1: Detalles académicos */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between gap-4 mb-2">
             <h2 className="text-base sm:text-lg font-bold text-slate-900">
               Detalles académicos
             </h2>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                esDePractica
+                  ? "bg-sky-50 text-sky-800 border-sky-200"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
+              }`}
+            >
               <UserCheck className="size-3.5" />
-              Alumno Regular
+              {esDePractica ? "Estudiante en Práctica" : "Alumno Regular"}
             </span>
           </div>
 
-          <p className="text-sm sm:text-base font-semibold text-slate-900 mb-6">
-            Pedagogía en Educación Matemática : Campus Chillán
+          <p className="text-sm sm:text-base font-semibold text-slate-900 mb-6 flex items-center gap-2">
+            <BookOpen className="size-4 text-sky-700" />
+            <span>
+              {nombreAsignatura} : Campus Chillán
+            </span>
           </p>
 
           {/* Rejilla de dos columnas con divisores horizontales */}
@@ -68,7 +120,7 @@ export function PerfilUsuario({ user, onBack }: PerfilUsuarioProps) {
                   CAMPUS
                 </span>
                 <span className="text-sm font-medium text-slate-800 text-right">
-                  Campus Chillán- La Castilla
+                  Campus Chillán - La Castilla
                 </span>
               </div>
 
@@ -101,12 +153,29 @@ export function PerfilUsuario({ user, onBack }: PerfilUsuarioProps) {
                   Activo
                 </span>
               </div>
+
+              {estadoPractica?.semestre && (
+                <div className="py-3.5 flex items-center justify-between gap-4">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    SEMESTRE
+                  </span>
+                  <span className="text-sm font-medium text-slate-800 text-right">
+                    {estadoPractica.semestre}.º Semestre
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tarjeta 2: Datos de identificación y cuenta institucional */}
+      {/* Tarjeta 2: Línea de progreso de la Práctica (HU-10) — CONDICIONAL solo para alumnos con práctica */}
+      <LineaProgresoPractica estadoPractica={estadoPractica} loading={loadingDatos} />
+
+      {/* Tarjeta 3: Historial de Actividades y Evaluaciones como Checks (HU-09) */}
+      <HistorialActividades items={historial} loading={loadingDatos} />
+
+      {/* Tarjeta 4: Datos de identificación y cuenta institucional */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">

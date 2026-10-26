@@ -91,6 +91,98 @@ public class EvaluacionService {
         return evaluacionRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public List<Evaluacion> obtenerEvaluacionesPorProfesor(String rutProfesor) {
+        if (rutProfesor == null || rutProfesor.isBlank()) {
+            return java.util.Collections.emptyList();
+        }
+
+        Profesor profesor = profesorRepository.findByUsuarioRut(rutProfesor).orElse(null);
+        Set<Long> evaluacionIds = new HashSet<>();
+        List<Evaluacion> resultado = new ArrayList<>();
+
+        if (profesor != null) {
+            // 1. Evaluaciones donde el profesor es el evaluador directo
+            List<Evaluacion> creadas = evaluacionRepository.findByIdEvaluador(profesor.getIdProfesor());
+            for (Evaluacion ev : creadas) {
+                if (evaluacionIds.add(ev.getIdEvaluacion())) {
+                    resultado.add(ev);
+                }
+            }
+
+            // 2. Evaluaciones de estudiantes inscritos en la asignatura del profesor
+            if (profesor.getAsignatura() != null && profesor.getAsignatura().getIdAsignatura() != null) {
+                List<Evaluacion> deAsignatura = evaluacionRepository
+                        .findByPracticaEstudianteAsignaturaIdAsignatura(profesor.getAsignatura().getIdAsignatura());
+                for (Evaluacion ev : deAsignatura) {
+                    if (evaluacionIds.add(ev.getIdEvaluacion())) {
+                        resultado.add(ev);
+                    }
+                }
+            }
+        }
+
+        // 3. Evaluaciones en prácticas donde actúa como tutor
+        List<Practica> practicasTutor = practicaRepository.findByTutorPracticaUsuarioRut(rutProfesor);
+        if (practicasTutor != null) {
+            for (Practica p : practicasTutor) {
+                for (Evaluacion ev : evaluacionRepository.findByPracticaIdPractica(p.getIdPractica())) {
+                    if (evaluacionIds.add(ev.getIdEvaluacion())) {
+                        resultado.add(ev);
+                    }
+                }
+            }
+        }
+
+        // 4. Evaluaciones en prácticas donde actúa como profesor colaborador
+        List<Practica> practicasColab = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rutProfesor);
+        if (practicasColab != null) {
+            for (Practica p : practicasColab) {
+                for (Evaluacion ev : evaluacionRepository.findByPracticaIdPractica(p.getIdPractica())) {
+                    if (evaluacionIds.add(ev.getIdEvaluacion())) {
+                        resultado.add(ev);
+                    }
+                }
+            }
+        }
+
+        return resultado;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean profesorTieneAccesoAEvaluacion(Long idEvaluacion, String rutProfesor) {
+        if (idEvaluacion == null || rutProfesor == null || rutProfesor.isBlank()) return false;
+        Evaluacion ev = evaluacionRepository.findById(idEvaluacion).orElse(null);
+        if (ev == null) return false;
+
+        Profesor prof = profesorRepository.findByUsuarioRut(rutProfesor).orElse(null);
+        if (prof != null && ev.getIdEvaluador() != null && ev.getIdEvaluador().equals(prof.getIdProfesor())) {
+            return true;
+        }
+
+        if (prof != null && prof.getAsignatura() != null && ev.getPractica() != null && ev.getPractica().getEstudiante() != null) {
+            Estudiante est = ev.getPractica().getEstudiante();
+            if (est.getAsignatura() != null && est.getAsignatura().getIdAsignatura().equals(prof.getAsignatura().getIdAsignatura())) {
+                return true;
+            }
+        }
+
+        if (ev.getPractica() != null) {
+            Practica p = ev.getPractica();
+            if (p.getTutorPractica() != null && p.getTutorPractica().getUsuario() != null
+                    && rutProfesor.equals(p.getTutorPractica().getUsuario().getRut())) {
+                return true;
+            }
+            if (p.getProfesoresColaboradores() != null) {
+                boolean esColab = p.getProfesoresColaboradores().stream()
+                        .anyMatch(pc -> pc.getUsuario() != null && rutProfesor.equals(pc.getUsuario().getRut()));
+                if (esColab) return true;
+            }
+        }
+
+        return false;
+    }
+
     public Evaluacion obtenerPorId(Long id) {
         return evaluacionRepository.findById(id).orElse(null);
     }

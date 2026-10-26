@@ -13,9 +13,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.backend.model.Estudiante;
 import com.backend.service.EstudianteService;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import com.backend.dto.EstadoPracticaDTO;
+import com.backend.dto.HistorialItemDTO;
 
 @RestController
 @RequestMapping("/api/estudiantes")
+@CrossOrigin(origins = "*")
 public class EstudianteController {
 
     private final EstudianteService estudianteService;
@@ -45,6 +49,22 @@ public class EstudianteController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(estudiante);
+    }
+
+    /**
+     * Módulo 4 (HU-09): Historial consolidado de actividades y evaluaciones como "checks" completados.
+     */
+    @GetMapping("/rut/{rut}/historial")
+    public ResponseEntity<List<HistorialItemDTO>> obtenerHistorialEstudiante(@PathVariable String rut) {
+        return ResponseEntity.ok(estudianteService.obtenerHistorialEstudiante(rut));
+    }
+
+    /**
+     * Módulo 4 (HU-10): Estado y progreso de práctica (permite renderizado condicional en frontend).
+     */
+    @GetMapping("/rut/{rut}/estado-practica")
+    public ResponseEntity<EstadoPracticaDTO> obtenerEstadoPractica(@PathVariable String rut) {
+        return ResponseEntity.ok(estudianteService.obtenerEstadoPractica(rut));
     }
 
     @PostMapping
