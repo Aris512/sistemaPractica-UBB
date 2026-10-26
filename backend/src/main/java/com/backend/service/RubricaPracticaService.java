@@ -95,7 +95,7 @@ public class RubricaPracticaService {
             .filter(p -> actual != null && p.getAsignatura() != null
                 && Objects.equals(p.getAsignatura().getIdAsignatura(), actual.getIdAsignatura()))
             .findFirst()
-            .orElseGet(() -> practicas.stream().max(Comparator.comparing(Practica::getIdPractica)).orElse(null));
+            .orElseGet(() -> practicas.stream().max(Comparator.comparing((Practica p) -> p.getIdPractica(), Comparator.nullsFirst(Comparator.naturalOrder()))).orElse(null));
     }
 
     private List<RubricaPractica> asegurarRubricas(Practica practica) {
