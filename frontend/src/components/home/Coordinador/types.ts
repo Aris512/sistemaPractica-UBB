@@ -3,6 +3,7 @@ export type CoordinadorMenuKey =
   | "asociar"
   | "centros-practica"
   | "evaluaciones"
+  | "pautas"
   | "documentos"
   | "documentos-practica"
   | "portafolio"
@@ -26,6 +27,10 @@ export interface AsignaturaPractica {
   nombre: string;
   descripcion?: string;
   semestre?: string;
+  /** INICIAL | INTERMEDIA | PEDAGOGICA | PROFESIONAL */
+  nivel?: string;
+  requiereColaborador?: boolean;
+  requiereTutor?: boolean;
 }
 
 export interface TutorPracticaDTO {
@@ -61,6 +66,8 @@ export interface AsociacionPractica {
   idCentro?: number;
   centroNombre?: string;
   estadoAprobacion: string;
+  /** La práctica ya tiene pautas de evaluación aplicadas: no se puede reemplazar ni desvincular. */
+  tienePautas?: boolean;
 }
 
 export interface CandidatosResponse {
