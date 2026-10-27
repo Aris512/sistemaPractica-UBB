@@ -63,7 +63,8 @@ public class PracticaService {
 
     /**
      * Elimina la práctica junto con lo que solo existe por ella: sus evaluaciones (con notas, observaciones,
-     * notas de voz y archivo adjunto) y el vínculo con sus profesores colaboradores. Las encuestas,
+     * notas de voz y archivo adjunto), las pautas aplicadas con sus respuestas y el vínculo con sus
+     * profesores colaboradores. Las encuestas,
      * planificaciones y proyectos de intervención son trabajo del alumno: se conservan desvinculados.
      * Las rúbricas de avance (rubrica_practica) se borran en cascada desde la base de datos.
      */
@@ -80,6 +81,11 @@ public class PracticaService {
         jdbcTemplate.update("DELETE FROM observacion_evaluacion WHERE id_evaluacion IN (" + evaluacionesDePractica + ")", id);
         jdbcTemplate.update("DELETE FROM nota_de_voz WHERE id_evaluacion IN (" + evaluacionesDePractica + ")", id);
         jdbcTemplate.update("DELETE FROM evaluacion WHERE id_practica = ?", id);
+
+        // Pautas aplicadas a la práctica (sus respuestas primero, por la clave foránea a pauta_aplicacion)
+        jdbcTemplate.update("DELETE FROM pauta_respuesta WHERE aplicacion_id IN "
+            + "(SELECT id FROM pauta_aplicacion WHERE id_practica = ?)", id);
+        jdbcTemplate.update("DELETE FROM pauta_aplicacion WHERE id_practica = ?", id);
 
         jdbcTemplate.update("UPDATE encuesta SET id_practica = NULL WHERE id_practica = ?", id);
         jdbcTemplate.update("UPDATE planificacion SET id_practica = NULL WHERE id_practica = ?", id);
