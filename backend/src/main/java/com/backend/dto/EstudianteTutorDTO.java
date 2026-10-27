@@ -6,6 +6,7 @@ public class EstudianteTutorDTO {
 
     private Long idEstudiante;
     private Long idPractica;
+    private Long idEvaluacion;
     private String rut;
     private String nombre;
     private String correo;
@@ -15,6 +16,13 @@ public class EstudianteTutorDTO {
     private String estadoEvaluacion;  // "PENDIENTE", "EN_EVALUACION", "EVALUADO"
     private Double calificacion;
     private String observacionTexto;
+    private String tipoEvaluacion;
+    private String evaluadorRut;
+    private String evaluadorNombre;
+    private String tipoEvaluador;
+    private String archivoUrl;
+    private String nombreArchivo;
+    private Boolean tieneArchivo;
     private LocalDateTime fechaActualizacion;
 
     public EstudianteTutorDTO() {
@@ -52,6 +60,14 @@ public class EstudianteTutorDTO {
 
     public void setIdPractica(Long idPractica) {
         this.idPractica = idPractica;
+    }
+
+    public Long getIdEvaluacion() {
+        return idEvaluacion;
+    }
+
+    public void setIdEvaluacion(Long idEvaluacion) {
+        this.idEvaluacion = idEvaluacion;
     }
 
     public String getRut() {
@@ -124,6 +140,62 @@ public class EstudianteTutorDTO {
 
     public void setObservacionTexto(String observacionTexto) {
         this.observacionTexto = observacionTexto;
+    }
+
+    public String getTipoEvaluacion() {
+        return tipoEvaluacion;
+    }
+
+    public void setTipoEvaluacion(String tipoEvaluacion) {
+        this.tipoEvaluacion = tipoEvaluacion;
+    }
+
+    public String getEvaluadorRut() {
+        return evaluadorRut;
+    }
+
+    public void setEvaluadorRut(String evaluadorRut) {
+        this.evaluadorRut = evaluadorRut;
+    }
+
+    public String getEvaluadorNombre() {
+        return evaluadorNombre;
+    }
+
+    public void setEvaluadorNombre(String evaluadorNombre) {
+        this.evaluadorNombre = evaluadorNombre;
+    }
+
+    public String getTipoEvaluador() {
+        return tipoEvaluador;
+    }
+
+    public void setTipoEvaluador(String tipoEvaluador) {
+        this.tipoEvaluador = tipoEvaluador;
+    }
+
+    public String getArchivoUrl() {
+        return archivoUrl;
+    }
+
+    public void setArchivoUrl(String archivoUrl) {
+        this.archivoUrl = archivoUrl;
+    }
+
+    public String getNombreArchivo() {
+        return nombreArchivo;
+    }
+
+    public void setNombreArchivo(String nombreArchivo) {
+        this.nombreArchivo = nombreArchivo;
+    }
+
+    public Boolean getTieneArchivo() {
+        return tieneArchivo;
+    }
+
+    public void setTieneArchivo(Boolean tieneArchivo) {
+        this.tieneArchivo = tieneArchivo;
     }
 
     public LocalDateTime getFechaActualizacion() {

@@ -645,6 +645,7 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         isOpen={!!selectedStudent}
         student={selectedStudent}
         profesorRut={profesorRut}
+        profesorNombre={`${user?.nombre || ""} ${user?.apellido || ""}`.trim() || undefined}
         onClose={handleCloseModal}
         onSaved={handleStudentUpdated}
       />
