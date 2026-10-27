@@ -49,6 +49,36 @@ export interface PautaDetalle {
   version?: string | null;
   activa: boolean;
   criterios: CriterioPauta[];
+  /** true si ya hay evaluaciones registradas: la estructura de la pauta no se puede cambiar. */
+  tieneEvaluaciones: boolean;
+}
+
+export type ModoCalculo = "ESCALA_EXIGENCIA" | "PROMEDIO";
+
+export interface CriterioPayload {
+  dimension?: string | null;
+  numero?: string;
+  texto: string;
+}
+
+/** Cuerpo para crear o editar una pauta (solo coordinador). Los campos omitidos no se modifican. */
+export interface PautaPayload {
+  codigo?: string;
+  titulo?: string;
+  asignatura?: string;
+  tipo?: string;
+  especialidad?: string;
+  momento?: string;
+  evaluador?: string;
+  escalaMin?: number;
+  escalaMax?: number;
+  modoCalculo?: ModoCalculo;
+  exigencia?: number | null;
+  ponderacion?: string | null;
+  instrucciones?: string | null;
+  version?: string | null;
+  activa?: boolean;
+  criterios?: CriterioPayload[];
 }
 
 export interface RespuestaPauta {
@@ -190,4 +220,29 @@ export const cambiarActivaPauta = async (rut: string, id: number, valor: boolean
   });
   if (!response.ok) throw await leerError(response, "No se pudo cambiar el estado de la pauta");
   return response.json();
+};
+
+export const crearPauta = async (rut: string, payload: PautaPayload): Promise<PautaDetalle> => {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: cabeceras(rut, true),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw await leerError(response, "No se pudo crear la pauta");
+  return response.json();
+};
+
+export const actualizarPauta = async (rut: string, id: number, payload: PautaPayload): Promise<PautaDetalle> => {
+  const response = await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: cabeceras(rut, true),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw await leerError(response, "No se pudo guardar la pauta");
+  return response.json();
+};
+
+export const eliminarPauta = async (rut: string, id: number): Promise<void> => {
+  const response = await fetch(`${API_URL}/${id}`, { method: "DELETE", headers: cabeceras(rut) });
+  if (!response.ok) throw await leerError(response, "No se pudo eliminar la pauta");
 };
