@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Loader2, Pencil, Plus } from "lucide-react";
 import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
+import { PautaEditor, type ModoEditor } from "./PautaEditor";
 import {
   cambiarActivaPauta,
   getCatalogo,
@@ -70,6 +71,18 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
   const [cambiando, setCambiando] = useState<number | null>(null);
   const [expandida, setExpandida] = useState<number | null>(null);
   const [criterios, setCriterios] = useState<Record<number, CriterioPauta[]>>({});
+  const [editor, setEditor] = useState<ModoEditor | null>(null);
+
+  const cargar = async () => {
+    try {
+      setPautas(await getCatalogo(user.rut));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cargar el catálogo.");
+    } finally {
+      setCargando(false);
+    }
+  };
 
   useEffect(() => {
     let cancelado = false;
@@ -87,6 +100,20 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
       cancelado = true;
     };
   }, [user.rut]);
+
+  /** Tras crear, editar o eliminar: se vuelve a leer el catálogo y se descartan los indicadores en caché. */
+  const alTerminarEdicion = async (id?: number) => {
+    setEditor(null);
+    if (id !== undefined) {
+      setCriterios((prev) => {
+        const copia = { ...prev };
+        delete copia[id];
+        return copia;
+      });
+      setExpandida((actual) => (actual === id ? null : actual));
+    }
+    await cargar();
+  };
 
   // Las 6 asignaturas de la línea de práctica se muestran siempre, aunque aún no tengan pautas cargadas.
   const porAsignatura = useMemo(() => {
@@ -156,10 +183,19 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        Pautas oficiales organizadas por práctica, especialidad y momento de evaluación. Una pauta desactivada deja de
-        aparecer a los evaluadores, pero conserva las evaluaciones ya registradas.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 flex-1 min-w-64">
+          Pautas oficiales organizadas por práctica, especialidad y momento de evaluación. Una pauta desactivada deja de
+          aparecer a los evaluadores, pero conserva las evaluaciones ya registradas.
+        </p>
+        <button
+          type="button"
+          onClick={() => setEditor({ tipo: "crear" })}
+          className="inline-flex items-center gap-2 h-10 px-4 rounded-full bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700 transition-colors cursor-pointer"
+        >
+          <Plus className="size-4" /> Nueva pauta
+        </button>
+      </div>
       {porAsignatura.map(({ nombre: asignatura, nota, lista }) => (
         <section key={asignatura} className="space-y-2">
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{asignatura}</h3>
@@ -192,6 +228,24 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
                     aria-label="Ver indicadores"
                   >
                     {expandida === p.id ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditor({ tipo: "editar", id: p.id })}
+                    className="shrink-0 size-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sky-700 cursor-pointer"
+                    aria-label={`Editar ${p.titulo}`}
+                    title="Editar"
+                  >
+                    <Pencil className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditor({ tipo: "duplicar", id: p.id })}
+                    className="shrink-0 size-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-sky-700 cursor-pointer"
+                    aria-label={`Crear nueva versión de ${p.titulo}`}
+                    title="Crear nueva versión"
+                  >
+                    <Copy className="size-4" />
                   </button>
                   <button
                     type="button"
@@ -228,6 +282,15 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
           </ul>
         </section>
       ))}
+
+      <PautaEditor
+        user={user}
+        modo={editor}
+        onCerrar={() => setEditor(null)}
+        onGuardada={(pauta) => alTerminarEdicion(pauta.id)}
+        onEliminada={(id) => alTerminarEdicion(id)}
+        onNuevaVersion={(id) => setEditor({ tipo: "duplicar", id })}
+      />
     </div>
   );
 }
