@@ -1,7 +1,6 @@
 package com.backend.model;
 
 import java.time.LocalDateTime;
-import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,8 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
@@ -49,14 +46,6 @@ public class Documento {
     @ManyToOne
     @JoinColumn(name = "id_actividad")
     private Actividad actividad;
-
-    @ManyToMany
-    @JoinTable(
-        name = "documento_planificacion",
-        joinColumns = @JoinColumn(name = "id_documento"),
-        inverseJoinColumns = @JoinColumn(name = "id_planificacion")
-    )
-    private Set<Planificacion> planificaciones;
 
     public Documento() {
     }
@@ -117,13 +106,7 @@ public class Documento {
         this.usuario = usuario;
     }
 
-    public Set<Planificacion> getPlanificaciones() {
-        return planificaciones;
-    }
 
-    public void setPlanificaciones(Set<Planificacion> planificaciones) {
-        this.planificaciones = planificaciones;
-    }
 
     public Long getTamanioBytes() {
         return tamanioBytes;
