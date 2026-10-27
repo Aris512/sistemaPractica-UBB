@@ -3,6 +3,7 @@ package com.backend.service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import com.backend.model.ChatMensaje;
 import com.backend.model.RetroalimentacionIA;
 import com.backend.model.RetroalimentacionIA.Estado;
 import com.backend.repository.RetroalimentacionIARepository;
@@ -92,9 +94,26 @@ public class RevisionIAPlanificacion {
         return maxCaracteresHistorial;
     }
 
-    public String promptSistema(RetroalimentacionIA retro) {
-        return promptRetroPlani + "\n\n---\n\nPLANIFICACIÓN ADJUNTA (archivo «" + retro.getNombreArchivoRevisado() + "»):\n\n"
-                + retro.getTextoPlanificacion();
+    public String promptSistema() {
+        return promptRetroPlani;
+    }
+
+    /** Solo los mensajes posteriores al archivo vigente: los anteriores hablaban de otra versión. */
+    public List<ChatMensaje> historialVigente(RetroalimentacionIA retro, List<ChatMensaje> historial) {
+        int previos = retro.getMensajesPreviosArchivo();
+        return historial.stream().filter(m -> m.getOrden() > previos).toList();
+    }
+
+    /**
+     * Lo que recibe la IA como último mensaje del alumno: su texto más el contenido del archivo vigente. Va junto al
+     * mensaje, y no al final del prompt de sistema, porque ahí la IA lo pasaba por alto y respondía que solo veía el
+     * nombre del archivo. Solo se envía a Groq; en la conversación queda guardado el texto del alumno.
+     */
+    public String conArchivoAdjunto(RetroalimentacionIA retro, String mensaje) {
+        String texto = retro.getTextoPlanificacion() == null ? "" : retro.getTextoPlanificacion().strip();
+        return mensaje + "\n\n---\nARCHIVO ADJUNTO «" + retro.getNombreArchivoRevisado() + "» (texto extraído por la plataforma; "
+                + "es la versión vigente y reemplaza a cualquier versión anterior; " + texto.length() + " caracteres):\n<<<\n"
+                + texto + "\n>>>";
     }
 
     /**

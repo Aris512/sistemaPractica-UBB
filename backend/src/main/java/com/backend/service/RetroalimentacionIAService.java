@@ -27,6 +27,7 @@ import com.backend.model.RetroalimentacionIA;
 import com.backend.model.RetroalimentacionIA.Estado;
 import com.backend.model.Usuario;
 import com.backend.repository.ChatConversacionRepository;
+import com.backend.repository.ChatMensajeRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.PlanificacionRepository;
 import com.backend.repository.ProfesorRepository;
@@ -45,6 +46,8 @@ public class RetroalimentacionIAService {
     private static final Logger logger = LoggerFactory.getLogger(RetroalimentacionIAService.class);
     private static final String CATEGORIA_PLANIFICACION = "PLANIFICACION";
     private static final int MAX_COMENTARIO = 2000;
+    /** Deja espacio en el mensaje del chat (4.000 caracteres) para la frase automática que anuncia el archivo. */
+    private static final int MAX_COMENTARIO_ADJUNTO = 3500;
 
     private final RetroalimentacionIARepository repository;
     private final PlanificacionRepository planificacionRepository;
@@ -52,6 +55,7 @@ public class RetroalimentacionIAService {
     private final ProfesorRepository profesorRepository;
     private final UsuarioRepository usuarioRepository;
     private final ChatConversacionRepository conversacionRepository;
+    private final ChatMensajeRepository mensajeRepository;
     private final ChatService chatService;
     private final PlanificacionTextoExtractor extractor;
     private final PlanificacionService planificacionService;
@@ -63,6 +67,7 @@ public class RetroalimentacionIAService {
                                       ProfesorRepository profesorRepository,
                                       UsuarioRepository usuarioRepository,
                                       ChatConversacionRepository conversacionRepository,
+                                      ChatMensajeRepository mensajeRepository,
                                       ChatService chatService,
                                       PlanificacionTextoExtractor extractor,
                                       PlanificacionService planificacionService,
@@ -73,6 +78,7 @@ public class RetroalimentacionIAService {
         this.profesorRepository = profesorRepository;
         this.usuarioRepository = usuarioRepository;
         this.conversacionRepository = conversacionRepository;
+        this.mensajeRepository = mensajeRepository;
         this.chatService = chatService;
         this.extractor = extractor;
         this.planificacionService = planificacionService;
@@ -106,8 +112,13 @@ public class RetroalimentacionIAService {
      * La llamada a Groq va fuera de la transacción, igual que en el chat.
      */
     public InicioRevisionDTO iniciarRevisionIa(String rutCliente, Long idPlanificacion) {
+        return iniciarRevisionIa(rutCliente, idPlanificacion, null);
+    }
+
+    /** comentario: lo que el alumno escribió junto al archivo (botón +); se agrega al mensaje automático. */
+    private InicioRevisionDTO iniciarRevisionIa(String rutCliente, Long idPlanificacion, String comentario) {
         String rut = chatService.resolverUsuario(rutCliente);
-        InicioPreparado inicio = transaccion.execute(status -> prepararRevision(rut, idPlanificacion));
+        InicioPreparado inicio = transaccion.execute(status -> prepararRevision(rut, idPlanificacion, comentario));
 
         String aviso = inicio.aviso();
         if (inicio.mensajeAutomatico() != null) {
@@ -125,7 +136,7 @@ public class RetroalimentacionIAService {
     private record InicioPreparado(Long idConversacion, boolean nueva, String mensajeAutomatico, String aviso) {
     }
 
-    private InicioPreparado prepararRevision(String rut, Long idPlanificacion) {
+    private InicioPreparado prepararRevision(String rut, Long idPlanificacion, String comentario) {
         Planificacion planificacion = planificacionPropia(rut, idPlanificacion);
         Documento archivo = archivoPlanificacion(planificacion);
         if (archivo == null) {
@@ -151,6 +162,8 @@ public class RetroalimentacionIAService {
             retro.setNombreArchivoRevisado(archivo.getNombre());
             if (retro.getConversacion() != null) {
                 aviso = "La IA ahora revisa tu archivo actualizado «" + archivo.getNombre() + "».";
+                // Lo conversado hasta aquí era sobre la versión anterior: la IA ya no lo recibe
+                retro.setMensajesPreviosArchivo(mensajeRepository.findMaxOrden(retro.getConversacion().getIdConversacion()));
             }
         }
 
@@ -159,6 +172,7 @@ public class RetroalimentacionIAService {
             String titulo = "Revisión: " + archivo.getNombre();
             Long id = chatService.crearConversacion(rut, titulo.length() > 100 ? titulo.substring(0, 100) : titulo).id();
             retro.setConversacion(conversacionRepository.getReferenceById(id));
+            retro.setMensajesPreviosArchivo(0);
         }
         retro.tocar();
         repository.save(retro);
@@ -169,6 +183,9 @@ public class RetroalimentacionIAService {
         } else if (archivoNuevo) {
             mensaje = "Adjunto una versión actualizada de mi planificación «" + archivo.getNombre() + "». Por favor, revísala.";
         }
+        if (mensaje != null && comentario != null && !comentario.isBlank()) {
+            mensaje += "\n\n" + comentario.strip();
+        }
         return new InicioPreparado(retro.getConversacion().getIdConversacion(), nueva, mensaje, aviso);
     }
 
@@ -177,8 +194,12 @@ public class RetroalimentacionIAService {
      * lee el archivo nuevo en la misma conversación; si ya estaba cerrada (aprobada por la IA, rechazada por el profesor
      * o revisiones agotadas) se reinicia el ciclo y se abre una conversación nueva.
      */
-    public InicioRevisionDTO reemplazarArchivo(String rutCliente, Long idPlanificacion, MultipartFile archivo) {
+    public InicioRevisionDTO reemplazarArchivo(String rutCliente, Long idPlanificacion, MultipartFile archivo, String comentario) {
         String rut = chatService.resolverUsuario(rutCliente);
+        if (comentario != null && comentario.strip().length() > MAX_COMENTARIO_ADJUNTO) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "CHAT_MENSAJE_LARGO",
+                    "El mensaje que acompaña al archivo supera el máximo de " + MAX_COMENTARIO_ADJUNTO + " caracteres.");
+        }
         // Se valida todo antes de tocar el archivo actual, para no perderlo si lo nuevo no sirve
         transaccion.executeWithoutResult(status -> {
             RetroalimentacionIA retro = retroDe(planificacionPropia(rut, idPlanificacion));
@@ -188,12 +209,11 @@ public class RetroalimentacionIAService {
                         : "Tu profesor está revisando esta planificación: espera su respuesta antes de cambiar el archivo.");
             }
         });
-        String nombre = archivo == null || archivo.getOriginalFilename() == null ? "" : archivo.getOriginalFilename();
-        String extension = nombre.contains(".") ? nombre.substring(nombre.lastIndexOf('.') + 1).toLowerCase() : "";
-        if (!extension.equals("docx") && !extension.equals("pdf")) {
-            throw new ChatException(HttpStatus.BAD_REQUEST, "RETRO_FORMATO_NO_SOPORTADO",
-                    "La IA solo puede leer planificaciones en .docx o .pdf.");
+        if (archivo == null || archivo.isEmpty()) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "RETRO_SIN_ARCHIVO", "Adjunta el archivo de tu planificación.");
         }
+        // Formato, archivo dañado o sin texto: se rechaza aquí, sin perder la planificación que ya estaba subida
+        extractor.extraer(archivo);
 
         planificacionService.subirArchivos(idPlanificacion, List.of(archivo), List.of(CATEGORIA_PLANIFICACION), rut);
 
@@ -204,7 +224,7 @@ public class RetroalimentacionIAService {
                 reiniciar(rut, retro.getIdRetroalimentacion());
             }
         });
-        return iniciarRevisionIa(rut, idPlanificacion);
+        return iniciarRevisionIa(rut, idPlanificacion, comentario);
     }
 
     @Transactional
@@ -244,6 +264,7 @@ public class RetroalimentacionIAService {
         retro.setCiclo(retro.getCiclo() + 1);
         retro.setRevisionesIa(0);
         retro.setConversacion(null);
+        retro.setMensajesPreviosArchivo(0);
         retro.setTextoPlanificacion(null);
         retro.setIdDocumentoRevisado(null);
         retro.setNombreArchivoRevisado(null);

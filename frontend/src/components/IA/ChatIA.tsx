@@ -71,7 +71,7 @@ function useEnLinea(): boolean {
 export interface RevisionChat {
   esRevision: (idConversacion: number) => boolean;
   /** Reemplaza el archivo de la planificación y devuelve la conversación a mostrar (nueva si se reinició el ciclo). */
-  reemplazarArchivo: (idConversacion: number, archivo: File) => Promise<InicioRevision>;
+  reemplazarArchivo: (idConversacion: number, archivo: File, mensaje: string) => Promise<InicioRevision>;
 }
 
 interface ChatIAProps {
@@ -79,7 +79,7 @@ interface ChatIAProps {
   revision?: RevisionChat;
 }
 
-const AYUDA_ADJUNTAR = "Usa + para reemplazar tu planificación por una versión corregida (.docx o .pdf).";
+const AYUDA_ADJUNTAR = "Usa + para adjuntar tu planificación corregida (.docx o .pdf); puedes escribir un mensaje y luego enviar.";
 
 export function ChatIA({ rut, revision }: ChatIAProps) {
   const claveActiva = `ubb_chat_activa_${rut}`;
@@ -107,6 +107,8 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
   const [confirmarEliminarAbierto, setConfirmarEliminarAbierto] = useState(false);
   const [listaMovilAbierta, setListaMovilAbierta] = useState(false);
   const [adjuntando, setAdjuntando] = useState(false);
+  // Archivo elegido con + en una conversación de revisión; se envía al presionar enviar
+  const [adjunto, setAdjunto] = useState<{ conversacionId: number; archivo: File } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pegadoAlFinalRef = useRef(true);
@@ -225,12 +227,27 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
   // ---------------------------------------------------------------------------------------------
 
   const puedeAdjuntar = !!revision && activaId !== null && revision.esRevision(activaId);
+  // El adjunto pertenece a la conversación donde se eligió: al cambiar de conversación deja de mostrarse
+  const adjuntoActivo = puedeAdjuntar && adjunto?.conversacionId === activaId ? adjunto.archivo : null;
 
-  const adjuntarArchivo = async (archivo: File) => {
+  const elegirAdjunto = (archivo: File) => {
+    if (activaId === null) return;
+    const extension = archivo.name.split(".").pop()?.toLowerCase();
+    if (extension !== "docx" && extension !== "pdf") {
+      sileo.error({ title: "Formato no soportado", description: "La IA solo puede leer planificaciones en .docx o .pdf." });
+      return;
+    }
+    setAdjunto({ conversacionId: activaId, archivo });
+  };
+
+  const adjuntarArchivo = async (archivo: File, mensaje: string) => {
     if (!revision || activaId === null || adjuntando || !enLinea) return;
     setAdjuntando(true);
     try {
-      const inicio = await revision.reemplazarArchivo(activaId, archivo);
+      const inicio = await revision.reemplazarArchivo(activaId, archivo, mensaje.trim());
+      // El texto y el archivo se limpian solo si se enviaron, para no perderlos ante un error
+      setAdjunto(null);
+      setBorrador("");
       await cargarConversaciones();
       seleccionar(inicio.idConversacion);
       sileo.success({
@@ -529,11 +546,13 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
           ref={entradaRef}
           valor={borrador}
           onCambiar={setBorrador}
-          onEnviar={() => void enviar(borrador)}
+          onEnviar={() => void (adjuntoActivo ? adjuntarArchivo(adjuntoActivo, borrador) : enviar(borrador))}
           enviando={enCurso !== null}
           deshabilitado={!enLinea || estadoMensajes === "cargando"}
           motivoDeshabilitado={!enLinea ? "Sin conexión" : undefined}
-          onAdjuntar={puedeAdjuntar ? (archivo) => void adjuntarArchivo(archivo) : undefined}
+          onAdjuntar={puedeAdjuntar ? elegirAdjunto : undefined}
+          adjunto={adjuntoActivo}
+          onQuitarAdjunto={() => setAdjunto(null)}
           adjuntando={adjuntando}
           ayudaAdjuntar={AYUDA_ADJUNTAR}
         />
