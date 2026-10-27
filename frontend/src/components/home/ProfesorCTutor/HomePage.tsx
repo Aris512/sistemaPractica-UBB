@@ -56,7 +56,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
           return <TableEstudiantes user={user} />;
         }
-        return <Pautas onBack={() => setActiveMenu("inicio")} />;
+        return <Pautas user={user} onBack={() => setActiveMenu("inicio")} />;
       case "observaciones":
         if (!hasPermission("OBSERVACIONES_CONSULTAR") && !hasPermission("OBSERVACIONES_REGISTRAR")) {
           return <TableEstudiantes user={user} />;
