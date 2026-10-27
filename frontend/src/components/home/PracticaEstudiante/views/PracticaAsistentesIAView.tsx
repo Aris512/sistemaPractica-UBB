@@ -38,10 +38,10 @@ export function PracticaAsistentesIAView({ user }: { user: UserSession }) {
 
   const revision: RevisionChat = {
     esRevision: (idConversacion) => revisiones.has(idConversacion),
-    reemplazarArchivo: async (idConversacion, archivo) => {
+    reemplazarArchivo: async (idConversacion, archivo, mensaje) => {
       const idPlanificacion = revisionesRef.current.get(idConversacion);
       if (idPlanificacion === undefined) throw new Error("Esta conversación no corresponde a una revisión de planificación.");
-      const inicio = await reemplazarArchivoPlanificacion(rut, idPlanificacion, archivo);
+      const inicio = await reemplazarArchivoPlanificacion(rut, idPlanificacion, archivo, mensaje);
       // La conversación nueva (si se reinició el ciclo) ya debe figurar como revisión
       const actualizadas = await listarRetroalimentacionesEstudiante(rut).catch(() => null);
       if (actualizadas) aplicar(actualizadas);

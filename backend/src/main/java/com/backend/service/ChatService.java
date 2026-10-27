@@ -196,16 +196,6 @@ public class ChatService {
         }
 
         obtenerPropia(rut, idConversacion);
-        // Las conversaciones de revisión de planificación usan el prompt RetroPlani con la planificación adjunta
-        // y un historial más corto, para no pasar del límite de tokens por minuto de Groq
-        String promptSistema = PROMPT_SISTEMA;
-        int presupuestoHistorial = maxCaracteresContexto;
-        Optional<RetroalimentacionIA> revision = revisionPlanificacion.deConversacion(idConversacion);
-        if (revision.isPresent()) {
-            revisionPlanificacion.validarPuedeConversar(revision.get());
-            promptSistema = revisionPlanificacion.promptSistema(revision.get());
-            presupuestoHistorial = revisionPlanificacion.maxCaracteresHistorial();
-        }
         List<ChatMensaje> historial = mensajeRepository.findByConversacionIdConversacionOrderByOrdenAsc(idConversacion);
         if (historial.size() + 2 > maxMensajesPorConversacion) {
             throw new ChatException(HttpStatus.CONFLICT, "CHAT_CONVERSACION_LLENA",
@@ -218,10 +208,26 @@ public class ChatService {
                     "Alcanzaste el límite diario de " + maxRespuestasPorDia + " mensajes. Vuelve a intentarlo mañana.");
         }
 
+        // Las conversaciones de revisión de planificación usan el prompt RetroPlani, el archivo vigente junto al
+        // mensaje y un historial más corto, para no pasar del límite de tokens por minuto de Groq
+        List<GroqClient.Mensaje> contexto;
+        Optional<RetroalimentacionIA> revision = revisionPlanificacion.deConversacion(idConversacion);
+        if (revision.isPresent()) {
+            RetroalimentacionIA retro = revision.get();
+            revisionPlanificacion.validarPuedeConversar(retro);
+            String conArchivo = revisionPlanificacion.conArchivoAdjunto(retro, texto);
+            // El archivo no descuenta del presupuesto del historial: ya tiene su propio máximo de caracteres
+            int presupuesto = revisionPlanificacion.maxCaracteresHistorial() + conArchivo.length() - texto.length();
+            contexto = construirContexto(revisionPlanificacion.promptSistema(), presupuesto,
+                    revisionPlanificacion.historialVigente(retro, historial), conArchivo);
+        } else {
+            contexto = construirContexto(PROMPT_SISTEMA, maxCaracteresContexto, historial, texto);
+        }
+
         String respuesta;
         usoLimiter.adquirir(rut);
         try {
-            respuesta = groqClient.completar(construirContexto(promptSistema, presupuestoHistorial, historial, texto));
+            respuesta = groqClient.completar(contexto);
         } finally {
             usoLimiter.liberar(rut);
         }

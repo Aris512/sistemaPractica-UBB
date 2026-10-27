@@ -65,6 +65,13 @@ public class RetroalimentacionIA {
     @Column(name = "texto_planificacion", columnDefinition = "LONGTEXT")
     private String textoPlanificacion;
 
+    /**
+     * Mensajes de la conversación que había cuando se adjuntó el archivo vigente. La IA no recibe esos mensajes:
+     * hablaban de otra versión y la confundían («tu archivo solo dice hola»).
+     */
+    @Column(name = "mensajes_previos_archivo")
+    private Integer mensajesPreviosArchivo;
+
     @Column(name = "revisiones_ia", nullable = false)
     private int revisionesIa = 0;
 
@@ -146,6 +153,14 @@ public class RetroalimentacionIA {
 
     public void setTextoPlanificacion(String textoPlanificacion) {
         this.textoPlanificacion = textoPlanificacion;
+    }
+
+    public int getMensajesPreviosArchivo() {
+        return mensajesPreviosArchivo == null ? 0 : mensajesPreviosArchivo;
+    }
+
+    public void setMensajesPreviosArchivo(int mensajesPreviosArchivo) {
+        this.mensajesPreviosArchivo = mensajesPreviosArchivo;
     }
 
     public int getRevisionesIa() {

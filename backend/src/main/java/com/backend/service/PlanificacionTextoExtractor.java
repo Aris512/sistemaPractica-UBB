@@ -10,9 +10,9 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.model.Documento;
 
@@ -33,7 +33,21 @@ public class PlanificacionTextoExtractor {
     }
 
     public String extraer(Documento documento) {
-        String nombre = documento.getNombre() == null ? "" : documento.getNombre();
+        return extraer(documento.getNombre(),
+                () -> fileStorageService.loadFileAsResource(documento.getUbicacion()).getInputStream());
+    }
+
+    /** Lee un archivo recién recibido, antes de guardarlo: si la IA no puede leerlo, no reemplaza al anterior. */
+    public String extraer(MultipartFile archivo) {
+        return extraer(archivo.getOriginalFilename(), archivo::getInputStream);
+    }
+
+    private interface Contenido {
+        InputStream abrir() throws IOException;
+    }
+
+    private String extraer(String nombreArchivo, Contenido contenido) {
+        String nombre = nombreArchivo == null ? "" : nombreArchivo;
         String extension = nombre.contains(".") ? nombre.substring(nombre.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT) : "";
         if (!extension.equals("docx") && !extension.equals("pdf")) {
             throw new ChatException(HttpStatus.BAD_REQUEST, "RETRO_FORMATO_NO_SOPORTADO",
@@ -42,8 +56,7 @@ public class PlanificacionTextoExtractor {
 
         String texto;
         try {
-            Resource recurso = fileStorageService.loadFileAsResource(documento.getUbicacion());
-            try (InputStream entrada = recurso.getInputStream()) {
+            try (InputStream entrada = contenido.abrir()) {
                 texto = extension.equals("docx") ? textoDocx(entrada) : textoPdf(entrada);
             }
         } catch (IOException | RuntimeException e) {
