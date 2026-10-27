@@ -21,7 +21,6 @@ import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PracticaRepository;
-import com.backend.repository.UsuarioRepository;
 
 @Service
 public class PracticaService {
@@ -31,7 +30,6 @@ public class PracticaService {
     private final EvaluacionRepository evaluacionRepository;
     private final NotaRepository notaRepository;
     private final ObservacionPracticaRepository observacionPracticaRepository;
-    private final UsuarioRepository usuarioRepository;
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
 
@@ -40,7 +38,6 @@ public class PracticaService {
                            EvaluacionRepository evaluacionRepository,
                            NotaRepository notaRepository,
                            ObservacionPracticaRepository observacionPracticaRepository,
-                           UsuarioRepository usuarioRepository,
                            JdbcTemplate jdbcTemplate,
                            FileStorageService fileStorageService) {
         this.practicaRepository = practicaRepository;
@@ -48,7 +45,6 @@ public class PracticaService {
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
         this.observacionPracticaRepository = observacionPracticaRepository;
-        this.usuarioRepository = usuarioRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.fileStorageService = fileStorageService;
     }
@@ -126,8 +122,8 @@ public class PracticaService {
                 dto.setAsignaturaNombre(asigNombre);
                 dto.setCentroPractica(centro);
 
-                // Poblar con la evaluación más reciente de la práctica o del estudiante
-                completarDatosEvaluacionYObservacion(dto, p.getIdPractica(), p.getEstudiante().getIdEstudiante(), u.getRut());
+                // Poblar con la evaluación que este mismo evaluador registró para el estudiante
+                completarDatosEvaluacionYObservacion(dto, p.getEstudiante().getIdEstudiante(), u.getRut(), rut);
 
                 resultado.add(dto);
             }
@@ -160,7 +156,7 @@ public class PracticaService {
             dto.setAsignaturaNombre(asigNombre);
             dto.setCentroPractica(centro);
 
-            completarDatosEvaluacionYObservacion(dto, idPractica, est.getIdEstudiante(), u.getRut());
+            completarDatosEvaluacionYObservacion(dto, est.getIdEstudiante(), u.getRut(), rut);
 
             resultado.add(dto);
         }
@@ -168,18 +164,14 @@ public class PracticaService {
         return resultado;
     }
 
-    private void completarDatosEvaluacionYObservacion(EstudianteTutorDTO dto, Long idPractica, Long idEstudiante, String rutEstudiante) {
-        Evaluacion evaluacion = null;
-        if (idPractica != null) {
-            evaluacion = evaluacionRepository.findFirstByPracticaIdPracticaOrderByFechaDesc(idPractica).orElse(null);
-        }
-        if (evaluacion == null && idEstudiante != null) {
-            evaluacion = evaluacionRepository.findFirstByPracticaEstudianteIdEstudianteOrderByFechaDesc(idEstudiante).orElse(null);
-        }
-
-        Optional<Nota> notaOpt = idEstudiante != null
-                ? notaRepository.findFirstByEstudianteIdEstudianteOrderByIdNotaDesc(idEstudiante)
+    private void completarDatosEvaluacionYObservacion(EstudianteTutorDTO dto, Long idEstudiante, String rutEstudiante, String rutEvaluador) {
+        // Solo la nota (y su evaluación) que emitió este evaluador: el tutor no debe ver ni
+        // editar la del profesor de asignatura o la del colaborador, y viceversa.
+        Optional<Nota> notaOpt = idEstudiante != null && rutEvaluador != null
+                ? notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutEvaluador)
+                        .stream().findFirst()
                 : Optional.empty();
+        Evaluacion evaluacion = notaOpt.map(Nota::getEvaluacion).orElse(null);
 
         Double calificacion = notaOpt.map(Nota::getPuntajeObtenido).orElse(null);
         String obsTexto = evaluacion != null ? evaluacion.getObservacion() : null;

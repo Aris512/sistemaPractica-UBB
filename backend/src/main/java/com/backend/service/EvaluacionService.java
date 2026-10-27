@@ -23,6 +23,7 @@ import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
 import com.backend.model.Evidencia;
 import com.backend.model.Nota;
+import com.backend.model.NotaDeVoz;
 import com.backend.model.ObservacionEvaluacion;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
@@ -33,6 +34,7 @@ import com.backend.repository.DocumentoRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.NotaDeVozRepository;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionEvaluacionRepository;
 import com.backend.repository.PracticaRepository;
@@ -57,6 +59,7 @@ public class EvaluacionService {
     private final EvidenciaRepository evidenciaRepository;
     private final AvanceAcademicoService avanceAcademicoService;
     private final ActividadRepository actividadRepository;
+    private final NotaDeVozRepository notaDeVozRepository;
 
     public EvaluacionService(
             EvaluacionRepository evaluacionRepository,
@@ -71,7 +74,8 @@ public class EvaluacionService {
             DocumentoRepository documentoRepository,
             EvidenciaRepository evidenciaRepository,
             AvanceAcademicoService avanceAcademicoService,
-            ActividadRepository actividadRepository) {
+            ActividadRepository actividadRepository,
+            NotaDeVozRepository notaDeVozRepository) {
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
         this.profesorRepository = profesorRepository;
@@ -85,6 +89,7 @@ public class EvaluacionService {
         this.evidenciaRepository = evidenciaRepository;
         this.avanceAcademicoService = avanceAcademicoService;
         this.actividadRepository = actividadRepository;
+        this.notaDeVozRepository = notaDeVozRepository;
     }
 
     public List<Evaluacion> obtenerTodos() {
@@ -104,6 +109,7 @@ public class EvaluacionService {
         Evaluacion evaluacion = evaluacionRepository.findById(id).orElse(null);
         if (evaluacion == null) return;
         eliminarArchivoDeEvaluacion(evaluacion);
+        eliminarNotasDeVoz(evaluacion);
         evaluacionRepository.delete(evaluacion);
     }
 
@@ -185,22 +191,6 @@ public class EvaluacionService {
                     }
                 } else {
                     estadoEvaluacion = "NO_EVALUADO";
-                }
-
-                if (idEvaluacion == null && practica != null) {
-                    Optional<Evaluacion> evalPractica = evaluacionRepository.findFirstByPracticaIdPracticaOrderByFechaDesc(practica.getIdPractica());
-                    if (evalPractica.isPresent()) {
-                        idEvaluacion = evalPractica.get().getIdEvaluacion();
-                        if (evaluacion == null) {
-                            evaluacion = evalPractica.get();
-                            if (observacionTexto == null) {
-                                observacionTexto = evaluacion.getObservacion();
-                            }
-                            if (fechaEvaluacion == null && evaluacion.getFecha() != null) {
-                                fechaEvaluacion = evaluacion.getFecha().toString();
-                            }
-                        }
-                    }
                 }
 
                 EstudianteEvaluacionDTO dto = new EstudianteEvaluacionDTO();
@@ -307,25 +297,19 @@ public class EvaluacionService {
             }
         }
 
-        // 2. Resolver la Evaluación existente (evitar crear registros redundantes)
+        // 2. Resolver la Evaluación existente (evitar crear registros redundantes).
+        // Solo se reutiliza una evaluación de este mismo evaluador: así un tutor no puede
+        // sobrescribir la del profesor (ni al revés) enviando su idEvaluacion.
         Evaluacion evaluacion = null;
         if (req.getIdEvaluacion() != null) {
-            evaluacion = evaluacionRepository.findById(req.getIdEvaluacion()).orElse(null);
+            final Nota notaPrevia = notaExistente;
+            final String rutDelEvaluador = rutEfectivo;
+            evaluacion = evaluacionRepository.findById(req.getIdEvaluacion())
+                    .filter(ev -> perteneceAlEvaluador(ev, rutDelEvaluador, notaPrevia))
+                    .orElse(null);
         }
         if (evaluacion == null && notaExistente != null && notaExistente.getEvaluacion() != null) {
             evaluacion = notaExistente.getEvaluacion();
-        }
-
-        // Resolver práctica avanzada si está presente
-        Practica practicaAsociada = null;
-        if (req.getIdPractica() != null) {
-            practicaAsociada = practicaRepository.findById(req.getIdPractica()).orElse(null);
-        }
-        if (practicaAsociada == null) {
-            List<Practica> practicasEst = practicaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante());
-            if (!practicasEst.isEmpty()) {
-                practicaAsociada = practicasEst.get(0);
-            }
         }
 
         String obsLimpia = (req.getObservacion() != null && !req.getObservacion().trim().isEmpty())
@@ -345,6 +329,7 @@ public class EvaluacionService {
                     observacionEvaluacionRepository.flush();
                 }
                 eliminarArchivoDeEvaluacion(evaluacion);
+                eliminarNotasDeVoz(evaluacion);
                 evaluacionRepository.delete(evaluacion);
                 evaluacionRepository.flush();
                 evaluacion = null;
@@ -354,9 +339,7 @@ public class EvaluacionService {
 
         // CASO B: Existe nota, observación o ambas
         if (evaluacion != null) {
-            if (practicaAsociada != null) {
-                evaluacion.setPractica(practicaAsociada);
-            }
+            evaluacion.setPractica(null); // NO completa id_practica
             evaluacion.setObservacion(obsLimpia);
             evaluacion.setFecha(LocalDateTime.now());
             evaluacion.setRutEvaluador(rutEfectivo);
@@ -374,9 +357,9 @@ public class EvaluacionService {
             evaluacion = evaluacionRepository.save(evaluacion);
         } else {
             evaluacion = new Evaluacion();
-            evaluacion.setPractica(practicaAsociada);
-            if (evaluadorUser != null) {
-                evaluacion.setIdEvaluador((long) Math.abs(evaluadorUser.getRut().hashCode()));
+            evaluacion.setPractica(null);
+            if (profesor != null) {
+                evaluacion.setIdEvaluador(profesor.getIdProfesor());
             }
             evaluacion.setRutEvaluador(rutEfectivo);
             evaluacion.setNombreEvaluador(nombreEvaluador);
@@ -406,6 +389,18 @@ public class EvaluacionService {
         }
 
         return construirDTO(estudiante, evaluacion, notaExistente, rutEfectivo);
+    }
+
+    /**
+     * Una evaluación es del evaluador si lleva su RUT o si es la de su propia nota. Las
+     * evaluaciones antiguas sin rut_evaluador solo se aceptan por esta última vía.
+     */
+    private boolean perteneceAlEvaluador(Evaluacion evaluacion, String rutEvaluador, Nota notaDelEvaluador) {
+        if (evaluacion.getRutEvaluador() != null) {
+            return evaluacion.getRutEvaluador().equalsIgnoreCase(rutEvaluador);
+        }
+        return notaDelEvaluador != null && notaDelEvaluador.getEvaluacion() != null
+                && evaluacion.getIdEvaluacion().equals(notaDelEvaluador.getEvaluacion().getIdEvaluacion());
     }
 
     /** Notas que el profesor emitió para el estudiante, la más reciente primero. */
@@ -468,6 +463,7 @@ public class EvaluacionService {
                         observacionEvaluacionRepository.flush();
                     }
                     eliminarArchivoDeEvaluacion(evaluacion);
+                    eliminarNotasDeVoz(evaluacion);
                     evaluacionRepository.delete(evaluacion);
                     evaluacionRepository.flush();
                     evaluacion = null;
@@ -504,6 +500,7 @@ public class EvaluacionService {
                         observacionEvaluacionRepository.flush();
                     }
                     eliminarArchivoDeEvaluacion(evaluacion);
+                    eliminarNotasDeVoz(evaluacion);
                     evaluacionRepository.delete(evaluacion);
                     evaluacionRepository.flush();
                     evaluacion = null;
@@ -647,6 +644,7 @@ public class EvaluacionService {
                 observacionEvaluacionRepository.flush();
             }
             eliminarArchivoDeEvaluacion(evaluacion);
+            eliminarNotasDeVoz(evaluacion);
             evaluacionRepository.delete(evaluacion);
             evaluacionRepository.flush();
         } else {
@@ -661,6 +659,18 @@ public class EvaluacionService {
      * partir de él al subirlo (copia en DocumentoPractica del expediente y Documento de revisión
      * de la evidencia). El archivo físico se elimina tras el commit y solo si nada más lo referencia.
      */
+    /** Las notas de voz referencian a la evaluación: se borran (con su audio) antes que ella. */
+    private void eliminarNotasDeVoz(Evaluacion evaluacion) {
+        List<NotaDeVoz> notasDeVoz = notaDeVozRepository.findByEvaluacionIdEvaluacionOrderByFechaGrabacionDesc(evaluacion.getIdEvaluacion());
+        if (notasDeVoz.isEmpty()) return;
+        notaDeVozRepository.deleteAll(notasDeVoz);
+        notaDeVozRepository.flush();
+        notasDeVoz.stream()
+                .map(NotaDeVoz::getUbicacionArchivo)
+                .filter(u -> u != null && !u.isBlank())
+                .forEach(fileStorageService::deleteFile);
+    }
+
     private void eliminarArchivoDeEvaluacion(Evaluacion evaluacion) {
         if (evaluacion == null) return;
         String url = evaluacion.getArchivoUrl();
