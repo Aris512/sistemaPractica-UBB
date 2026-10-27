@@ -36,20 +36,19 @@ function EstudianteRouter({
   useEffect(() => {
     let mounted = true;
 
-    // Solo consultar al servidor si aún no está determinado
-    if (esPractica === null) {
-      verificarEstudianteEsPractica(user.rut).then((resultado) => {
-        if (mounted) {
-          setEsPractica(resultado);
-          setStoredEsPractica(user.rut, resultado);
-        }
-      });
-    }
+    // Se verifica siempre contra el servidor: el valor guardado en la sesión queda desactualizado si
+    // el administrador cambia la asignatura del estudiante (p. ej. pasa a 8.° semestre).
+    verificarEstudianteEsPractica(user.rut).then((resultado) => {
+      if (mounted) {
+        setEsPractica(resultado);
+        setStoredEsPractica(user.rut, resultado);
+      }
+    });
 
     return () => {
       mounted = false;
     };
-  }, [user.rut, esPractica]);
+  }, [user.rut]);
 
   // Si está determinando el semestre (solo ocurre si esPractica === null),
   // se muestra un loader limpio y estético sin parpadeo de la vista errónea

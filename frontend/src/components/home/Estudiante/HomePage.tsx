@@ -5,7 +5,6 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { PerfilUsuario } from "./PerfilUsuario";
 import { Portafolio } from "./Portafolio";
-import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { Observaciones } from "./Observaciones";
 import { AsistentesIA } from "./AsistentesIA";
@@ -66,8 +65,6 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "documentos-practica":
         return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
-      case "planificacion":
-        return <Planificacion user={user} onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
         if (!hasPermission("EVALUACIONES_CONSULTAR")) {
           return <MallaCurricular userRut={user?.rut} />;

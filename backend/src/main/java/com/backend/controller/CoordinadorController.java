@@ -36,6 +36,7 @@ import com.backend.repository.EstudianteRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
 import com.backend.repository.TutorPracticaRepository;
+import com.backend.service.PracticaService;
 
 @RestController
 @RequestMapping("/api/coordinador")
@@ -48,19 +49,22 @@ public class CoordinadorController {
     private final TutorPracticaRepository tutorPracticaRepository;
     private final ProfesorColaboradorRepository profesorColaboradorRepository;
     private final PracticaRepository practicaRepository;
+    private final PracticaService practicaService;
 
     public CoordinadorController(EstudianteRepository estudianteRepository,
                                  AsignaturaRepository asignaturaRepository,
                                  CentroPracticaRepository centroPracticaRepository,
                                  TutorPracticaRepository tutorPracticaRepository,
                                  ProfesorColaboradorRepository profesorColaboradorRepository,
-                                 PracticaRepository practicaRepository) {
+                                 PracticaRepository practicaRepository,
+                                 PracticaService practicaService) {
         this.estudianteRepository = estudianteRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
         this.tutorPracticaRepository = tutorPracticaRepository;
         this.profesorColaboradorRepository = profesorColaboradorRepository;
         this.practicaRepository = practicaRepository;
+        this.practicaService = practicaService;
     }
 
     /**
@@ -456,22 +460,11 @@ public class CoordinadorController {
      * Elimina / desvincula una práctica asociada.
      */
     @DeleteMapping("/asociaciones/{idPractica}")
-    @Transactional
     public ResponseEntity<?> eliminarAsociacion(@PathVariable Long idPractica) {
-        Optional<Practica> opt = practicaRepository.findById(idPractica);
-        if (opt.isEmpty()) {
+        if (!practicaRepository.existsById(idPractica)) {
             return ResponseEntity.notFound().build();
         }
-        Practica p = opt.get();
-        if (p.getProfesoresColaboradores() != null) {
-            for (ProfesorColaborador c : p.getProfesoresColaboradores()) {
-                if (c.getPracticas() != null) {
-                    c.getPracticas().remove(p);
-                    profesorColaboradorRepository.save(c);
-                }
-            }
-        }
-        practicaRepository.delete(p);
+        practicaService.eliminar(idPractica);
         return ResponseEntity.ok(Map.of("message", "Asociación eliminada exitosamente."));
     }
 }

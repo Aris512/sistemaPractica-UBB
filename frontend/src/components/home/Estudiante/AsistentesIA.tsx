@@ -1,5 +1,5 @@
 import type { UserSession } from "@/types/auth";
-import { ChatIA } from "@/components/chat";
+import { ChatIA } from "@/components/IA";
 
 interface AsistentesIAProps {
   user: UserSession;
