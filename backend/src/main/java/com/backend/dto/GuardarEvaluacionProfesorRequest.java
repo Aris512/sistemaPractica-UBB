@@ -4,7 +4,11 @@ public class GuardarEvaluacionProfesorRequest {
 
     private Long idEstudiante;
     private Long idEvaluacion;
+    private Long idPractica;
     private String rutProfesor;
+    private String rutEvaluador;
+    private String nombreEvaluador;
+    private String tipoEvaluador;
     private String tipoEvaluacion;
     private Double puntajeMinimo;
     private Double puntajeMaximo;
@@ -31,12 +35,44 @@ public class GuardarEvaluacionProfesorRequest {
         this.idEvaluacion = idEvaluacion;
     }
 
+    public Long getIdPractica() {
+        return idPractica;
+    }
+
+    public void setIdPractica(Long idPractica) {
+        this.idPractica = idPractica;
+    }
+
     public String getRutProfesor() {
         return rutProfesor;
     }
 
     public void setRutProfesor(String rutProfesor) {
         this.rutProfesor = rutProfesor;
+    }
+
+    public String getRutEvaluador() {
+        return rutEvaluador != null && !rutEvaluador.isBlank() ? rutEvaluador : rutProfesor;
+    }
+
+    public void setRutEvaluador(String rutEvaluador) {
+        this.rutEvaluador = rutEvaluador;
+    }
+
+    public String getNombreEvaluador() {
+        return nombreEvaluador;
+    }
+
+    public void setNombreEvaluador(String nombreEvaluador) {
+        this.nombreEvaluador = nombreEvaluador;
+    }
+
+    public String getTipoEvaluador() {
+        return tipoEvaluador;
+    }
+
+    public void setTipoEvaluador(String tipoEvaluador) {
+        this.tipoEvaluador = tipoEvaluador;
     }
 
     public String getTipoEvaluacion() {

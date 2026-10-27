@@ -3,6 +3,7 @@ package com.backend.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -10,9 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.backend.dto.EstudianteTutorDTO;
 import com.backend.model.Estudiante;
+import com.backend.model.Evaluacion;
+import com.backend.model.Nota;
+import com.backend.model.ObservacionPractica;
 import com.backend.model.Practica;
 import com.backend.model.Usuario;
 import com.backend.repository.EstudianteRepository;
+import com.backend.repository.EvaluacionRepository;
+import com.backend.repository.NotaRepository;
+import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PracticaRepository;
 
 @Service
@@ -20,15 +27,24 @@ public class PracticaService {
 
     private final PracticaRepository practicaRepository;
     private final EstudianteRepository estudianteRepository;
+    private final EvaluacionRepository evaluacionRepository;
+    private final NotaRepository notaRepository;
+    private final ObservacionPracticaRepository observacionPracticaRepository;
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
 
     public PracticaService(PracticaRepository practicaRepository,
                            EstudianteRepository estudianteRepository,
+                           EvaluacionRepository evaluacionRepository,
+                           NotaRepository notaRepository,
+                           ObservacionPracticaRepository observacionPracticaRepository,
                            JdbcTemplate jdbcTemplate,
                            FileStorageService fileStorageService) {
         this.practicaRepository = practicaRepository;
         this.estudianteRepository = estudianteRepository;
+        this.evaluacionRepository = evaluacionRepository;
+        this.notaRepository = notaRepository;
+        this.observacionPracticaRepository = observacionPracticaRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.fileStorageService = fileStorageService;
     }
@@ -97,20 +113,19 @@ public class PracticaService {
                 String asigNombre = p.getAsignatura() != null ? p.getAsignatura().getNombre() : "Práctica Profesional";
                 String centro = p.getCentroPractica() != null ? p.getCentroPractica().getNombre() : "Colegio Concepción";
 
-                resultado.add(new EstudianteTutorDTO(
-                    p.getEstudiante().getIdEstudiante(),
-                    p.getIdPractica(),
-                    u.getRut(),
-                    nombreEstudiante,
-                    u.getCorreo(),
-                    asigNombre,
-                    centro,
-                    "SIN_OBSERVACION",
-                    "PENDIENTE",
-                    null,
-                    null,
-                    LocalDateTime.now()
-                ));
+                EstudianteTutorDTO dto = new EstudianteTutorDTO();
+                dto.setIdEstudiante(p.getEstudiante().getIdEstudiante());
+                dto.setIdPractica(p.getIdPractica());
+                dto.setRut(u.getRut());
+                dto.setNombre(nombreEstudiante);
+                dto.setCorreo(u.getCorreo());
+                dto.setAsignaturaNombre(asigNombre);
+                dto.setCentroPractica(centro);
+
+                // Poblar con la evaluación que este mismo evaluador registró para el estudiante
+                completarDatosEvaluacionYObservacion(dto, p.getEstudiante().getIdEstudiante(), u.getRut(), rut);
+
+                resultado.add(dto);
             }
             return resultado;
         }
@@ -120,27 +135,86 @@ public class PracticaService {
         for (Estudiante est : estudiantes) {
             if (est.getUsuario() == null) continue;
             Usuario u = est.getUsuario();
-            // Restricción: No incluir alumnos en estado inactivo
             if (!u.isActivo() || "inactivo".equalsIgnoreCase(u.getEstado()) || "INACTIVO".equalsIgnoreCase(est.getEstado())) {
                 continue;
             }
             String asigNombre = est.getAsignatura() != null ? est.getAsignatura().getNombre() : "Práctica Pedagógica";
-            resultado.add(new EstudianteTutorDTO(
-                est.getIdEstudiante(),
-                null,
-                u.getRut(),
-                u.getNombre() + " " + u.getApellido(),
-                u.getCorreo(),
-                asigNombre,
-                "Colegio San Agustín",
-                "SIN_OBSERVACION",
-                "PENDIENTE",
-                null,
-                null,
-                LocalDateTime.now()
-            ));
+
+            // Buscar si tiene práctica asociada
+            List<Practica> prList = practicaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
+            Long idPractica = !prList.isEmpty() ? prList.get(0).getIdPractica() : null;
+            String centro = !prList.isEmpty() && prList.get(0).getCentroPractica() != null
+                    ? prList.get(0).getCentroPractica().getNombre()
+                    : "Colegio San Agustín";
+
+            EstudianteTutorDTO dto = new EstudianteTutorDTO();
+            dto.setIdEstudiante(est.getIdEstudiante());
+            dto.setIdPractica(idPractica);
+            dto.setRut(u.getRut());
+            dto.setNombre(u.getNombre() + " " + u.getApellido());
+            dto.setCorreo(u.getCorreo());
+            dto.setAsignaturaNombre(asigNombre);
+            dto.setCentroPractica(centro);
+
+            completarDatosEvaluacionYObservacion(dto, est.getIdEstudiante(), u.getRut(), rut);
+
+            resultado.add(dto);
         }
 
         return resultado;
+    }
+
+    private void completarDatosEvaluacionYObservacion(EstudianteTutorDTO dto, Long idEstudiante, String rutEstudiante, String rutEvaluador) {
+        // Solo la nota (y su evaluación) que emitió este evaluador: el tutor no debe ver ni
+        // editar la del profesor de asignatura o la del colaborador, y viceversa.
+        Optional<Nota> notaOpt = idEstudiante != null && rutEvaluador != null
+                ? notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutEvaluador)
+                        .stream().findFirst()
+                : Optional.empty();
+        Evaluacion evaluacion = notaOpt.map(Nota::getEvaluacion).orElse(null);
+
+        Double calificacion = notaOpt.map(Nota::getPuntajeObtenido).orElse(null);
+        String obsTexto = evaluacion != null ? evaluacion.getObservacion() : null;
+
+        dto.setCalificacion(calificacion);
+        dto.setObservacionTexto(obsTexto);
+
+        if (evaluacion != null) {
+            dto.setIdEvaluacion(evaluacion.getIdEvaluacion());
+            dto.setTipoEvaluacion(evaluacion.getTipoEvaluacion());
+            dto.setEvaluadorRut(evaluacion.getRutEvaluador());
+            dto.setEvaluadorNombre(evaluacion.getNombreEvaluador());
+            dto.setTipoEvaluador(evaluacion.getTipoEvaluador());
+            dto.setArchivoUrl(evaluacion.getArchivoUrl());
+            dto.setNombreArchivo(evaluacion.getNombreArchivo());
+            dto.setTieneArchivo(evaluacion.getArchivoUrl() != null && !evaluacion.getArchivoUrl().isBlank());
+            dto.setFechaActualizacion(evaluacion.getFecha() != null ? evaluacion.getFecha() : LocalDateTime.now());
+        } else {
+            dto.setFechaActualizacion(LocalDateTime.now());
+        }
+
+        if (calificacion != null) {
+            dto.setEstadoEvaluacion("EVALUADO");
+        } else if (obsTexto != null && !obsTexto.trim().isEmpty()) {
+            dto.setEstadoEvaluacion("EN_EVALUACION");
+        } else {
+            dto.setEstadoEvaluacion("PENDIENTE");
+        }
+
+        // Estado de Observación desde ObservacionPractica
+        if (rutEstudiante != null) {
+            List<ObservacionPractica> obsList = observacionPracticaRepository.findByRut(rutEstudiante);
+            if (!obsList.isEmpty()) {
+                ObservacionPractica ultimaObs = obsList.get(0);
+                dto.setEstadoObservacion(ultimaObs.getEstado() != null ? ultimaObs.getEstado() : "OBSERVADO");
+                if (dto.getObservacionTexto() == null || dto.getObservacionTexto().isBlank()) {
+                    dto.setObservacionTexto(ultimaObs.getResumen());
+                }
+            } else {
+                dto.setEstadoObservacion("SIN_OBSERVACION");
+            }
+        } else {
+            dto.setEstadoObservacion("SIN_OBSERVACION");
+        }
     }
 }

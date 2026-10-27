@@ -32,12 +32,14 @@ import {
   obtenerArchivoEntregaAlumno,
   type EstudianteEvaluacion,
 } from "../../../services/profesorEvaluacionApi";
+import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
 
 interface ModalEvaluacionesProps {
   isOpen: boolean;
   student: EstudianteEvaluacion | null;
   profesorRut?: string;
   rutProfesor?: string;
+  profesorNombre?: string;
   onClose: () => void;
   onSaved: (updatedStudent: EstudianteEvaluacion) => void;
 }
@@ -47,6 +49,7 @@ export function ModalEvaluaciones({
   student,
   profesorRut,
   rutProfesor: rutProfesorProp,
+  profesorNombre,
   onClose,
   onSaved,
 }: ModalEvaluacionesProps) {
@@ -218,6 +221,10 @@ export function ModalEvaluaciones({
         idEstudiante: student.idEstudiante,
         idEvaluacion: student.idEvaluacion ?? null,
         rutProfesor,
+        rutEvaluador: rutProfesor,
+        nombreEvaluador: profesorNombre,
+        tipoEvaluador: student.tipoEvaluador || "Profesor de Asignatura",
+        idPractica: student.idPractica,
         tipoEvaluacion: tipoEvaluacion.trim() || "Evaluación Docente",
         puntajeMinimo: 1.0,
         puntajeMaximo: 7.0,
@@ -283,11 +290,10 @@ export function ModalEvaluaciones({
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
       <div
-        className={`bg-white shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
-          isFullscreen
+        className={`bg-white shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${isFullscreen
             ? "fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none rounded-none"
             : "relative z-50 rounded-2xl max-w-4xl w-full h-[88vh] border border-slate-200"
-        }`}
+          }`}
       >
         {/* Cabecera del Modal con botón de Pantalla Completa y Cerrar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-linear-to-r from-sky-50 via-slate-50 to-indigo-50/40 shrink-0">
@@ -345,11 +351,10 @@ export function ModalEvaluaciones({
             role="tab"
             aria-selected={pestanaActiva === "evaluacion"}
             onClick={() => setPestanaActiva("evaluacion")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 cursor-pointer transition-colors -mb-px ${
-              pestanaActiva === "evaluacion"
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 cursor-pointer transition-colors -mb-px ${pestanaActiva === "evaluacion"
                 ? "bg-white text-slate-900 border-slate-200"
                 : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/70 hover:text-slate-700"
-            }`}
+              }`}
           >
             <Award className="size-3.5 text-sky-700 shrink-0" />
             <span className="truncate">Evaluación</span>
@@ -359,11 +364,10 @@ export function ModalEvaluaciones({
             role="tab"
             aria-selected={pestanaActiva === "entrega"}
             onClick={() => setPestanaActiva("entrega")}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 cursor-pointer transition-colors -mb-px ${
-              pestanaActiva === "entrega"
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-t-lg border border-b-0 cursor-pointer transition-colors -mb-px ${pestanaActiva === "entrega"
                 ? "bg-white text-slate-900 border-slate-200"
                 : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/70 hover:text-slate-700"
-            }`}
+              }`}
             title={student.nombreArchivoEntrega || "Entrega del alumno"}
           >
             <Eye className="size-3.5 text-emerald-700 shrink-0" />
@@ -379,13 +383,12 @@ export function ModalEvaluaciones({
             <div className="flex items-center justify-between gap-3 px-5 py-3 bg-white border-b border-slate-200 shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`size-10 rounded-lg flex flex-col items-center justify-center shrink-0 border text-[9px] font-black uppercase tracking-wide ${
-                    extensionEntrega === "pdf"
+                  className={`size-10 rounded-lg flex flex-col items-center justify-center shrink-0 border text-[9px] font-black uppercase tracking-wide ${extensionEntrega === "pdf"
                       ? "bg-rose-50 border-rose-200 text-rose-700"
                       : esImagenEntrega
                         ? "bg-violet-50 border-violet-200 text-violet-700"
                         : "bg-sky-50 border-sky-200 text-sky-700"
-                  }`}
+                    }`}
                 >
                   <FileText className="size-4 mb-0.5" />
                   {extensionEntrega || "doc"}
@@ -507,366 +510,388 @@ export function ModalEvaluaciones({
             </div>
           </div>
         ) : (
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Columna Izquierda: Información Académica del Estudiante */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <User className="size-4 text-sky-700" />
-                    Ficha del Alumno
-                  </span>
-                  {student.estadoEntrega === "ENTREGADO" ? (
-                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                      <FileCheck2 className="size-3" /> Entregado
+          <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Columna Izquierda: Información Académica del Estudiante */}
+              <div className="lg:col-span-5 space-y-4">
+                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <User className="size-4 text-sky-700" />
+                      Ficha del Alumno
                     </span>
-                  ) : (
-                    <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300 flex items-center gap-1">
-                      <FileX className="size-3" /> Sin entrega
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-                      Nombre Completo
-                    </span>
-                    <p className="font-bold text-slate-900 text-sm mt-0.5">
-                      {student.nombre} {student.apellido}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-                        RUT Institucional
-                      </span>
-                      <p className="font-mono font-semibold text-slate-800 text-xs mt-0.5">
-                        {student.rut}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-                        Carrera
-                      </span>
-                      <p className="font-semibold text-slate-800 text-xs mt-0.5 flex items-center gap-1">
-                        <GraduationCap className="size-3 text-sky-700" />
-                        Pedagogía UBB
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-                      Correo Electrónico
-                    </span>
-                    <a
-                      href={`mailto:${student.correo}`}
-                      className="font-medium text-sky-800 hover:underline flex items-center gap-1 mt-0.5 truncate"
-                    >
-                      <Mail className="size-3 text-slate-400 shrink-0" />
-                      {student.correo || "Sin correo"}
-                    </a>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-                      Asignatura en Curso
-                    </span>
-                    <p className="font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
-                      <BookOpen className="size-3.5 text-sky-700 shrink-0" />
-                      {student.asignatura}
-                    </p>
-                  </div>
-
-                  <div>
-                    <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
-                      Centro de Práctica
-                    </span>
-                    <p className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
-                      <Building2 className="size-3.5 text-slate-500 shrink-0" />
-                      {student.centroPractica || "No asignado / En gestión"}
-                    </p>
-                  </div>
-
-                  {student.fechaEvaluacion && (
-                    <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 flex items-center gap-1.5">
-                      <Calendar className="size-3.5 text-slate-400" />
-                      <span>
-                        Última fecha de evaluación:{" "}
-                        <strong className="text-slate-700 font-mono">
-                          {new Date(student.fechaEvaluacion).toLocaleDateString("es-CL", {
-                            day: "2-digit", 
-                            month: "2-digit",
-                            year: "numeric",
-                          })}
-                        </strong>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Caja explicativa de rúbrica institucional */}
-              <div className="bg-sky-50/60 rounded-xl p-3.5 border border-sky-100 text-xs text-sky-900 space-y-1">
-                <span className="font-bold flex items-center gap-1 text-sky-800">
-                  <Award className="size-3.5" />
-                  Criterio de Aprobación
-                </span>
-                <p className="text-[11px] text-sky-700 leading-relaxed">
-                  Las asignaturas de práctica exigen una calificación igual o superior a <strong>4.0</strong> en la escala de 1.0 a 7.0 para ser computadas en el avance curricular del estudiante.
-                </p>
-              </div>
-            </div>
-
-            {/* Columna Derecha: Formulario de Evaluación, Calificación y Documento */}
-            <div className="lg:col-span-7 space-y-5">
-              {/* 1. Tipo de Evaluación */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-800">
-                  Tipo o Título de la Evaluación <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Evaluación Final de Práctica, Evaluación Intermedia..."
-                  value={tipoEvaluacion}
-                  onChange={(e) => setTipoEvaluacion(e.target.value)}
-                  className="w-full h-10 border border-slate-200 rounded-xl px-3.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium text-slate-800"
-                />
-              </div>
-
-              {/* 2. Calificación / Nota */}
-              <div className="space-y-2 bg-slate-50/70 p-4 rounded-xl border border-slate-200/80">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-800">
-                    Nota de la Evaluación <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {nota.trim() !== "" && (
-                      <button
-                        type="button"
-                        onClick={() => setCampoAEliminar("nota")}
-                        disabled={isSaving}
-                        className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
-                      >
-                        <Trash2 className="size-3" />
-                        Eliminar nota
-                      </button>
-                    )}
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      Escala de 1.0 a 7.0
-                    </span>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="1.0"
-                    max="7.0"
-                    placeholder="Ej: 6.5"
-                    value={nota}
-                    onChange={(e) => setNota(e.target.value)}
-                    className="text-lg font-mono font-black h-11 pl-3.5 pr-12 border-slate-200 bg-white"
-                  />
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-semibold text-slate-400">
-                    / 7.0
-                  </div>
-                </div>
-
-                {nota && (
-                  <p className="text-xs font-medium">
-                    {parseFloat(nota) >= 4.0 ? (
-                      <span className="text-emerald-700 flex items-center gap-1">
-                        ✓ Calificación aprobatoria (satisfactoria para avance académico)
+                    {student.estadoEntrega === "ENTREGADO" ? (
+                      <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                        <FileCheck2 className="size-3" /> Entregado
                       </span>
                     ) : (
-                      <span className="text-rose-600 flex items-center gap-1">
-                        ⚠ Calificación reprobatoria (menor al requisito mínimo de 4.0)
+                      <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 border border-slate-300 flex items-center gap-1">
+                        <FileX className="size-3" /> Sin entrega
                       </span>
                     )}
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
+                        Nombre Completo
+                      </span>
+                      <p className="font-bold text-slate-900 text-sm mt-0.5">
+                        {student.nombre} {student.apellido}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
+                          RUT Institucional
+                        </span>
+                        <p className="font-mono font-semibold text-slate-800 text-xs mt-0.5">
+                          {student.rut}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
+                          Carrera
+                        </span>
+                        <p className="font-semibold text-slate-800 text-xs mt-0.5 flex items-center gap-1">
+                          <GraduationCap className="size-3 text-sky-700" />
+                          Pedagogía UBB
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
+                        Correo Electrónico
+                      </span>
+                      <a
+                        href={`mailto:${student.correo}`}
+                        className="font-medium text-sky-800 hover:underline flex items-center gap-1 mt-0.5 truncate"
+                      >
+                        <Mail className="size-3 text-slate-400 shrink-0" />
+                        {student.correo || "Sin correo"}
+                      </a>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
+                        Asignatura en Curso
+                      </span>
+                      <p className="font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
+                        <BookOpen className="size-3.5 text-sky-700 shrink-0" />
+                        {student.asignatura}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">
+                        Centro de Práctica
+                      </span>
+                      <p className="font-semibold text-slate-800 flex items-center gap-1.5 mt-0.5">
+                        <Building2 className="size-3.5 text-slate-500 shrink-0" />
+                        {student.centroPractica || "No asignado / En gestión"}
+                      </p>
+                    </div>
+
+                    {student.fechaEvaluacion && (
+                      <div className="pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 flex items-center gap-1.5">
+                        <Calendar className="size-3.5 text-slate-400" />
+                        <span>
+                          Última fecha de evaluación:{" "}
+                          <strong className="text-slate-700 font-mono">
+                            {new Date(student.fechaEvaluacion).toLocaleDateString("es-CL", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })}
+                          </strong>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Caja explicativa de rúbrica institucional */}
+                <div className="bg-sky-50/60 rounded-xl p-3.5 border border-sky-100 text-xs text-sky-900 space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-sky-800">
+                    <Award className="size-3.5" />
+                    Criterio de Aprobación
+                  </span>
+                  <p className="text-[11px] text-sky-700 leading-relaxed">
+                    Las asignaturas de práctica exigen una calificación igual o superior a <strong>4.0</strong> en la escala de 1.0 a 7.0 para ser computadas en el avance curricular del estudiante.
                   </p>
-                )}
+                </div>
               </div>
 
-              {/* 3. Observación y Retroalimentación Pedagógica */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+              {/* Columna Derecha: Formulario de Evaluación, Calificación y Documento */}
+              <div className="lg:col-span-7 space-y-5">
+                {/* 1. Tipo de Evaluación */}
+                <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-800">
-                    Observación y Retroalimentación Pedagógica
+                    Tipo o Título de la Evaluación <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex items-center gap-2">
-                    {observacion.trim() !== "" && (
+                  <input
+                    type="text"
+                    placeholder="Ej: Evaluación Final de Práctica, Evaluación Intermedia..."
+                    value={tipoEvaluacion}
+                    onChange={(e) => setTipoEvaluacion(e.target.value)}
+                    className="w-full h-10 border border-slate-200 rounded-xl px-3.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium text-slate-800"
+                  />
+                </div>
+
+                {/* 2. Calificación / Nota */}
+                <div className="space-y-2 bg-slate-50/70 p-4 rounded-xl border border-slate-200/80">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Nota de la Evaluación <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {nota.trim() !== "" && (
+                        <button
+                          type="button"
+                          onClick={() => setCampoAEliminar("nota")}
+                          disabled={isSaving}
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
+                        >
+                          <Trash2 className="size-3" />
+                          Eliminar nota
+                        </button>
+                      )}
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        Escala de 1.0 a 7.0
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="1.0"
+                      max="7.0"
+                      placeholder="Ej: 6.5"
+                      value={nota}
+                      onChange={(e) => setNota(e.target.value)}
+                      className="text-lg font-mono font-black h-11 pl-3.5 pr-12 border-slate-200 bg-white"
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-semibold text-slate-400">
+                      / 7.0
+                    </div>
+                  </div>
+
+                  {nota && (
+                    <p className="text-xs font-medium">
+                      {parseFloat(nota) >= 4.0 ? (
+                        <span className="text-emerald-700 flex items-center gap-1">
+                          ✓ Calificación aprobatoria (satisfactoria para avance académico)
+                        </span>
+                      ) : (
+                        <span className="text-rose-600 flex items-center gap-1">
+                          ⚠ Calificación reprobatoria (menor al requisito mínimo de 4.0)
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {/* 3. Observación y Retroalimentación Pedagógica */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Observación y Retroalimentación Pedagógica
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {observacion.trim() !== "" && (
+                        <button
+                          type="button"
+                          onClick={() => setCampoAEliminar("observacion")}
+                          disabled={isSaving}
+                          className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
+                        >
+                          <Trash2 className="size-3" />
+                          Eliminar observación
+                        </button>
+                      )}
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {observacion.length} caracteres
+                      </span>
+                    </div>
+                  </div>
+                  <textarea
+                    rows={isFullscreen ? 6 : 4}
+                    placeholder="Escriba los comentarios cualitativos, fortalezas observadas y sugerencias de mejora pedagógica para el estudiante..."
+                    value={observacion}
+                    onChange={(e) => setObservacion(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl p-3.5 text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-sky-500/20 leading-relaxed font-sans"
+                  />
+                </div>
+
+                {/* 4. Subida y Gestión de Documento de Evaluación */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Paperclip className="size-3.5 text-sky-700" />
+                      Documento de Evaluación / Pauta Docente Adjunta
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      PDF, Word, Excel o ZIP (hasta 20 MB)
+                    </span>
+                  </div>
+
+                  {/* Si ya existe un archivo cargado en el servidor y no está marcado para eliminar */}
+                  {student.tieneArchivo && !eliminarArchivoActual && !archivo && (
+                    <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-8 rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0">
+                          <FileText className="size-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-800 truncate block" title={student.nombreArchivo || "Documento de evaluación"}>
+                            {student.nombreArchivo || "Pauta_Evaluacion_Docente.pdf"}
+                          </span>
+                          <span className="text-[10px] text-emerald-700 font-medium">
+                            ✓ Documento archivado en el servidor
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isDownloading}
+                          onClick={handleDescargarDocumento}
+                          className="text-xs h-8 gap-1.5 text-emerald-800 hover:text-emerald-900 bg-white border-emerald-300 hover:bg-emerald-50 cursor-pointer shadow-2xs"
+                        >
+                          {isDownloading ? (
+                            <RefreshCw className="size-3 animate-spin" />
+                          ) : (
+                            <Download className="size-3" />
+                          )}
+                          <span>Descargar</span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCampoAEliminar("archivo")}
+                          className="text-xs h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 cursor-pointer"
+                          title="Eliminar este archivo de la evaluación"
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Archivo marcado para eliminar */}
+                  {eliminarArchivoActual && !archivo && (
+                    <div className="p-3 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 flex items-center justify-between text-xs text-rose-800">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Trash2 className="size-3.5 text-rose-600" />
+                        El documento actual será eliminado al guardar.
+                      </span>
                       <button
                         type="button"
-                        onClick={() => setCampoAEliminar("observacion")}
-                        disabled={isSaving}
-                        className="text-xs text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer font-medium transition-colors"
+                        onClick={() => setEliminarArchivoActual(false)}
+                        className="text-xs text-slate-600 hover:text-slate-900 hover:underline font-semibold cursor-pointer"
                       >
-                        <Trash2 className="size-3" />
-                        Eliminar observación
+                        Cancelar eliminación
                       </button>
-                    )}
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      {observacion.length} caracteres
-                    </span>
-                  </div>
-                </div>
-                <textarea
-                  rows={isFullscreen ? 6 : 4}
-                  placeholder="Escriba los comentarios cualitativos, fortalezas observadas y sugerencias de mejora pedagógica para el estudiante..."
-                  value={observacion}
-                  onChange={(e) => setObservacion(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl p-3.5 text-xs bg-white resize-none focus:outline-none focus:ring-2 focus:ring-sky-500/20 leading-relaxed font-sans"
-                />
-              </div>
-
-              {/* 4. Subida y Gestión de Documento de Evaluación */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Paperclip className="size-3.5 text-sky-700" />
-                    Documento de Evaluación / Pauta Docente Adjunta
-                  </label>
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    PDF, Word, Excel o ZIP (hasta 20 MB)
-                  </span>
-                </div>
-
-                {/* Si ya existe un archivo cargado en el servidor y no está marcado para eliminar */}
-                {student.tieneArchivo && !eliminarArchivoActual && !archivo && (
-                  <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-8 rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0">
-                        <FileText className="size-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-slate-800 truncate block" title={student.nombreArchivo || "Documento de evaluación"}>
-                          {student.nombreArchivo || "Pauta_Evaluacion_Docente.pdf"}
-                        </span>
-                        <span className="text-[10px] text-emerald-700 font-medium">
-                          ✓ Documento archivado en el servidor
-                        </span>
-                      </div>
                     </div>
+                  )}
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={isDownloading}
-                        onClick={handleDescargarDocumento}
-                        className="text-xs h-8 gap-1.5 text-emerald-800 hover:text-emerald-900 bg-white border-emerald-300 hover:bg-emerald-50 cursor-pointer shadow-2xs"
-                      >
-                        {isDownloading ? (
-                          <RefreshCw className="size-3 animate-spin" />
-                        ) : (
-                          <Download className="size-3" />
-                        )}
-                        <span>Descargar</span>
-                      </Button>
+                  {/* Si se seleccionó un archivo nuevo desde el equipo */}
+                  {archivo && (
+                    <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-sky-200 bg-sky-50/60">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-8 rounded-lg bg-sky-100 border border-sky-200 text-sky-800 flex items-center justify-center shrink-0">
+                          <FileText className="size-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-800 truncate block">
+                            {archivo.name}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {formatFileSize(archivo.size)} • Listo para subirse
+                          </span>
+                        </div>
+                      </div>
 
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => setCampoAEliminar("archivo")}
-                        className="text-xs h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 cursor-pointer"
-                        title="Eliminar este archivo de la evaluación"
+                        onClick={() => {
+                          setArchivo(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="text-xs h-8 text-slate-500 hover:text-rose-600 hover:bg-white cursor-pointer"
+                        title="Quitar archivo seleccionado"
                       >
-                        <Trash2 className="size-3" />
+                        <X className="size-3.5" />
+                        <span>Quitar</span>
                       </Button>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Archivo marcado para eliminar */}
-                {eliminarArchivoActual && !archivo && (
-                  <div className="p-3 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 flex items-center justify-between text-xs text-rose-800">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <Trash2 className="size-3.5 text-rose-600" />
-                      El documento actual será eliminado al guardar.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEliminarArchivoActual(false)}
-                      className="text-xs text-slate-600 hover:text-slate-900 hover:underline font-semibold cursor-pointer"
-                    >
-                      Cancelar eliminación
-                    </button>
-                  </div>
-                )}
-
-                {/* Si se seleccionó un archivo nuevo desde el equipo */}
-                {archivo && (
-                  <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-sky-200 bg-sky-50/60">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-8 rounded-lg bg-sky-100 border border-sky-200 text-sky-800 flex items-center justify-center shrink-0">
-                        <FileText className="size-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-slate-800 truncate block">
-                          {archivo.name}
+                  {/* Input selector de archivo */}
+                  {!archivo && (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        id="evaluacion-file-input"
+                        onChange={handleFileChange}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg"
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="evaluacion-file-input"
+                        className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-sky-400 bg-slate-50/50 hover:bg-sky-50/30 rounded-xl cursor-pointer transition-all text-center gap-1.5 group"
+                      >
+                        <UploadCloud className="size-5 text-slate-400 group-hover:text-sky-600 transition-colors" />
+                        <p className="text-xs font-semibold text-slate-700 group-hover:text-sky-800">
+                          {student.tieneArchivo && !eliminarArchivoActual
+                            ? "Haga clic para reemplazar el documento actual"
+                            : "Haga clic aquí para seleccionar el documento de evaluación"}
+                        </p>
+                        <span className="text-[10px] text-slate-400">
+                          Formatos permitidos: PDF, DOCX, XLSX, ZIP o imágenes (máximo 20 MB)
                         </span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {formatFileSize(archivo.size)} • Listo para subirse
-                        </span>
-                      </div>
+                      </label>
                     </div>
+                  )}
+                </div>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setArchivo(null);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                      className="text-xs h-8 text-slate-500 hover:text-rose-600 hover:bg-white cursor-pointer"
-                      title="Quitar archivo seleccionado"
-                    >
-                      <X className="size-3.5" />
-                      <span>Quitar</span>
-                    </Button>
-                  </div>
-                )}
-
-                {/* Input selector de archivo */}
-                {!archivo && (
-                  <div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      id="evaluacion-file-input"
-                      onChange={handleFileChange}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.png,.jpg,.jpeg"
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="evaluacion-file-input"
-                      className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-sky-400 bg-slate-50/50 hover:bg-sky-50/30 rounded-xl cursor-pointer transition-all text-center gap-1.5 group"
-                    >
-                      <UploadCloud className="size-5 text-slate-400 group-hover:text-sky-600 transition-colors" />
-                      <p className="text-xs font-semibold text-slate-700 group-hover:text-sky-800">
-                        {student.tieneArchivo && !eliminarArchivoActual
-                          ? "Haga clic para reemplazar el documento actual"
-                          : "Haga clic aquí para seleccionar el documento de evaluación"}
-                      </p>
-                      <span className="text-[10px] text-slate-400">
-                        Formatos permitidos: PDF, DOCX, XLSX, ZIP o imágenes (máximo 20 MB)
-                      </span>
-                    </label>
-                  </div>
-                )}
+                {/* 5. Notas de Voz y Transcripción */}
+                <div className="space-y-2.5">
+                  <VoiceNoteRecorder
+                    idEvaluacion={student.idEvaluacion ?? null}
+                    rutGrabador={rutProfesor}
+                    nombreGrabador={profesorNombre}
+                    onInsertTranscription={(transcripcion) => {
+                      setObservacion((prev) => (prev ? `${prev}\n${transcripcion}` : transcripcion));
+                      sileo.info({
+                        title: "Transcripción agregada",
+                        description: "El texto dictado se copió a las observaciones pedagógicas.",
+                      });
+                    }}
+                    onVoiceNoteCreated={() => {
+                      sileo.success({
+                        title: "Nota de voz guardada",
+                        description: "La nota de voz se adjuntó exitosamente a esta evaluación.",
+                      });
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* Footer del Modal */}
