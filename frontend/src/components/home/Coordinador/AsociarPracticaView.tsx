@@ -72,6 +72,9 @@ export function AsociarPracticaView({
   // Estado de envío
   const [submitting, setSubmitting] = useState(false);
 
+  // El coordinador debe confirmar de forma explícita que reemplaza una asociación existente
+  const [confirmarReemplazo, setConfirmarReemplazo] = useState(false);
+
   // ── 1. Cargar asignaturas de práctica oficiales ──
   const fetchAsignaturas = useCallback(async () => {
     try {
@@ -151,17 +154,15 @@ export function AsociarPracticaView({
     }
   }, [selectedAsignaturaId, fetchCandidatos, initialEstudiante]);
 
-  // Si se selecciona un colaborador que ya tiene un centro de práctica registrado, autorellenar centro
-  useEffect(() => {
-    if (selectedColaboradorId && candidatos?.profesoresColaboradores) {
-      const colab = candidatos.profesoresColaboradores.find(
-        (c) => String(c.idColaborador) === selectedColaboradorId
-      );
-      if (colab && colab.idCentro) {
-        setSelectedCentroId(String(colab.idCentro));
-      }
-    }
-  }, [selectedColaboradorId, candidatos]);
+  // Al elegir un colaborador se propone su centro de práctica (editable); si no tiene uno, el campo queda vacío
+  // y el coordinador debe elegirlo: no se arrastra el centro del colaborador anterior.
+  const handleColaboradorChange = (idColaborador: string) => {
+    setSelectedColaboradorId(idColaborador);
+    const colab = candidatos?.profesoresColaboradores.find(
+      (c) => String(c.idColaborador) === idColaborador
+    );
+    setSelectedCentroId(colab?.idCentro ? String(colab.idCentro) : "");
+  };
 
   // Participantes que exige la asignatura elegida: las prácticas iniciales no llevan colaborador ni tutor,
   // y el tutor universitario solo interviene en la Práctica Profesional.
@@ -170,7 +171,26 @@ export function AsociarPracticaView({
   const requiereTutor = asignaturaSel?.requiereTutor ?? true;
   const headersAsociar: Record<string, string> = user?.rut ? { "X-User-Rut": user.rut } : {};
 
-  // ── Regla principal de validación de la misma asignatura ──
+  // Asociación vigente del estudiante elegido y qué cambiaría con lo seleccionado en el formulario
+  const asociacionActual = asociaciones.find((a) => String(a.idEstudiante) === selectedEstudianteId);
+  const teniaAsociacion = !!(asociacionActual && (asociacionActual.idColaborador || asociacionActual.idTutor));
+  // Mismo criterio que el backend: una asignatura que no usa colaborador/tutor deja esos campos vacíos,
+  // así que si la práctica los tenía, asociar equivale a reemplazarlos.
+  const colaboradorActual = String(asociacionActual?.idColaborador ?? "");
+  const tutorActual = String(asociacionActual?.idTutor ?? "");
+  const colaboradorNuevo = requiereColaborador ? selectedColaboradorId : "";
+  const tutorNuevo = requiereTutor ? selectedTutorId : "";
+  const cambiaEvaluadores =
+    teniaAsociacion && (colaboradorActual !== colaboradorNuevo || tutorActual !== tutorNuevo);
+  const bloqueadoPorPautas = cambiaEvaluadores && !!asociacionActual?.tienePautas;
+  const requiereConfirmacion = cambiaEvaluadores && !asociacionActual?.tienePautas;
+
+  // Cualquier cambio en el formulario invalida una confirmación dada antes
+  useEffect(() => {
+    setConfirmarReemplazo(false);
+  }, [selectedAsignaturaId, selectedEstudianteId, selectedColaboradorId, selectedTutorId]);
+
+  // ── Regla principal de validación ──
   const validationStatus = useMemo(() => {
     if (!selectedAsignaturaId) {
       return {
@@ -200,6 +220,28 @@ export function AsociarPracticaView({
       };
     }
 
+    if (requiereColaborador && !selectedCentroId) {
+      return {
+        isValid: false,
+        message: "Selecciona el centro de práctica donde se realizará la práctica.",
+      };
+    }
+
+    if (bloqueadoPorPautas) {
+      return {
+        isValid: false,
+        message:
+          "No se puede reemplazar: la práctica ya tiene pautas aplicadas. Cambiar a sus evaluadores dejaría esas evaluaciones sin respaldo.",
+      };
+    }
+
+    if (requiereConfirmacion && !confirmarReemplazo) {
+      return {
+        isValid: false,
+        message: "Este estudiante ya tiene una asociación. Confirma el reemplazo para continuar.",
+      };
+    }
+
     // Verificar que el estudiante realmente pertenezca a la asignatura seleccionada
     const est = candidatos?.estudiantes.find(
       (e) => String(e.idEstudiante) === selectedEstudianteId
@@ -221,8 +263,12 @@ export function AsociarPracticaView({
     selectedEstudianteId,
     selectedColaboradorId,
     selectedTutorId,
+    selectedCentroId,
     requiereColaborador,
     requiereTutor,
+    bloqueadoPorPautas,
+    requiereConfirmacion,
+    confirmarReemplazo,
     candidatos,
   ]);
 
@@ -241,20 +287,30 @@ export function AsociarPracticaView({
           idProfesorColaborador: requiereColaborador && selectedColaboradorId ? Number(selectedColaboradorId) : null,
           idTutor: requiereTutor && selectedTutorId ? Number(selectedTutorId) : null,
           idCentroPractica: requiereColaborador && selectedCentroId ? Number(selectedCentroId) : null,
+          reemplazar: requiereConfirmacion && confirmarReemplazo,
         }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        // 409: otra persona cambió la asociación mientras tanto, o ya hay pautas aplicadas.
+        // Se recarga la información para mostrar el estado real antes de reintentar.
+        if (res.status === 409) {
+          setConfirmarReemplazo(false);
+          fetchAsociaciones();
+        }
         throw new Error(json.error || "Ocurrió un error al procesar la asociación.");
       }
 
       sileo.success({
-        title: "Asociación Confirmada",
-        description: `Se asoció a ${json.estudiante} en ${json.asignatura}.`,
+        title: json.sinCambios ? "Sin cambios" : "Asociación Confirmada",
+        description: json.sinCambios
+          ? `La asociación de ${json.estudiante} ya estaba registrada con esos datos.`
+          : `Se asoció a ${json.estudiante} en ${json.asignatura}.`,
       });
 
+      setConfirmarReemplazo(false);
       setSelectedEstudianteId("");
       onClearInitialEstudiante?.();
       fetchAsociaciones();
@@ -287,6 +343,7 @@ export function AsociarPracticaView({
         }
       } else {
         const json = await res.json().catch(() => null);
+        if (res.status === 409) fetchAsociaciones();
         throw new Error(json?.error || "Error al desvincular.");
       }
     } catch (err: any) {
@@ -428,7 +485,7 @@ export function AsociarPracticaView({
               </div>
               <select
                 value={selectedColaboradorId}
-                onChange={(e) => setSelectedColaboradorId(e.target.value)}
+                onChange={(e) => handleColaboradorChange(e.target.value)}
                 disabled={loadingCandidatos}
                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/30 cursor-pointer disabled:bg-slate-100"
               >
@@ -603,6 +660,72 @@ export function AsociarPracticaView({
                 Selecciona un estudiante para asociarlo con el equipo docente.
               </div>
             )}
+
+            {/* Asociación vigente del estudiante: aviso de reemplazo / bloqueo por pautas */}
+            {currentEstudiante && teniaAsociacion && asociacionActual && (
+              <div
+                className={`p-4 rounded-xl border space-y-2 text-xs ${
+                  bloqueadoPorPautas
+                    ? "bg-red-50/70 border-red-200 text-red-900"
+                    : cambiaEvaluadores
+                      ? "bg-amber-50/70 border-amber-200 text-amber-900"
+                      : "bg-slate-50 border-slate-200 text-slate-700"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                  <AlertCircle className="size-4 shrink-0" />
+                  {cambiaEvaluadores ? "Este estudiante ya tiene una asociación" : "Asociación vigente"}
+                </div>
+                <div className="grid grid-cols-1 gap-1 leading-snug">
+                  {asociacionActual.idColaborador && (
+                    <div>
+                      <span className="font-semibold">Colaborador:</span> {asociacionActual.colaboradorNombre || "—"}
+                    </div>
+                  )}
+                  {asociacionActual.idTutor && (
+                    <div>
+                      <span className="font-semibold">Tutor:</span> {asociacionActual.tutorNombre || "—"}
+                    </div>
+                  )}
+                  {asociacionActual.idCentro && (
+                    <div>
+                      <span className="font-semibold">Centro:</span> {asociacionActual.centroNombre || "—"}
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-semibold">Estado:</span> {asociacionActual.estadoAprobacion}
+                  </div>
+                </div>
+
+                {bloqueadoPorPautas && (
+                  <p className="leading-relaxed">
+                    Esta práctica ya tiene <strong>pautas de evaluación aplicadas</strong>, por lo que no se puede
+                    reemplazar su colaborador ni su tutor. El estado de la práctica se conserva.
+                  </p>
+                )}
+
+                {requiereConfirmacion && (
+                  <label className="flex items-start gap-2 cursor-pointer pt-1 leading-relaxed">
+                    <input
+                      type="checkbox"
+                      checked={confirmarReemplazo}
+                      onChange={(e) => setConfirmarReemplazo(e.target.checked)}
+                      className="mt-0.5 size-4 cursor-pointer accent-amber-600"
+                    />
+                    <span>
+                      Entiendo que se <strong>reemplazará</strong> la asociación actual de este estudiante por la que
+                      estoy seleccionando. El estado de la práctica se conserva.
+                    </span>
+                  </label>
+                )}
+
+                {!cambiaEvaluadores && (
+                  <p className="leading-relaxed">
+                    Los participantes seleccionados coinciden con la asociación actual.
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -728,6 +851,11 @@ export function AsociarPracticaView({
                   <UnifiedTableRow key={asoc.idPractica} className="hover:bg-slate-50/70">
                     <UnifiedTableCell className="py-3.5 pl-6 font-bold text-slate-900 text-sm">
                       {asoc.estudianteNombre}
+                      {asoc.tienePautas && (
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 align-middle">
+                          Con pautas
+                        </span>
+                      )}
                     </UnifiedTableCell>
                     <UnifiedTableCell className="py-3.5">
                       <span
@@ -758,8 +886,13 @@ export function AsociarPracticaView({
                             handleEliminarAsociacion(asoc.idPractica, asoc.estudianteNombre)
                           )
                         }
-                        className="cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5"
-                        title="Desvincular práctica"
+                        disabled={!!asoc.tienePautas}
+                        className="cursor-pointer text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={
+                          asoc.tienePautas
+                            ? "No se puede desvincular: la práctica tiene pautas aplicadas"
+                            : "Desvincular práctica"
+                        }
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -775,6 +908,8 @@ export function AsociarPracticaView({
         open={!!deleteAction}
         onOpenChange={(open) => !open && setDeleteAction(null)}
         onConfirm={async () => deleteAction?.()}
+        title="Desvincular práctica"
+        description="Se eliminará la práctica de este estudiante junto con las evaluaciones y notas registradas en ella. Esta acción no se puede deshacer."
       />
     </div>
   );
