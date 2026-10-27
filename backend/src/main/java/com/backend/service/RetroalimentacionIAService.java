@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.dto.RetroalimentacionDTOs.InicioRevisionDTO;
 import com.backend.dto.RetroalimentacionDTOs.PlanificacionRetroDTO;
@@ -53,6 +54,7 @@ public class RetroalimentacionIAService {
     private final ChatConversacionRepository conversacionRepository;
     private final ChatService chatService;
     private final PlanificacionTextoExtractor extractor;
+    private final PlanificacionService planificacionService;
     private final TransactionTemplate transaccion;
 
     public RetroalimentacionIAService(RetroalimentacionIARepository repository,
@@ -63,6 +65,7 @@ public class RetroalimentacionIAService {
                                       ChatConversacionRepository conversacionRepository,
                                       ChatService chatService,
                                       PlanificacionTextoExtractor extractor,
+                                      PlanificacionService planificacionService,
                                       PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.planificacionRepository = planificacionRepository;
@@ -72,6 +75,7 @@ public class RetroalimentacionIAService {
         this.conversacionRepository = conversacionRepository;
         this.chatService = chatService;
         this.extractor = extractor;
+        this.planificacionService = planificacionService;
         this.transaccion = new TransactionTemplate(transactionManager);
     }
 
@@ -106,10 +110,9 @@ public class RetroalimentacionIAService {
         InicioPreparado inicio = transaccion.execute(status -> prepararRevision(rut, idPlanificacion));
 
         String aviso = inicio.aviso();
-        if (inicio.nueva()) {
+        if (inicio.mensajeAutomatico() != null) {
             try {
-                chatService.enviarMensaje(rut, inicio.idConversacion(),
-                        "Hola, adjunto mi planificación «" + inicio.nombreArchivo() + "» para que la revises.");
+                chatService.enviarMensaje(rut, inicio.idConversacion(), inicio.mensajeAutomatico());
             } catch (ChatException e) {
                 logger.warn("No se pudo enviar el primer mensaje de revisión (conversación {}): {}", inicio.idConversacion(), e.getCodigo());
                 aviso = "La IA no pudo responder todavía (" + e.getMessage() + "). Escríbele en la conversación para reintentar.";
@@ -118,7 +121,8 @@ public class RetroalimentacionIAService {
         return new InicioRevisionDTO(inicio.idConversacion(), inicio.nueva(), aviso);
     }
 
-    private record InicioPreparado(Long idConversacion, boolean nueva, String nombreArchivo, String aviso) {
+    /** mensajeAutomatico: lo que se le escribe a la IA al abrir la revisión o tras cambiar el archivo (null si no hace falta). */
+    private record InicioPreparado(Long idConversacion, boolean nueva, String mensajeAutomatico, String aviso) {
     }
 
     private InicioPreparado prepararRevision(String rut, Long idPlanificacion) {
@@ -158,7 +162,49 @@ public class RetroalimentacionIAService {
         }
         retro.tocar();
         repository.save(retro);
-        return new InicioPreparado(retro.getConversacion().getIdConversacion(), nueva, archivo.getNombre(), aviso);
+
+        String mensaje = null;
+        if (nueva) {
+            mensaje = "Hola, adjunto mi planificación «" + archivo.getNombre() + "» para que la revises.";
+        } else if (archivoNuevo) {
+            mensaje = "Adjunto una versión actualizada de mi planificación «" + archivo.getNombre() + "». Por favor, revísala.";
+        }
+        return new InicioPreparado(retro.getConversacion().getIdConversacion(), nueva, mensaje, aviso);
+    }
+
+    /**
+     * Reemplaza el archivo «Planificación» desde la conversación de revisión (botón +). Con la revisión abierta, la IA
+     * lee el archivo nuevo en la misma conversación; si ya estaba cerrada (aprobada por la IA, rechazada por el profesor
+     * o revisiones agotadas) se reinicia el ciclo y se abre una conversación nueva.
+     */
+    public InicioRevisionDTO reemplazarArchivo(String rutCliente, Long idPlanificacion, MultipartFile archivo) {
+        String rut = chatService.resolverUsuario(rutCliente);
+        // Se valida todo antes de tocar el archivo actual, para no perderlo si lo nuevo no sirve
+        transaccion.executeWithoutResult(status -> {
+            RetroalimentacionIA retro = retroDe(planificacionPropia(rut, idPlanificacion));
+            if (retro != null && (retro.getEstado() == Estado.ESPERANDO_PROFESOR || retro.getEstado() == Estado.APROBADO)) {
+                throw new ChatException(HttpStatus.CONFLICT, "RETRO_NO_EDITABLE", retro.getEstado() == Estado.APROBADO
+                        ? "Tu profesor ya aprobó esta planificación."
+                        : "Tu profesor está revisando esta planificación: espera su respuesta antes de cambiar el archivo.");
+            }
+        });
+        String nombre = archivo == null || archivo.getOriginalFilename() == null ? "" : archivo.getOriginalFilename();
+        String extension = nombre.contains(".") ? nombre.substring(nombre.lastIndexOf('.') + 1).toLowerCase() : "";
+        if (!extension.equals("docx") && !extension.equals("pdf")) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "RETRO_FORMATO_NO_SOPORTADO",
+                    "La IA solo puede leer planificaciones en .docx o .pdf.");
+        }
+
+        planificacionService.subirArchivos(idPlanificacion, List.of(archivo), List.of(CATEGORIA_PLANIFICACION), rut);
+
+        transaccion.executeWithoutResult(status -> {
+            Planificacion planificacion = planificacionPropia(rut, idPlanificacion);
+            RetroalimentacionIA retro = retroDe(planificacion);
+            if (retro != null && puedeReiniciar(retro, archivoPlanificacion(planificacion))) {
+                reiniciar(rut, retro.getIdRetroalimentacion());
+            }
+        });
+        return iniciarRevisionIa(rut, idPlanificacion);
     }
 
     @Transactional
