@@ -43,10 +43,10 @@ export function EstudiantesPracticaList({
       }
       const data = await res.json();
       setEstudiantes(Array.isArray(data) ? data : []);
-    } catch (err: any) {
+    } catch (err) {
       sileo.error({
         title: "Error de conexión",
-        description: err.message || "Error al consultar la base de datos.",
+        description: err instanceof Error && err.message ? err.message : "Error al consultar la base de datos.",
       });
     } finally {
       setLoading(false);
@@ -57,6 +57,23 @@ export function EstudiantesPracticaList({
     fetchEstudiantes();
   }, [fetchEstudiantes]);
 
+  // Pestañas: una por cada asignatura de práctica presente, en el orden de la línea de práctica
+  const nombresAsignaturas = useMemo(() => {
+    const orden = (n: string) => {
+      const t = n.toLowerCase();
+      if (t.includes("aproxim")) return 0;
+      if (t.includes("ambientes")) return 1;
+      if (t.includes("colaborativo")) return 2;
+      if (t.includes("investig")) return 3;
+      if (t.includes("pedag")) return 4;
+      if (t.includes("profesional")) return 5;
+      return 6;
+    };
+    return Array.from(new Set(estudiantes.map((e) => e.asignaturaNombre).filter(Boolean) as string[])).sort(
+      (x, y) => orden(x) - orden(y)
+    );
+  }, [estudiantes]);
+
   const filteredEstudiantes = useMemo(() => {
     return estudiantes.filter((est) => {
       const matchSearch = (est.nombre || "")
@@ -65,11 +82,8 @@ export function EstudiantesPracticaList({
 
       if (!matchSearch) return false;
 
-      if (filterAsignatura === "PEDAGOGICA") {
-        return est.asignaturaNombre?.toLowerCase().includes("pedag");
-      }
-      if (filterAsignatura === "PROFESIONAL") {
-        return est.asignaturaNombre?.toLowerCase().includes("profesional");
+      if (filterAsignatura !== "TODAS") {
+        return est.asignaturaNombre === filterAsignatura;
       }
       return true;
     });
@@ -148,32 +162,20 @@ export function EstudiantesPracticaList({
           >
             Todas las prácticas ({estudiantes.length})
           </button>
-          <button
-            type="button"
-            onClick={() => setFilterAsignatura("PEDAGOGICA")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
-              filterAsignatura === "PEDAGOGICA"
-                ? "bg-sky-700 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
-            }`}
-          >
-            Práctica Pedagógica (
-            {estudiantes.filter((e) => e.asignaturaNombre?.toLowerCase().includes("pedag")).length}
-            )
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterAsignatura("PROFESIONAL")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
-              filterAsignatura === "PROFESIONAL"
-                ? "bg-indigo-700 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
-            }`}
-          >
-            Práctica Profesional (
-            {estudiantes.filter((e) => e.asignaturaNombre?.toLowerCase().includes("profesional")).length}
-            )
-          </button>
+          {nombresAsignaturas.map((nombre) => (
+            <button
+              key={nombre}
+              type="button"
+              onClick={() => setFilterAsignatura(nombre)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors whitespace-nowrap ${
+                filterAsignatura === nombre
+                  ? "bg-sky-700 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+              }`}
+            >
+              {nombre} ({estudiantes.filter((e) => e.asignaturaNombre === nombre).length})
+            </button>
+          ))}
         </div>
       </div>
 

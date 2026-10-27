@@ -3,6 +3,7 @@ export type PracticaMenuKey =
   | "portafolio"
   | "planificacion"
   | "retroalimentacion"
+  | "pautas"
   | "asistentes-ia"
   | "equipo"
   | "perfil";

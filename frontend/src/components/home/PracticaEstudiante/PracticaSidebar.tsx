@@ -17,6 +17,7 @@ import {
   Briefcase,
   CalendarDays,
   MessageSquareCheck,
+  ClipboardCheck,
   Bot,
   Users,
   LogOut,
@@ -83,6 +84,7 @@ export function PracticaSidebar({
     },
     { key: "planificacion", label: "Planificación", icon: CalendarDays, visible: true },
     { key: "retroalimentacion", label: "Retroalimentación", icon: MessageSquareCheck, visible: hasPermission("IA_ACCESO") },
+    { key: "pautas", label: "Mis Pautas", icon: ClipboardCheck, visible: hasPermission("EVALUACIONES_CONSULTAR") },
     { key: "asistentes-ia", label: "Asistentes de IA", icon: Bot, visible: hasPermission("IA_ACCESO") },
     { key: "equipo", label: "Equipo de Práctica", icon: Users, visible: true },
   ];
