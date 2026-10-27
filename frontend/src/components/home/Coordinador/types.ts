@@ -66,6 +66,8 @@ export interface AsociacionPractica {
   idCentro?: number;
   centroNombre?: string;
   estadoAprobacion: string;
+  /** La práctica ya tiene pautas de evaluación aplicadas: no se puede reemplazar ni desvincular. */
+  tienePautas?: boolean;
 }
 
 export interface CandidatosResponse {
