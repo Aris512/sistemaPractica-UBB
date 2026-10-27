@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type React from "react";
 import {
   Mic,
@@ -18,7 +18,6 @@ import { sileo } from "sileo";
 import type { NotaDeVozDTO } from "../../services/profesorEvaluacionApi";
 import {
   getNotasDeVozPorEvaluacion,
-  getNotasDeVozPorEstudiante,
   subirNotaDeVoz,
   eliminarNotaDeVoz,
   actualizarTranscripcionNotaVoz,
@@ -36,7 +35,6 @@ declare global {
 
 interface VoiceNoteRecorderProps {
   idEvaluacion?: number | null;
-  idEstudiante?: number | null;
   rutGrabador?: string;
   nombreGrabador?: string;
   onInsertTranscription?: (text: string) => void;
@@ -47,7 +45,6 @@ interface VoiceNoteRecorderProps {
 
 export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   idEvaluacion,
-  idEstudiante,
   rutGrabador,
   nombreGrabador,
   onInsertTranscription,
@@ -70,7 +67,9 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   const [transcription, setTranscription] = useState<string>("");
   const [interimTranscript, setInterimTranscript] = useState<string>("");
   const [isListeningSpeech, setIsListeningSpeech] = useState<boolean>(false);
-  const [speechSupported, setSpeechSupported] = useState<boolean>(true);
+  const [speechSupported] = useState<boolean>(
+    () => !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+  );
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isTranscribingIA, setIsTranscribingIA] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -88,18 +87,6 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   const accumulatedFinalRef = useRef<string>("");
   const isRecordingRef = useRef<boolean>(false);
 
-  // Cargar notas de voz cuando cambie idEvaluacion o idEstudiante
-  useEffect(() => {
-    cargarNotasDeVoz();
-  }, [idEvaluacion, idEstudiante]);
-
-  // Chequeo de soporte de reconocimiento de voz
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setSpeechSupported(false);
-    }
-  }, []);
 
   // Limpiar timer y tracks al desmontar
   useEffect(() => {
@@ -118,33 +105,32 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
     };
   }, []);
 
-  const cargarNotasDeVoz = async () => {
-    if (!idEvaluacion && !idEstudiante) {
+  // Solo las notas de la evaluación de quien abre el modal: las de otros evaluadores
+  // (tutor, colaborador, profesor) no se mezclan ni se pueden borrar desde aquí.
+  const cargarNotasDeVoz = useCallback(async () => {
+    if (!idEvaluacion) {
       setNotasList([]);
       return;
     }
     setLoadingList(true);
     try {
-      let notas: NotaDeVozDTO[] = [];
-      if (idEvaluacion) {
-        notas = await getNotasDeVozPorEvaluacion(idEvaluacion);
-      }
-      // Si por evaluación no hay o se especificó estudiante, complementar por estudiante
-      if (idEstudiante) {
-        const notasEstudiante = await getNotasDeVozPorEstudiante(idEstudiante);
-        // Combinar sin duplicados por idAudio
-        const mapa = new Map<number, NotaDeVozDTO>();
-        notas.forEach((n) => mapa.set(n.idAudio, n));
-        notasEstudiante.forEach((n) => mapa.set(n.idAudio, n));
-        notas = Array.from(mapa.values());
-      }
+      const notas = await getNotasDeVozPorEvaluacion(idEvaluacion);
       setNotasList(notas || []);
     } catch (err) {
       console.error("Error al cargar notas de voz:", err);
     } finally {
       setLoadingList(false);
     }
-  };
+  }, [idEvaluacion]);
+
+  useEffect(() => {
+    void cargarNotasDeVoz();
+  }, [cargarNotasDeVoz]);
+
+  const puedeModificar = (nota: NotaDeVozDTO) =>
+    !readOnly &&
+    !!rutGrabador &&
+    (!nota.rutGrabador || nota.rutGrabador.toLowerCase() === rutGrabador.toLowerCase());
 
   // Transcribir audio grabado con IA (Groq Whisper)
   const handleTranscribirConIA = async (blobToUse?: Blob) => {
@@ -363,6 +349,10 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       setErrorMsg("No hay ningún audio grabado para guardar.");
       return;
     }
+    if (!idEvaluacion) {
+      setErrorMsg("Guarda la evaluación antes de adjuntar notas de voz. Puedes insertar la transcripción en las observaciones.");
+      return;
+    }
 
     setIsUploading(true);
     setErrorMsg(null);
@@ -375,12 +365,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
 
       const formData = new FormData();
       formData.append("file", file);
-      if (idEvaluacion) {
-        formData.append("idEvaluacion", String(idEvaluacion));
-      }
-      if (idEstudiante) {
-        formData.append("idEstudiante", String(idEstudiante));
-      }
+      formData.append("idEvaluacion", String(idEvaluacion));
       formData.append("duracion", String(recordingSeconds));
       formData.append("transcripcion", transcription.trim());
       if (rutGrabador) {
@@ -410,7 +395,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   const handleDeleteNote = async (idAudio: number) => {
     if (!window.confirm("¿Estás seguro de que deseas eliminar esta nota de voz?")) return;
     try {
-      await eliminarNotaDeVoz(idAudio);
+      await eliminarNotaDeVoz(idAudio, rutGrabador ?? "");
       setNotasList((prev) => prev.filter((n) => n.idAudio !== idAudio));
     } catch (err: any) {
       alert("Error al eliminar la nota de voz: " + err.message);
@@ -420,7 +405,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   // Guardar edición de transcripción
   const handleSaveEditTranscription = async (idAudio: number) => {
     try {
-      const updated = await actualizarTranscripcionNotaVoz(idAudio, editText);
+      const updated = await actualizarTranscripcionNotaVoz(idAudio, editText, rutGrabador ?? "");
       setNotasList((prev) => prev.map((n) => (n.idAudio === idAudio ? updated : n)));
       setEditingId(null);
     } catch (err: any) {
@@ -561,7 +546,8 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                     <button
                       type="button"
                       onClick={handleSaveVoiceNote}
-                      disabled={isUploading}
+                      disabled={isUploading || !idEvaluacion}
+                      title={idEvaluacion ? undefined : "Guarda la evaluación antes de adjuntar notas de voz"}
                       className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {isUploading ? (
@@ -703,7 +689,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                       )}
                     </div>
 
-                    {!readOnly && (
+                    {puedeModificar(nota) && (
                       <button
                         type="button"
                         onClick={() => handleDeleteNote(nota.idAudio)}
@@ -775,7 +761,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                               Insertar en Obs.
                             </button>
                           )}
-                          {!readOnly && (
+                          {puedeModificar(nota) && (
                             <button
                               type="button"
                               onClick={() => {

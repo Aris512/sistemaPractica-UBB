@@ -152,7 +152,6 @@ export function ModalDetalleEstudiante({ student, onClose }: ModalDetalleEstudia
             </h4>
             <VoiceNoteRecorder
               idEvaluacion={student.idEvaluacion}
-              idEstudiante={student.idEstudiante ? Number(student.idEstudiante) : undefined}
               readOnly={true}
               defaultCollapsed={false}
             />

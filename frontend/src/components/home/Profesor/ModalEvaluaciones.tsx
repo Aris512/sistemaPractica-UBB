@@ -222,7 +222,7 @@ export function ModalEvaluaciones({
         idEvaluacion: student.idEvaluacion ?? null,
         rutProfesor,
         rutEvaluador: rutProfesor,
-        nombreEvaluador: student.evaluadorNombre || undefined,
+        nombreEvaluador: profesorNombre,
         tipoEvaluador: student.tipoEvaluador || "Profesor de Asignatura",
         idPractica: student.idPractica,
         tipoEvaluacion: tipoEvaluacion.trim() || "Evaluación Docente",
@@ -872,7 +872,6 @@ export function ModalEvaluaciones({
                 <div className="space-y-2.5">
                   <VoiceNoteRecorder
                     idEvaluacion={student.idEvaluacion ?? null}
-                    idEstudiante={student.idEstudiante}
                     rutGrabador={rutProfesor}
                     nombreGrabador={profesorNombre}
                     onInsertTranscription={(transcripcion) => {

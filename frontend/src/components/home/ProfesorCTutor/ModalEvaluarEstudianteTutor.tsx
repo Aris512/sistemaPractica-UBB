@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import type React from "react";
 import {
   X,
@@ -64,16 +64,28 @@ const PAUTAS_GENERALES = [
 export function ModalEvaluarEstudianteTutor({
   isOpen,
   student,
+  ...rest
+}: ModalEvaluarEstudianteTutorProps) {
+  if (!isOpen || !student) return null;
+  // El formulario va en un componente aparte para que sus hooks no queden detrás de un return condicional
+  return <FormularioEvaluacionTutor key={student.idEstudiante} student={student} {...rest} />;
+}
+
+interface FormularioEvaluacionTutorProps extends Omit<ModalEvaluarEstudianteTutorProps, "isOpen" | "student"> {
+  student: EstudianteTutorRow;
+}
+
+function FormularioEvaluacionTutor({
+  student,
   user,
   onClose,
   onSaved,
-}: ModalEvaluarEstudianteTutorProps) {
-  if (!isOpen || !student) return null;
-
+}: FormularioEvaluacionTutorProps) {
   // Determinar rol amigable del evaluador
   const userRoleRaw = (user.roles && user.roles[0]) || user.rol || "TUTOR_PRACTICA";
   const userFullName = `${user.nombre || ""} ${user.apellido || ""}`.trim() || "Evaluador UBB";
-  const userRut = user.rut || "11111111-1";
+  // Sin RUT real no se guarda: un RUT de relleno mezclaría evaluaciones de distintos usuarios
+  const userRut = user.rut || "";
 
   const getRolEtiqueta = (rol: string) => {
     switch (rol) {
@@ -130,33 +142,21 @@ export function ModalEvaluarEstudianteTutor({
     return PAUTAS_GENERALES;
   }, [esProfesional, esPedagogica, esTutor, esColaborador]);
 
-  // Estados del formulario
-  const [tipoEvaluacion, setTipoEvaluacion] = useState<string>(listaPautas[0]);
-  const [calificacion, setCalificacion] = useState<string>("");
-  const [observacion, setObservacion] = useState<string>("");
+  // Estados del formulario, inicializados con los datos existentes del estudiante
+  const [tipoEvaluacion, setTipoEvaluacion] = useState<string>(student.tipoEvaluacion || listaPautas[0]);
+  const [calificacion, setCalificacion] = useState<string>(
+    student.calificacion != null ? String(student.calificacion) : ""
+  );
+  const [observacion, setObservacion] = useState<string>(student.observacionTexto || "");
   const [archivo, setArchivo] = useState<File | null>(null);
   const [eliminarArchivoActual, setEliminarArchivoActual] = useState(false);
-  const [currentIdEvaluacion, setCurrentIdEvaluacion] = useState<number | null>(null);
+  const [currentIdEvaluacion, setCurrentIdEvaluacion] = useState<number | null>(
+    student.idEvaluacion != null ? Number(student.idEvaluacion) : null
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Inicializar campos con datos existentes del estudiante
-  useEffect(() => {
-    if (student) {
-      setCalificacion(student.calificacion != null ? String(student.calificacion) : "");
-      setObservacion(student.observacionTexto || "");
-      setCurrentIdEvaluacion(student.idEvaluacion != null ? Number(student.idEvaluacion) : null);
-      if (student.tipoEvaluacion) {
-        setTipoEvaluacion(student.tipoEvaluacion);
-      } else {
-        setTipoEvaluacion(listaPautas[0]);
-      }
-      setArchivo(null);
-      setEliminarArchivoActual(false);
-    }
-  }, [student, listaPautas]);
 
   const handleNotaChange = (val: string) => {
     const cleaned = val.replace(",", ".");
@@ -205,6 +205,14 @@ export function ModalEvaluarEstudianteTutor({
 
   const handleSubmitEvaluacion = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!userRut) {
+      sileo.error({
+        title: "Sesión incompleta",
+        description: "No se encontró tu RUT en la sesión. Vuelve a iniciar sesión para registrar la evaluación.",
+      });
+      return;
+    }
 
     let califNumerica: number | null = null;
     if (calificacion.trim() !== "") {
@@ -504,7 +512,6 @@ export function ModalEvaluarEstudianteTutor({
             <div className="pt-1">
               <VoiceNoteRecorder
                 idEvaluacion={currentIdEvaluacion}
-                idEstudiante={student.idEstudiante ? Number(student.idEstudiante) : null}
                 rutGrabador={userRut}
                 nombreGrabador={userFullName}
                 onInsertTranscription={(transcripcion) => {

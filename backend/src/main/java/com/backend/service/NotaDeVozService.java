@@ -1,7 +1,5 @@
 package com.backend.service;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -15,11 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.dto.NotaDeVozDTO;
 import com.backend.model.Evaluacion;
 import com.backend.model.NotaDeVoz;
-import com.backend.model.Practica;
 import com.backend.model.Usuario;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.NotaDeVozRepository;
-import com.backend.repository.PracticaRepository;
+import com.backend.repository.NotaRepository;
 import com.backend.repository.UsuarioRepository;
 
 @Service
@@ -29,23 +26,24 @@ public class NotaDeVozService {
     private static final List<String> FORMATOS_AUDIO = List.of(
             "webm", "mp3", "wav", "m4a", "ogg", "aac", "mp4", "weba", "flac"
     );
+    private static final long TAMANO_MAXIMO_AUDIO = 25L * 1024 * 1024;
 
     private final NotaDeVozRepository notaDeVozRepository;
     private final EvaluacionRepository evaluacionRepository;
-    private final PracticaRepository practicaRepository;
+    private final NotaRepository notaRepository;
     private final UsuarioRepository usuarioRepository;
     private final FileStorageService fileStorageService;
     private final GroqClient groqClient;
 
     public NotaDeVozService(NotaDeVozRepository notaDeVozRepository,
                             EvaluacionRepository evaluacionRepository,
-                            PracticaRepository practicaRepository,
+                            NotaRepository notaRepository,
                             UsuarioRepository usuarioRepository,
                             FileStorageService fileStorageService,
                             GroqClient groqClient) {
         this.notaDeVozRepository = notaDeVozRepository;
         this.evaluacionRepository = evaluacionRepository;
-        this.practicaRepository = practicaRepository;
+        this.notaRepository = notaRepository;
         this.usuarioRepository = usuarioRepository;
         this.fileStorageService = fileStorageService;
         this.groqClient = groqClient;
@@ -77,28 +75,12 @@ public class NotaDeVozService {
         return notas.stream().map(this::convertirADTO).collect(Collectors.toList());
     }
 
+    /**
+     * Adjunta una nota de voz a una evaluación ya guardada del propio evaluador. No se crean
+     * evaluaciones implícitas: quedaban sin puntajes ni tipo y duplicaban la evaluación real.
+     */
     @Transactional
     public NotaDeVozDTO guardarNotaDeVoz(Long idEvaluacion,
-                                         MultipartFile file,
-                                         String duracion,
-                                         String transcripcion,
-                                         String rutGrabador) {
-        return guardarNotaDeVoz(idEvaluacion, null, file, duracion, transcripcion, rutGrabador, null);
-    }
-
-    @Transactional
-    public NotaDeVozDTO guardarNotaDeVoz(Long idEvaluacion,
-                                         Long idEstudiante,
-                                         MultipartFile file,
-                                         String duracion,
-                                         String transcripcion,
-                                         String rutGrabador) {
-        return guardarNotaDeVoz(idEvaluacion, idEstudiante, file, duracion, transcripcion, rutGrabador, null);
-    }
-
-    @Transactional
-    public NotaDeVozDTO guardarNotaDeVoz(Long idEvaluacion,
-                                         Long idEstudiante,
                                          MultipartFile file,
                                          String duracion,
                                          String transcripcion,
@@ -107,32 +89,17 @@ public class NotaDeVozService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("El archivo de audio es requerido.");
         }
-
-        Evaluacion evaluacion = null;
-        if (idEvaluacion != null) {
-            evaluacion = evaluacionRepository.findById(idEvaluacion).orElse(null);
+        if (idEvaluacion == null) {
+            throw new IllegalArgumentException("Guarde la evaluación antes de adjuntarle notas de voz.");
+        }
+        if (rutGrabador == null || rutGrabador.isBlank()) {
+            throw new IllegalArgumentException("El RUT de quien graba es requerido.");
         }
 
-        if (evaluacion == null && idEstudiante != null) {
-            evaluacion = evaluacionRepository.findFirstByPracticaEstudianteIdEstudianteOrderByFechaDesc(idEstudiante).orElse(null);
-
-            if (evaluacion == null) {
-                List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(idEstudiante);
-                Practica p = practicas.isEmpty() ? null : practicas.get(0);
-                evaluacion = new Evaluacion();
-                evaluacion.setPractica(p);
-                evaluacion.setFecha(LocalDateTime.now());
-                evaluacion.setTipoEvaluacion("Evaluación Práctica");
-                evaluacion.setRutEvaluador(rutGrabador);
-                if (nombreGrabador != null && !nombreGrabador.isBlank()) {
-                    evaluacion.setNombreEvaluador(nombreGrabador);
-                }
-                evaluacion = evaluacionRepository.save(evaluacion);
-            }
-        }
-
-        if (evaluacion == null) {
-            throw new IllegalArgumentException("Se requiere el ID de la evaluación o el ID del estudiante para ligar la nota de voz.");
+        Evaluacion evaluacion = evaluacionRepository.findById(idEvaluacion)
+                .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
+        if (!esEvaluadorDe(evaluacion, rutGrabador)) {
+            throw new SecurityException("Solo el evaluador de esta evaluación puede adjuntarle notas de voz.");
         }
 
         // Determinar nombre del grabador si no viene explícito
@@ -152,7 +119,7 @@ public class NotaDeVozService {
                 file,
                 "notas_de_voz",
                 FORMATOS_AUDIO,
-                25L * 1024 * 1024 // 25 MB max para audio
+                TAMANO_MAXIMO_AUDIO
         );
 
         String duracionFinal = (duracion != null && !duracion.trim().isEmpty()) ? duracion.trim() : "0:00";
@@ -194,6 +161,14 @@ public class NotaDeVozService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("El archivo de audio es requerido para transcripción.");
         }
+        if (file.getSize() > TAMANO_MAXIMO_AUDIO) {
+            throw new IllegalArgumentException("El audio supera el tamaño máximo de 25 MB.");
+        }
+        String nombre = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
+        String extension = nombre.contains(".") ? nombre.substring(nombre.lastIndexOf('.') + 1).toLowerCase() : "";
+        if (!FORMATOS_AUDIO.contains(extension)) {
+            throw new IllegalArgumentException("Formato de audio no permitido.");
+        }
         if (groqClient == null || !groqClient.estaConfigurado()) {
             throw new IllegalStateException("El servicio de transcripción de IA no está configurado (falta GROQ_API_KEY).");
         }
@@ -202,8 +177,34 @@ public class NotaDeVozService {
             return resultado != null ? resultado : "";
         } catch (Exception e) {
             logger.warn("Error al procesar audio en transcribirAudio: {}", e.getMessage());
-            throw new RuntimeException("Error al procesar la transcripción de audio: " + e.getMessage());
+            throw new RuntimeException("No se pudo transcribir el audio.");
         }
+    }
+
+    /**
+     * Es evaluador quien figura en la evaluación o, en evaluaciones antiguas sin
+     * rut_evaluador, quien emitió una de sus notas.
+     */
+    private boolean esEvaluadorDe(Evaluacion evaluacion, String rut) {
+        if (rut == null || rut.isBlank()) return false;
+        if (evaluacion.getRutEvaluador() != null) {
+            return evaluacion.getRutEvaluador().equalsIgnoreCase(rut.trim());
+        }
+        return notaRepository.findByEvaluacionIdEvaluacion(evaluacion.getIdEvaluacion()).stream()
+                .anyMatch(n -> rut.trim().equalsIgnoreCase(n.getRutEvaluador()));
+    }
+
+    /** Solo quien grabó la nota (o, si no quedó registrado, el evaluador) puede modificarla. */
+    private NotaDeVoz notaDelGrabador(Long idAudio, String rut) {
+        NotaDeVoz nota = notaDeVozRepository.findById(idAudio)
+                .orElseThrow(() -> new IllegalArgumentException("Nota de voz no encontrada con ID: " + idAudio));
+        boolean autorizado = nota.getRutGrabador() != null
+                ? rut != null && nota.getRutGrabador().equalsIgnoreCase(rut.trim())
+                : nota.getEvaluacion() != null && esEvaluadorDe(nota.getEvaluacion(), rut);
+        if (!autorizado) {
+            throw new SecurityException("Solo quien grabó la nota de voz puede modificarla.");
+        }
+        return nota;
     }
 
     @Transactional(readOnly = true)
@@ -219,26 +220,24 @@ public class NotaDeVozService {
     }
 
     @Transactional
-    public NotaDeVozDTO actualizarTranscripcion(Long idAudio, String nuevaTranscripcion) {
-        NotaDeVoz nota = notaDeVozRepository.findById(idAudio)
-                .orElseThrow(() -> new IllegalArgumentException("Nota de voz no encontrada con ID: " + idAudio));
+    public NotaDeVozDTO actualizarTranscripcion(Long idAudio, String nuevaTranscripcion, String rutGrabador) {
+        NotaDeVoz nota = notaDelGrabador(idAudio, rutGrabador);
         nota.setTranscripcion(nuevaTranscripcion != null ? nuevaTranscripcion.trim() : null);
         nota = notaDeVozRepository.save(nota);
         return convertirADTO(nota);
     }
 
     @Transactional
-    public void eliminar(Long idAudio) {
-        NotaDeVoz nota = notaDeVozRepository.findById(idAudio).orElse(null);
-        if (nota != null) {
-            String ubicacion = nota.getUbicacionArchivo();
-            notaDeVozRepository.delete(nota);
-            notaDeVozRepository.flush();
-            if (ubicacion != null && !ubicacion.isBlank()) {
-                fileStorageService.deleteFile(ubicacion);
-            }
-            logger.info("Nota de voz eliminada (id: {})", idAudio);
+    public void eliminar(Long idAudio, String rutGrabador) {
+        if (!notaDeVozRepository.existsById(idAudio)) return;
+        NotaDeVoz nota = notaDelGrabador(idAudio, rutGrabador);
+        String ubicacion = nota.getUbicacionArchivo();
+        notaDeVozRepository.delete(nota);
+        notaDeVozRepository.flush();
+        if (ubicacion != null && !ubicacion.isBlank()) {
+            fileStorageService.deleteFile(ubicacion);
         }
+        logger.info("Nota de voz eliminada (id: {})", idAudio);
     }
 
     public NotaDeVozDTO convertirADTO(NotaDeVoz nota) {

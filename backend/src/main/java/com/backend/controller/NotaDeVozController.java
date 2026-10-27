@@ -63,14 +63,13 @@ public class NotaDeVozController {
     @PostMapping(value = "/subir", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<NotaDeVozDTO> subirNotaDeVoz(
             @RequestParam(value = "idEvaluacion", required = false) Long idEvaluacion,
-            @RequestParam(value = "idEstudiante", required = false) Long idEstudiante,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "duracion", required = false) String duracion,
             @RequestParam(value = "transcripcion", required = false) String transcripcion,
             @RequestParam(value = "rutGrabador", required = false) String rutGrabador,
             @RequestParam(value = "nombreGrabador", required = false) String nombreGrabador) {
         return ResponseEntity.ok(notaDeVozService.guardarNotaDeVoz(
-                idEvaluacion, idEstudiante, file, duracion, transcripcion, rutGrabador, nombreGrabador
+                idEvaluacion, file, duracion, transcripcion, rutGrabador, nombreGrabador
         ));
     }
 
@@ -87,7 +86,7 @@ public class NotaDeVozController {
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Error al procesar audio"));
+                    .body(Map.of("error", "No se pudo transcribir el audio."));
         }
     }
 
@@ -142,12 +141,13 @@ public class NotaDeVozController {
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         String transcripcion = body.get("transcripcion");
-        return ResponseEntity.ok(notaDeVozService.actualizarTranscripcion(id, transcripcion));
+        return ResponseEntity.ok(notaDeVozService.actualizarTranscripcion(id, transcripcion, body.get("rutGrabador")));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        notaDeVozService.eliminar(id);
+    public ResponseEntity<Void> eliminar(@PathVariable Long id,
+                                         @RequestParam(value = "rutGrabador", required = false) String rutGrabador) {
+        notaDeVozService.eliminar(id, rutGrabador);
         return ResponseEntity.noContent().build();
     }
 }

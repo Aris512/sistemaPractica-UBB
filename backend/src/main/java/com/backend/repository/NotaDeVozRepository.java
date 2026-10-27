@@ -11,9 +11,11 @@ import com.backend.model.NotaDeVoz;
 public interface NotaDeVozRepository extends JpaRepository<NotaDeVoz, Long> {
     List<NotaDeVoz> findByEvaluacionIdEvaluacionOrderByFechaGrabacionDesc(Long idEvaluacion);
 
-    @Query("SELECT n FROM NotaDeVoz n WHERE " +
-           "(n.evaluacion.practica.estudiante.idEstudiante = :idEstudiante) OR " +
-           "(n.evaluacion.idEvaluacion IN (SELECT nt.evaluacion.idEvaluacion FROM Nota nt WHERE nt.estudiante.idEstudiante = :idEstudiante AND nt.evaluacion IS NOT NULL)) " +
+    // LEFT JOIN explícito: con la ruta implícita n.evaluacion.practica... Hibernate hace un
+    // INNER JOIN y descarta las evaluaciones sin práctica, anulando el segundo criterio.
+    @Query("SELECT n FROM NotaDeVoz n JOIN n.evaluacion e LEFT JOIN e.practica p LEFT JOIN p.estudiante pe WHERE " +
+           "(pe.idEstudiante = :idEstudiante) OR " +
+           "(e.idEvaluacion IN (SELECT nt.evaluacion.idEvaluacion FROM Nota nt WHERE nt.estudiante.idEstudiante = :idEstudiante AND nt.evaluacion IS NOT NULL)) " +
            "ORDER BY n.fechaGrabacion DESC")
     List<NotaDeVoz> findByEstudianteId(@Param("idEstudiante") Long idEstudiante);
 

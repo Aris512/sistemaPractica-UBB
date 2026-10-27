@@ -285,14 +285,15 @@ export const subirNotaDeVoz = async (
 
 export const actualizarTranscripcionNotaVoz = async (
   idAudio: number,
-  transcripcion: string
+  transcripcion: string,
+  rutGrabador: string
 ): Promise<NotaDeVozDTO> => {
   const response = await fetch(`${NOTAS_VOZ_URL}/${idAudio}/transcripcion`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ transcripcion }),
+    body: JSON.stringify({ transcripcion, rutGrabador }),
   });
   if (!response.ok) {
     throw new Error("Error al actualizar la transcripción");
@@ -300,8 +301,9 @@ export const actualizarTranscripcionNotaVoz = async (
   return response.json();
 };
 
-export const eliminarNotaDeVoz = async (idAudio: number): Promise<void> => {
-  const response = await fetch(`${NOTAS_VOZ_URL}/${idAudio}`, {
+export const eliminarNotaDeVoz = async (idAudio: number, rutGrabador: string): Promise<void> => {
+  const params = new URLSearchParams({ rutGrabador });
+  const response = await fetch(`${NOTAS_VOZ_URL}/${idAudio}?${params}`, {
     method: "DELETE",
   });
   if (!response.ok) {
