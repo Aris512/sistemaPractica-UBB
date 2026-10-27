@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -56,6 +57,8 @@ import com.backend.repository.ProfesorRepository;
 import com.backend.repository.RolRepository;
 import com.backend.repository.TutorPracticaRepository;
 import com.backend.repository.UsuarioRepository;
+import com.backend.service.FileStorageService;
+import com.backend.service.PlanificacionService;
 import com.backend.util.RutUtils;
 
 /**
@@ -82,6 +85,8 @@ public class AdminController {
     private final AsignaturaRepository asignaturaRepository;
     private final CentroPracticaRepository centroPracticaRepository;
     private final PracticaRepository practicaRepository;
+    private final PlanificacionService planificacionService;
+    private final FileStorageService fileStorageService;
     private final JdbcTemplate jdbcTemplate;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -98,6 +103,8 @@ public class AdminController {
                            AsignaturaRepository asignaturaRepository,
                            CentroPracticaRepository centroPracticaRepository,
                            PracticaRepository practicaRepository,
+                           PlanificacionService planificacionService,
+                           FileStorageService fileStorageService,
                            JdbcTemplate jdbcTemplate) {
         this.usuarioRepository = usuarioRepository;
         this.estudianteRepository = estudianteRepository;
@@ -108,6 +115,8 @@ public class AdminController {
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
         this.practicaRepository = practicaRepository;
+        this.planificacionService = planificacionService;
+        this.fileStorageService = fileStorageService;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -673,6 +682,8 @@ public class AdminController {
 
         List<Object> rutParams = new ArrayList<>(ruts);
         String inRutsClause = String.join(",", Collections.nCopies(rutParams.size(), "?"));
+        // Rutas de los archivos físicos de lo que se elimina; se borran del disco tras el commit
+        List<String> archivos = new ArrayList<>();
 
         // 1. Obtener identificadores relacionados si existen
         List<Long> idsEstudiante = jdbcTemplate.query(
@@ -711,10 +722,14 @@ public class AdminController {
                 estArgs
             );
 
+            archivos.addAll(rutasEvidencias("id_estudiante IN (" + inEstClause + ")", estArgs));
             jdbcTemplate.update("DELETE FROM evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
             jdbcTemplate.update("DELETE FROM cursos_aprobados WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
             jdbcTemplate.update("DELETE FROM nota WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
-            eliminarEvaluacionesHuerfanas(idsEvaluacion);
+            eliminarEvaluacionesHuerfanas(idsEvaluacion, archivos);
+
+            // PLANIFICACIONES: se eliminan con sus archivos y su retroalimentación con IA (antes solo se desvinculaban)
+            idsEstudiante.forEach(planificacionService::eliminarDeEstudiante);
         }
 
         // 3. DOCUMENTOS: eliminar todos los documentos asociados al usuario o estudiante
@@ -726,7 +741,7 @@ public class AdminController {
             doubleRutParams.toArray()
         );
 
-        eliminarDocumentos(idsDocumento);
+        eliminarDocumentos(idsDocumento, archivos);
 
         // Eliminar directamente cualquier documento restante por RUT
         jdbcTemplate.update(
@@ -735,6 +750,11 @@ public class AdminController {
         );
 
         // Eliminar de documento_practica por RUT usuario o estudiante
+        archivos.addAll(jdbcTemplate.queryForList(
+            "SELECT ubicacion FROM documento_practica WHERE rut_usuario IN (" + inRutsClause + ") OR rut_estudiante IN (" + inRutsClause + ")",
+            String.class,
+            doubleRutParams.toArray()
+        ));
         jdbcTemplate.update(
             "DELETE FROM documento_practica WHERE rut_usuario IN (" + inRutsClause + ") OR rut_estudiante IN (" + inRutsClause + ")",
             doubleRutParams.toArray()
@@ -747,7 +767,6 @@ public class AdminController {
 
             // La práctica NO se elimina; únicamente se desvincula la relación del estudiante
             jdbcTemplate.update("UPDATE practica SET id_estudiante = NULL WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
-            jdbcTemplate.update("UPDATE planificacion SET id_estudiante = NULL WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
 
             // Eliminar respuestas (las entregas y notas ya se eliminaron en el paso 2)
             jdbcTemplate.update("DELETE FROM respuesta_encuesta WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
@@ -773,13 +792,14 @@ public class AdminController {
             if (!idsActividad.isEmpty()) {
                 String inActClause = String.join(",", Collections.nCopies(idsActividad.size(), "?"));
                 Object[] actArgs = idsActividad.toArray();
+                archivos.addAll(rutasEvidencias("id_actividad IN (" + inActClause + ")", actArgs));
                 jdbcTemplate.update("DELETE FROM evidencia WHERE id_actividad IN (" + inActClause + ")", actArgs);
                 // Archivos de las entregas de esas actividades (documento.id_actividad referencia actividad)
                 eliminarDocumentos(jdbcTemplate.query(
                     "SELECT id_documento FROM documento WHERE id_actividad IN (" + inActClause + ")",
                     (rs, rowNum) -> rs.getLong("id_documento"),
                     actArgs
-                ));
+                ), archivos);
                 jdbcTemplate.update("DELETE FROM actividad WHERE id_actividad IN (" + inActClause + ")", actArgs);
             }
 
@@ -805,7 +825,12 @@ public class AdminController {
         }
         jdbcTemplate.update("DELETE FROM tutor_practica WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
-        // 8. ROLES: Limpiar la tabla intermedia usuario_rol
+        // 8. CONVERSACIONES CON LA IA (sus mensajes primero)
+        jdbcTemplate.update("DELETE m FROM chat_mensaje m JOIN chat_conversacion c ON c.id_conversacion = m.id_conversacion "
+            + "WHERE c.rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
+        jdbcTemplate.update("DELETE FROM chat_conversacion WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
+
+        // ROLES: Limpiar la tabla intermedia usuario_rol
         jdbcTemplate.update("DELETE FROM usuario_rol WHERE rut_usuario IN (" + inRutsClause + ")", rutParams.toArray());
 
         // 9. USUARIO: Eliminar definitivamente el registro en la tabla usuario
@@ -816,17 +841,25 @@ public class AdminController {
             entityManager.clear();
         }
 
+        // Archivos físicos: se borran después del commit y solo si ningún otro registro los usa
+        archivos.stream().filter(Objects::nonNull).distinct().forEach(fileStorageService::deleteFile);
+
         return ResponseEntity.ok(Map.of(
             "message", "Usuario eliminado con éxito",
             "rut", rutOficial
         ));
     }
 
-    /** Elimina documentos quitando antes las referencias que otras tablas tienen hacia ellos. */
-    private void eliminarDocumentos(List<Long> idsDocumento) {
+    /**
+     * Elimina documentos quitando antes las referencias que otras tablas tienen hacia ellos. Sus rutas se agregan a
+     * {@code archivos} para borrar después los archivos físicos.
+     */
+    private void eliminarDocumentos(List<Long> idsDocumento, List<String> archivos) {
         if (idsDocumento.isEmpty()) return;
         String inDocsClause = String.join(",", Collections.nCopies(idsDocumento.size(), "?"));
         Object[] docArgs = idsDocumento.toArray();
+        archivos.addAll(jdbcTemplate.queryForList(
+            "SELECT ubicacion FROM documento WHERE id_documento IN (" + inDocsClause + ")", String.class, docArgs));
         for (String columna : List.of("id_planificacion_archivo", "id_presentacion", "id_guia_actividades",
                 "id_rubrica_evaluacion", "id_material_didactico")) {
             jdbcTemplate.update("UPDATE documento_planificacion SET " + columna + " = NULL WHERE " + columna + " IN (" + inDocsClause + ")", docArgs);
@@ -841,7 +874,7 @@ public class AdminController {
      * Elimina las evaluaciones docentes que quedaron sin notas tras borrar al estudiante. Las
      * evaluaciones ligadas a una práctica se conservan.
      */
-    private void eliminarEvaluacionesHuerfanas(List<Long> idsEvaluacion) {
+    private void eliminarEvaluacionesHuerfanas(List<Long> idsEvaluacion, List<String> archivos) {
         if (idsEvaluacion.isEmpty()) return;
         String inEvalClause = String.join(",", Collections.nCopies(idsEvaluacion.size(), "?"));
         List<Long> huerfanas = jdbcTemplate.query(
@@ -854,9 +887,22 @@ public class AdminController {
         if (huerfanas.isEmpty()) return;
         String inClause = String.join(",", Collections.nCopies(huerfanas.size(), "?"));
         Object[] args = huerfanas.toArray();
+        archivos.addAll(jdbcTemplate.queryForList(
+            "SELECT archivo_url FROM evaluacion WHERE id_evaluacion IN (" + inClause + ")", String.class, args));
+        archivos.addAll(jdbcTemplate.queryForList(
+            "SELECT ubicacion_archivo FROM nota_de_voz WHERE id_evaluacion IN (" + inClause + ")", String.class, args));
         jdbcTemplate.update("DELETE FROM observacion_evaluacion WHERE id_evaluacion IN (" + inClause + ")", args);
         jdbcTemplate.update("DELETE FROM nota_de_voz WHERE id_evaluacion IN (" + inClause + ")", args);
         jdbcTemplate.update("DELETE FROM evaluacion WHERE id_evaluacion IN (" + inClause + ")", args);
+    }
+
+    /** Archivos de las entregas (evidencia) que cumplen la condición: el del alumno y el de la revisión del profesor. */
+    private List<String> rutasEvidencias(String condicion, Object[] args) {
+        List<String> rutas = new ArrayList<>(jdbcTemplate.queryForList(
+            "SELECT archivo_url FROM evidencia WHERE " + condicion, String.class, args));
+        rutas.addAll(jdbcTemplate.queryForList(
+            "SELECT archivo_revision_url FROM evidencia WHERE " + condicion, String.class, args));
+        return rutas;
     }
 
     /**
