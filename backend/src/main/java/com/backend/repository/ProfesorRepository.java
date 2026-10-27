@@ -15,6 +15,7 @@ import com.backend.model.Usuario;
 public interface ProfesorRepository extends JpaRepository<Profesor, Long> {
     Optional<Profesor> findByUsuario(Usuario usuario);
     Optional<Profesor> findByUsuarioRut(String rut);
+    List<Profesor> findAllByUsuarioRut(String rut);
 
     @Query("SELECT p FROM Profesor p WHERE p.asignatura.idAsignatura = :idAsignatura")
     List<Profesor> findAllByAsignaturaId(@Param("idAsignatura") Long idAsignatura);

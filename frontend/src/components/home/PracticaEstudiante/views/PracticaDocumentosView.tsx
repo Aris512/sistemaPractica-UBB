@@ -17,7 +17,7 @@ import { sileo } from "sileo";
 interface PracticaDocumentosViewProps {
   user: UserSession;
   datos: DatosPracticaEstudiante;
-  onReload?: () => void;
+  onReload?: () => void | Promise<void>;
 }
 
 type CategoriaFiltro = "Todos" | "Documentos" | "Evidencias" | "Informes" | "Otros";
@@ -31,6 +31,7 @@ export function PracticaDocumentosView({
   const [categoriaActiva, setCategoriaActiva] = useState<CategoriaFiltro>("Todos");
   const [modalSubidaAbierto, setModalSubidaAbierto] = useState<boolean>(false);
   const [docAEliminar, setDocAEliminar] = useState<DocumentoFiltroItem | null>(null);
+  const [recargando, setRecargando] = useState<boolean>(false);
 
   const categorias: CategoriaFiltro[] = [
     "Todos",
@@ -106,26 +107,52 @@ export function PracticaDocumentosView({
   const handleConfirmarEliminar = async () => {
     if (!docAEliminar) return;
 
+    if (typeof docAEliminar.id !== "number") {
+      sileo.error({
+        title: "No permitido",
+        description: "Este archivo corresponde a la pauta institucional y no puede ser eliminado.",
+      });
+      setDocAEliminar(null);
+      return;
+    }
+
     try {
-      if (typeof docAEliminar.id === "number") {
-        const res = await fetch(`/api/portafolio/${docAEliminar.id}`, {
-          method: "DELETE",
-        });
-        if (!res.ok) {
-          throw new Error("No se pudo eliminar el archivo del servidor.");
-        }
+      const res = await fetch(`/api/portafolio/${docAEliminar.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        throw new Error("No se pudo eliminar el archivo del servidor.");
       }
       sileo.success({
         title: "Archivo eliminado",
         description: `Se ha eliminado «${docAEliminar.nombre}».`,
       });
       setDocAEliminar(null);
-      onReload?.();
+      await onReload?.();
     } catch (err: any) {
       sileo.error({
         title: "Error al eliminar",
         description: err.message || "Ocurrió un error al intentar eliminar.",
       });
+    }
+  };
+
+  const handleRecargar = async () => {
+    if (!onReload) return;
+    setRecargando(true);
+    try {
+      await onReload();
+      sileo.success({
+        title: "Documentos sincronizados",
+        description: `Se cargaron ${datos.documentos.length} documento${datos.documentos.length !== 1 ? "s" : ""} correctamente.`,
+      });
+    } catch {
+      sileo.error({
+        title: "Error al sincronizar",
+        description: "No se pudieron actualizar los documentos.",
+      });
+    } finally {
+      setRecargando(false);
     }
   };
 
@@ -177,11 +204,12 @@ export function PracticaDocumentosView({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onReload}
-              className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer"
-              title="Recargar archivos"
+              onClick={handleRecargar}
+              disabled={recargando}
+              className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer disabled:opacity-50"
+              title="Sincronizar archivos de práctica"
             >
-              <RefreshCw className="size-4" />
+              <RefreshCw className={`size-4 ${recargando ? "animate-spin text-sky-600" : ""}`} />
             </button>
             <button
               type="button"
@@ -309,8 +337,13 @@ export function PracticaDocumentosView({
                           {getInitials(doc.subidoPor)}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-slate-900 truncate">
-                            {doc.subidoPor}
+                          <p className="font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                            <span>{doc.subidoPor}</span>
+                            {!doc.esPropio && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 font-semibold border border-amber-200/60">
+                                Docente
+                              </span>
+                            )}
                           </p>
                           <span className="text-[10.5px] text-slate-400 block truncate">
                             {doc.rolSubidoPor}
@@ -330,14 +363,16 @@ export function PracticaDocumentosView({
                         >
                           <Download className="size-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setDocAEliminar(doc)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Eliminar archivo"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                        {doc.esPropio && typeof doc.id === "number" && (
+                          <button
+                            type="button"
+                            onClick={() => setDocAEliminar(doc)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Eliminar archivo"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

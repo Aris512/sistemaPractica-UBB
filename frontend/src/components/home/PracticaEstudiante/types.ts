@@ -8,17 +8,6 @@ export type PracticaMenuKey =
 
 export type SemestrePractica = 8 | 9;
 
-export type EstadoEtapa = "done" | "cur" | "pending";
-
-export interface EtapaPractica {
-  id: string;
-  titulo: string;
-  subtitulo: string;
-  estado: EstadoEtapa;
-  completada: boolean;
-  actual: boolean;
-}
-
 export interface ItemPendiente {
   id: string | number;
   titulo: string;
@@ -36,14 +25,6 @@ export interface PersonaEquipo {
   esTutor?: boolean;
   esProfesor?: boolean;
   esCoordinador?: boolean;
-}
-
-export interface ActividadRecienteItem {
-  id: string | number;
-  descripcion: string;
-  tiempo: string;
-  tipo: "up" | "clip" | "edit" | "trash" | "check";
-  usuario?: string;
 }
 
 export interface ObservacionItem {
@@ -75,6 +56,8 @@ export interface DocumentoFiltroItem {
   categoria: "Documentos" | "Evidencias" | "Informes" | "Otros";
   subidoPor: string;
   rolSubidoPor: string;
+  /** true si el archivo lo subió el propio estudiante (solo esos puede eliminarlos) */
+  esPropio: boolean;
   urlDescarga?: string | null;
 }
 
@@ -96,10 +79,8 @@ export interface DatosPracticaEstudiante {
   profesorColaboradorCorreo: string;
   coordinador: string;
   coordinadorCorreo: string;
-  etapas: EtapaPractica[];
   pendientes: ItemPendiente[];
   equipo: PersonaEquipo[];
-  actividades: ActividadRecienteItem[];
   documentos: DocumentoFiltroItem[];
   evaluaciones: EvaluacionItem[];
   observacionesGenerales: ObservacionItem[];

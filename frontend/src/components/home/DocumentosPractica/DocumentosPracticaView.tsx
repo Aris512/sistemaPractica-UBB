@@ -124,18 +124,38 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
     }
   }, [user]);
 
-  // Cargar lista de estudiantes si es Profesor
+  // Cargar lista de estudiantes acotados a la asignatura del Profesor
   const fetchProfesorData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/admin/documentos/estudiantes");
+      const profesorRut = user.rut || (user as any).usuario?.rut || "";
+      const url = profesorRut
+        ? `/api/documentos-practica/estudiantes?rutProfesor=${encodeURIComponent(profesorRut)}`
+        : "/api/documentos-practica/estudiantes";
+      const headers: Record<string, string> = {};
+      if (profesorRut) {
+        headers["X-User-Rut"] = profesorRut;
+      }
+      let res = await fetch(url, { headers });
+      if (!res.ok && res.status === 404) {
+        const fallbackUrl = profesorRut
+          ? `/admin/documentos/estudiantes?rutProfesor=${encodeURIComponent(profesorRut)}`
+          : "/admin/documentos/estudiantes";
+        res = await fetch(fallbackUrl, { headers });
+      }
+
       if (res.ok) {
         const data = await res.json();
-        setEstudiantesProfesor(data);
-        if (data.length > 0) {
-          const firstRut = data[0].rut;
-          setSelectedStudentRut(firstRut);
-          fetchEstudianteExpediente(firstRut);
+        const lista = Array.isArray(data) ? data : [];
+        setEstudiantesProfesor(lista);
+        if (lista.length > 0) {
+          const currentExists = lista.some((e: any) => e.rut === selectedStudentRut);
+          const targetRut = currentExists ? selectedStudentRut : lista[0].rut;
+          setSelectedStudentRut(targetRut);
+          fetchEstudianteExpediente(targetRut);
+        } else {
+          setSelectedStudentRut("");
+          setExpediente(null);
         }
       }
     } catch (err) {
@@ -143,7 +163,7 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
     } finally {
       setLoading(false);
     }
-  }, [fetchEstudianteExpediente]);
+  }, [fetchEstudianteExpediente, user, selectedStudentRut]);
 
   useEffect(() => {
     if (isProfesor) {
@@ -233,8 +253,11 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
           <button
             type="button"
             onClick={() => {
-              if (isProfesor && selectedStudentRut) fetchEstudianteExpediente(selectedStudentRut);
-              else if (user.rut) fetchEstudianteExpediente(user.rut);
+              if (isProfesor) {
+                fetchProfesorData();
+              } else if (user.rut) {
+                fetchEstudianteExpediente(user.rut);
+              }
             }}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer self-start sm:self-auto"
             title="Actualizar datos"
@@ -258,24 +281,40 @@ export function DocumentosPracticaView({ user }: DocumentosPracticaViewProps) {
             </span>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
-            {estudiantesProfesor.map((est) => {
-              const isSelected = est.rut === selectedStudentRut;
-              return (
-                <button
-                  key={est.rut}
-                  onClick={() => handleStudentSelect(est.rut)}
-                  className={`px-3.5 py-2 rounded-xl text-left transition-all shrink-0 cursor-pointer border ${isSelected
-                      ? "bg-sky-50/90 border-sky-300 text-sky-950 font-bold shadow-2xs"
-                      : "bg-slate-50/80 border-slate-200 hover:bg-slate-100/80 text-slate-700"
-                    }`}
-                >
-                  <p className="text-xs truncate max-w-[170px]">{est.nombre}</p>
-                  <p className="text-[10px] text-slate-500 font-normal">RUT: {est.rut}</p>
-                </button>
-              );
-            })}
-          </div>
+          {estudiantesProfesor.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">
+              No tienes estudiantes inscritos en tu asignatura de práctica actualmente.
+            </p>
+          ) : (
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+              {estudiantesProfesor.map((est) => {
+                const isSelected = est.rut === selectedStudentRut;
+                return (
+                  <button
+                    key={est.rut}
+                    onClick={() => handleStudentSelect(est.rut)}
+                    className={`px-3.5 py-2 rounded-xl text-left transition-all shrink-0 cursor-pointer border ${isSelected
+                        ? "bg-sky-50/90 border-sky-300 text-sky-950 font-bold shadow-2xs"
+                        : "bg-slate-50/80 border-slate-200 hover:bg-slate-100/80 text-slate-700"
+                      }`}
+                  >
+                    <p className="text-xs truncate max-w-[170px]">{est.nombre}</p>
+                    <p className="text-[10px] text-slate-500 font-normal">RUT: {est.rut}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estado vacío si el profesor no tiene estudiantes a cargo */}
+      {isProfesor && !expediente && !loading && (
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-12 text-center shadow-xs">
+          <p className="text-sm font-semibold text-slate-700">Sin expediente seleccionado</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Solo podrás visualizar y calificar expedientes de estudiantes asignados a tu asignatura.
+          </p>
         </div>
       )}
 

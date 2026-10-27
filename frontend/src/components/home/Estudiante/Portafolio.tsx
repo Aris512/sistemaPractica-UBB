@@ -204,7 +204,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
             type="button"
             onClick={() => cargarDocumentos(true)}
             disabled={cargando}
-            className="p-2 rounded-xl text-white bg-purple-600 hover:bg-purple-700 border border-purple-700 transition-colors cursor-pointer disabled:opacity-50"
+            className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             title="Recargar archivos"
           >
             <RefreshCw className={`size-4 ${cargando ? "animate-spin text-sky-600" : ""}`} />
