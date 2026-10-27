@@ -35,7 +35,8 @@ export async function requestConUsuario<T>(rut: string, url: string, init: Reque
     res = await fetch(url, {
       ...init,
       headers: {
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        // Con FormData el navegador fija el Content-Type (con su boundary); solo el JSON lo necesita explícito
+        ...(typeof init.body === "string" ? { "Content-Type": "application/json" } : {}),
         "X-Usuario-Rut": rut,
         ...init.headers,
       },

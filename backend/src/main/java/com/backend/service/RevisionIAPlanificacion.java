@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import com.backend.model.RetroalimentacionIA;
@@ -29,13 +30,16 @@ public class RevisionIAPlanificacion {
             "VEREDICTO\\s*:\\s*\\**\\s*(APTO PARA ENVIAR|REQUIERE CORRECCIONES)", Pattern.CASE_INSENSITIVE);
 
     private final RetroalimentacionIARepository repository;
+    private final JdbcTemplate jdbcTemplate;
     private final String promptRetroPlani;
     private final int maxCaracteresHistorial;
 
     public RevisionIAPlanificacion(RetroalimentacionIARepository repository,
+                                   JdbcTemplate jdbcTemplate,
                                    @Value("${retroalimentacion.max-caracteres-historial:6000}") int maxCaracteresHistorial)
             throws IOException {
         this.repository = repository;
+        this.jdbcTemplate = jdbcTemplate;
         this.maxCaracteresHistorial = maxCaracteresHistorial;
         try (InputStream entrada = new ClassPathResource("ia/retroplani-sistema.md").getInputStream()) {
             this.promptRetroPlani = new String(entrada.readAllBytes(), StandardCharsets.UTF_8);
@@ -44,6 +48,27 @@ public class RevisionIAPlanificacion {
 
     public Optional<RetroalimentacionIA> deConversacion(Long idConversacion) {
         return repository.findFirstByConversacionIdConversacion(idConversacion);
+    }
+
+    /**
+     * Al eliminar la conversación de una revisión se elimina también su retroalimentación, para no dejarla huérfana.
+     * Si ya está con el profesor o aprobada no se permite: se perdería su revisión.
+     */
+    public void eliminarDeConversacion(Long idConversacion) {
+        deConversacion(idConversacion).ifPresent(retro -> {
+            if (retro.getEstado() == Estado.ESPERANDO_PROFESOR || retro.getEstado() == Estado.APROBADO) {
+                throw new ChatException(HttpStatus.CONFLICT, "RETRO_CONVERSACION_PROTEGIDA", retro.getEstado() == Estado.APROBADO
+                        ? "No puedes eliminar esta conversación: es la revisión de una planificación ya aprobada por tu profesor."
+                        : "No puedes eliminar esta conversación mientras tu profesor revisa la planificación.");
+            }
+            Long id = retro.getIdRetroalimentacion();
+            // Hijas de la retroalimentación primero, para no romper sus FK
+            jdbcTemplate.update("DELETE rp FROM respuesta_pregunta rp JOIN pregunta_diagnostica pd ON pd.id_pregunta = rp.id_pregunta "
+                    + "WHERE pd.id_retroalimentacion = ?", id);
+            jdbcTemplate.update("DELETE FROM pregunta_diagnostica WHERE id_retroalimentacion = ?", id);
+            repository.delete(retro);
+            repository.flush();
+        });
     }
 
     /** Solo se conversa con la IA mientras la revisión está abierta y quedan revisiones en el ciclo. */
