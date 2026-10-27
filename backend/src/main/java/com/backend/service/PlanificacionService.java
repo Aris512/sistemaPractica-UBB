@@ -158,8 +158,31 @@ public class PlanificacionService {
     /** Elimina la planificación con sus archivos y las retroalimentaciones de IA que tenga. */
     @Transactional
     public void eliminar(Long idPlanificacion, String rutUsuario) {
-        Planificacion planificacion = buscarPropia(idPlanificacion, rutUsuario);
-        List<Documento> documentos = CATEGORIAS.keySet().stream()
+        eliminarCompleta(buscarPropia(idPlanificacion, rutUsuario));
+    }
+
+    /** Al eliminar a un estudiante se eliminan también todas sus planificaciones, con sus archivos y retroalimentaciones. */
+    @Transactional
+    public int eliminarDeEstudiante(Long idEstudiante) {
+        List<Planificacion> planificaciones = planificacionRepository.findByEstudianteIdEstudiante(idEstudiante);
+        planificaciones.forEach(this::eliminarCompleta);
+        return planificaciones.size();
+    }
+
+    /**
+     * Planificaciones que quedaron sin estudiante porque antes, al eliminarlo, solo se desvinculaban.
+     * Nadie puede verlas ni borrarlas desde la aplicación, así que se eliminan con sus archivos.
+     */
+    @Transactional
+    public int eliminarHuerfanas() {
+        List<Planificacion> huerfanas = planificacionRepository.findByEstudianteIsNull();
+        huerfanas.forEach(this::eliminarCompleta);
+        return huerfanas.size();
+    }
+
+    private void eliminarCompleta(Planificacion planificacion) {
+        Long idPlanificacion = planificacion.getIdPlanificacion();
+        List<Documento> documentos = planificacion.getDocumentoPlanificacion() == null ? List.of() : CATEGORIAS.keySet().stream()
             .map(c -> planificacion.getDocumentoPlanificacion().getArchivo(c))
             .filter(Objects::nonNull)
             .toList();
