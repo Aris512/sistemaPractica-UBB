@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 import com.backend.model.Documento;
 
 public interface DocumentoRepository extends JpaRepository<Documento, Long> {
-    List<Documento> findByPlanificacionesIdPlanificacion(Long idPlanificacion);
 
     List<Documento> findByUsuarioRut(String rut);
 

@@ -168,6 +168,11 @@ public class GroqClient {
             return new ChatException(HttpStatus.TOO_MANY_REQUESTS, "IA_LIMITE_USO",
                     "El servicio de IA alcanzó su límite de uso. Espera un momento antes de volver a intentarlo.", reintentar);
         }
+        if (status == 413) {
+            // Groq responde 413 cuando una sola solicitud supera el límite de tokens por minuto del plan
+            return new ChatException(HttpStatus.BAD_GATEWAY, "IA_SOLICITUD_MUY_GRANDE",
+                    "El mensaje y su contexto superan lo que el servicio de IA acepta de una vez. Escribe un mensaje más breve o inicia una nueva conversación.");
+        }
         if (status >= 400 && status < 500 && status != 408) {
             return new ChatException(HttpStatus.BAD_GATEWAY, "IA_SOLICITUD_INVALIDA",
                     "El servicio de IA rechazó la solicitud. Si persiste, inicia una nueva conversación o contacta al administrador.");

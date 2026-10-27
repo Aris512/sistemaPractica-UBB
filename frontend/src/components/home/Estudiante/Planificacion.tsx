@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   CalendarDays,
   ArrowLeft,
@@ -7,15 +7,30 @@ import {
   Presentation,
   FileSpreadsheet,
   Layers,
+  ClipboardList,
   Trash2,
   Download,
   BookOpen,
   RefreshCw,
-  FolderOpen,
+  Plus,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  X,
+  Paperclip,
+  type LucideIcon,
 } from "lucide-react";
 import type { UserSession } from "@/types/auth";
-import { FileUploadModal } from "@/components/ui/FileUploadModal";
 import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { sileo } from "sileo";
 
 interface PlanificacionProps {
@@ -23,175 +38,268 @@ interface PlanificacionProps {
   onBack?: () => void;
 }
 
+type Categoria = "PLANIFICACION" | "PRESENTACION" | "GUIA_ACTIVIDADES" | "RUBRICA_EVALUACION" | "MATERIAL_DIDACTICO";
+
+interface ArchivoPlanificacion {
+  categoria: Categoria;
+  etiqueta: string;
+  idDocumento: number | null;
+  nombre: string | null;
+  tamanioBytes: number | null;
+  fechaCarga: string | null;
+  urlDescarga: string | null;
+}
+
 interface PlanificacionItem {
   idPlanificacion: number;
-  titulo: string;
-  objetivo: string;
-  estado: string;
   fechaCreacion: string;
-  versionAutoincremental: number;
+  asignatura: string | null;
+  archivos: ArchivoPlanificacion[];
+  pendientes: Categoria[];
+  completa: boolean;
 }
 
-interface ArchivoPlanificacionDTO {
-  idDocumento: number;
-  nombre: string;
-  tipo: "GUIA" | "RECURSO" | "POWERPOINT" | "PAUTA_EVALUACION" | string;
-  ubicacion: string;
-  fechaCarga: string;
-  tamanio: string;
-  urlDescarga: string;
-}
-
-type CategoriaArchivo = "GUIA" | "RECURSO" | "POWERPOINT" | "PAUTA_EVALUACION";
-
+/** Las 5 categorías obligatorias (deben coincidir con PlanificacionService en el backend). */
 const CATEGORIAS: {
-  key: CategoriaArchivo;
+  key: Categoria;
   label: string;
   descripcion: string;
   extensiones: string[];
-  icon: any;
+  icon: LucideIcon;
   colorBg: string;
   colorText: string;
-  badgeBg: string;
 }[] = [
-    {
-      key: "GUIA",
-      label: "Guías Didácticas",
-      descripcion: "Guías de aprendizaje, actividades prácticas y talleres para la clase.",
-      extensiones: [".pdf", ".docx", ".doc", ".odt"],
-      icon: FileText,
-      colorBg: "bg-sky-50",
-      colorText: "text-sky-700",
-      badgeBg: "bg-sky-100 text-sky-800 border-sky-200",
-    },
-    {
-      key: "RECURSO",
-      label: "Recursos y Materiales",
-      descripcion: "Imágenes, lecturas complementarias, audios o paquetes comprimidos.",
-      extensiones: [".pdf", ".png", ".jpg", ".jpeg", ".zip", ".rar", ".docx"],
-      icon: Layers,
-      colorBg: "bg-indigo-50",
-      colorText: "text-indigo-700",
-      badgeBg: "bg-indigo-100 text-indigo-800 border-indigo-200",
-    },
-    {
-      key: "POWERPOINT",
-      label: "Presentaciones PowerPoint",
-      descripcion: "Diapositivas y presentaciones estructuradas para el desarrollo de la sesión.",
-      extensiones: [".pptx", ".ppt", ".pdf"],
-      icon: Presentation,
-      colorBg: "bg-amber-50",
-      colorText: "text-amber-700",
-      badgeBg: "bg-amber-100 text-amber-800 border-amber-200",
-    },
-    {
-      key: "PAUTA_EVALUACION",
-      label: "Pautas de Evaluación",
-      descripcion: "Rúbricas analíticas, listas de cotejo o escalas de apreciación.",
-      extensiones: [".pdf", ".docx", ".xlsx", ".xls"],
-      icon: FileSpreadsheet,
-      colorBg: "bg-emerald-50",
-      colorText: "text-emerald-700",
-      badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    },
-  ];
+  {
+    key: "PLANIFICACION",
+    label: "Planificación",
+    descripcion: "Documento de planificación de la clase: objetivos, secuencia y tiempos.",
+    extensiones: [".pdf", ".doc", ".docx", ".odt"],
+    icon: FileText,
+    colorBg: "bg-sky-50",
+    colorText: "text-sky-700",
+  },
+  {
+    key: "PRESENTACION",
+    label: "Presentación",
+    descripcion: "Diapositivas que usarás durante la sesión.",
+    extensiones: [".ppt", ".pptx", ".odp", ".pdf"],
+    icon: Presentation,
+    colorBg: "bg-amber-50",
+    colorText: "text-amber-700",
+  },
+  {
+    key: "GUIA_ACTIVIDADES",
+    label: "Guía de actividades",
+    descripcion: "Guía de trabajo y actividades para los estudiantes.",
+    extensiones: [".pdf", ".doc", ".docx", ".odt"],
+    icon: ClipboardList,
+    colorBg: "bg-violet-50",
+    colorText: "text-violet-700",
+  },
+  {
+    key: "RUBRICA_EVALUACION",
+    label: "Rúbrica de evaluación",
+    descripcion: "Rúbrica, lista de cotejo o escala con la que evaluarás la clase.",
+    extensiones: [".pdf", ".doc", ".docx", ".xls", ".xlsx"],
+    icon: FileSpreadsheet,
+    colorBg: "bg-emerald-50",
+    colorText: "text-emerald-700",
+  },
+  {
+    key: "MATERIAL_DIDACTICO",
+    label: "Material didáctico",
+    descripcion: "Recursos de apoyo: lecturas, imágenes, fichas o archivos comprimidos.",
+    extensiones: [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".zip", ".png", ".jpg", ".jpeg"],
+    icon: Layers,
+    colorBg: "bg-indigo-50",
+    colorText: "text-indigo-700",
+  },
+];
+
+const etiqueta = (c: Categoria) => CATEGORIAS.find((x) => x.key === c)?.label ?? c;
+const MAX_BYTES = 20 * 1024 * 1024;
+
+function formatoTamanio(bytes: number | null) {
+  if (!bytes) return "—";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Ejecuta una petición a la API y devuelve el JSON, o lanza un error con el mensaje del backend. */
+async function pedir<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.error || "No se pudo completar la operación.");
+  }
+  return data as T;
+}
+
+interface ArchivoSeleccionado {
+  id: number;
+  file: File;
+  categoria: Categoria | "";
+}
 
 export function Planificacion({ user, onBack }: PlanificacionProps) {
-  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
+  const rut = user?.rut ?? "";
   const [planificaciones, setPlanificaciones] = useState<PlanificacionItem[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<PlanificacionItem | null>(null);
-  const [archivos, setArchivos] = useState<ArchivoPlanificacionDTO[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadingArchivos, setLoadingArchivos] = useState<boolean>(false);
+  const [seleccionadaId, setSeleccionadaId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [creando, setCreando] = useState(false);
+  const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
 
-  // Categoría seleccionada para el filtro o subida
-  const [selectedCategoryForUpload, setSelectedCategoryForUpload] = useState<CategoriaArchivo>("GUIA");
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  // Modal de subida
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [seleccion, setSeleccion] = useState<ArchivoSeleccionado[]>([]);
+  const [subiendo, setSubiendo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const siguienteId = useRef(0);
 
-  // Cargar las planificaciones del estudiante
-  const fetchPlanificaciones = useCallback(async () => {
-    if (!user?.rut) return;
+  const seleccionada = planificaciones.find((p) => p.idPlanificacion === seleccionadaId) ?? null;
+  // Numeración estable: la más antigua es la #1 (la API las devuelve de la más nueva a la más antigua)
+  const numero = (id: number) => planificaciones.length - planificaciones.findIndex((p) => p.idPlanificacion === id);
+
+  const cargar = useCallback(async () => {
+    if (!rut) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/planificaciones/estudiante/${encodeURIComponent(user.rut)}`);
-      if (res.ok) {
-        const data: PlanificacionItem[] = await res.json();
-        setPlanificaciones(data);
-        if (data.length > 0) {
-          const first = data[0];
-          setSelectedPlan(first);
-          fetchArchivos(first.idPlanificacion);
-        }
-      }
+      const data = await pedir<PlanificacionItem[]>(`/api/planificaciones/estudiante/${encodeURIComponent(rut)}`);
+      setPlanificaciones(data);
+      setSeleccionadaId((actual) =>
+        data.some((p) => p.idPlanificacion === actual) ? actual : data[0]?.idPlanificacion ?? null
+      );
     } catch (err) {
-      console.warn("Error al cargar planificaciones:", err);
+      sileo.error({ title: "Error al cargar", description: err instanceof Error ? err.message : "Intenta nuevamente." });
     } finally {
       setLoading(false);
     }
-  }, [user?.rut]);
-
-  // Cargar los archivos adjuntos a la planificación seleccionada
-  const fetchArchivos = async (idPlanificacion: number) => {
-    setLoadingArchivos(true);
-    try {
-      const res = await fetch(`/api/planificaciones/${idPlanificacion}/archivos`);
-      if (res.ok) {
-        const data: ArchivoPlanificacionDTO[] = await res.json();
-        setArchivos(data);
-      }
-    } catch (err) {
-      console.warn("Error al obtener archivos de planificación:", err);
-    } finally {
-      setLoadingArchivos(false);
-    }
-  };
+  }, [rut]);
 
   useEffect(() => {
-    fetchPlanificaciones();
-  }, [fetchPlanificaciones]);
+    cargar();
+  }, [cargar]);
 
-  const handleSelectPlan = (plan: PlanificacionItem) => {
-    setSelectedPlan(plan);
-    fetchArchivos(plan.idPlanificacion);
-  };
+  /** Reemplaza la planificación modificada en la lista con la versión que devuelve la API. */
+  const actualizar = (plan: PlanificacionItem) =>
+    setPlanificaciones((lista) => lista.map((p) => (p.idPlanificacion === plan.idPlanificacion ? plan : p)));
 
-  const handleOpenUploadForCategory = (cat: CategoriaArchivo) => {
-    setSelectedCategoryForUpload(cat);
-    setIsUploadModalOpen(true);
-  };
-
-  const handleDeleteArchivo = async (idDocumento: number, nombre: string) => {
-    if (!selectedPlan) return;
-
+  const crearPlanificacion = async () => {
+    setCreando(true);
     try {
-      const res = await fetch(`/api/planificaciones/${selectedPlan.idPlanificacion}/archivos/${idDocumento}`, {
-        method: "DELETE",
+      const nueva = await pedir<PlanificacionItem>(`/api/planificaciones/estudiante/${encodeURIComponent(rut)}`, {
+        method: "POST",
       });
-      if (res.ok) {
-        sileo.success({
-          title: "Archivo eliminado",
-          description: `Se eliminó "${nombre}" de la planificación.`,
-        });
-        fetchArchivos(selectedPlan.idPlanificacion);
-      } else {
-        sileo.error({
-          title: "Error",
-          description: "No se pudo eliminar el archivo adjunto.",
-        });
-      }
+      setPlanificaciones((lista) => [nueva, ...lista]);
+      setSeleccionadaId(nueva.idPlanificacion);
+      sileo.success({ title: "Planificación creada", description: "Sube sus 5 archivos para completarla." });
     } catch (err) {
-      sileo.error({
-        title: "Error de red",
-        description: "No se pudo conectar con el servidor.",
-      });
+      sileo.error({ title: "No se pudo crear", description: err instanceof Error ? err.message : "" });
+    } finally {
+      setCreando(false);
     }
   };
 
-  const activeCategoryMeta = CATEGORIAS.find((c) => c.key === selectedCategoryForUpload) || CATEGORIAS[0];
+  const eliminarArchivo = async (plan: PlanificacionItem, archivo: ArchivoPlanificacion) => {
+    try {
+      const actualizado = await pedir<PlanificacionItem>(
+        `/api/planificaciones/${plan.idPlanificacion}/archivos/${archivo.categoria}?rutUsuario=${encodeURIComponent(rut)}`,
+        { method: "DELETE" }
+      );
+      actualizar(actualizado);
+      sileo.success({ title: "Archivo eliminado", description: `${archivo.etiqueta} quedó pendiente de subir.` });
+    } catch (err) {
+      sileo.error({ title: "No se pudo eliminar", description: err instanceof Error ? err.message : "" });
+    }
+  };
+
+  const eliminarPlanificacion = async (plan: PlanificacionItem) => {
+    try {
+      await pedir(`/api/planificaciones/${plan.idPlanificacion}?rutUsuario=${encodeURIComponent(rut)}`, { method: "DELETE" });
+      sileo.success({ title: "Planificación eliminada", description: "Se eliminaron también sus archivos." });
+      await cargar();
+    } catch (err) {
+      sileo.error({ title: "No se pudo eliminar", description: err instanceof Error ? err.message : "" });
+    }
+  };
+
+  // ── Modal de subida ──────────────────────────────────────────────────────
+
+  const abrirModal = () => {
+    setSeleccion([]);
+    setModalAbierto(true);
+  };
+
+  /** Agrega archivos a la selección, sugiriendo para cada uno la siguiente categoría pendiente. */
+  const agregarArchivos = (files: FileList | null) => {
+    if (!files || !seleccionada) return;
+    setSeleccion((actual) => {
+      const usadas = new Set(actual.map((a) => a.categoria));
+      const nuevos = Array.from(files).map((file) => {
+        const sugerida = seleccionada.pendientes.find((c) => !usadas.has(c)) ?? "";
+        if (sugerida) usadas.add(sugerida);
+        return { id: siguienteId.current++, file, categoria: sugerida as Categoria | "" };
+      });
+      return [...actual, ...nuevos];
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const errorDe = (item: ArchivoSeleccionado): string | null => {
+    if (!item.categoria) return "Elige la categoría de este archivo.";
+    if (seleccion.filter((s) => s.categoria === item.categoria).length > 1) {
+      return `Solo puede haber un archivo de ${etiqueta(item.categoria)}.`;
+    }
+    const meta = CATEGORIAS.find((c) => c.key === item.categoria)!;
+    const ext = "." + (item.file.name.split(".").pop() ?? "").toLowerCase();
+    if (!meta.extensiones.includes(ext)) return `Formato no válido para ${meta.label} (${meta.extensiones.join(", ")}).`;
+    if (item.file.size > MAX_BYTES) return "El archivo supera el máximo de 20 MB.";
+    return null;
+  };
+
+  const hayErrores = seleccion.some((s) => errorDe(s) !== null);
+  // Categorías que seguirán pendientes después de esta subida
+  const pendientesTrasSubir = seleccionada
+    ? seleccionada.pendientes.filter((c) => !seleccion.some((s) => s.categoria === c))
+    : [];
+
+  const subir = async () => {
+    if (!seleccionada || seleccion.length === 0 || hayErrores) return;
+    setSubiendo(true);
+    try {
+      const form = new FormData();
+      seleccion.forEach((s) => {
+        form.append("archivos", s.file);
+        form.append("categorias", s.categoria);
+      });
+      form.append("rutUsuario", rut);
+      const actualizado = await pedir<PlanificacionItem>(`/api/planificaciones/${seleccionada.idPlanificacion}/archivos`, {
+        method: "POST",
+        body: form,
+      });
+      actualizar(actualizado);
+      setModalAbierto(false);
+      if (actualizado.completa) {
+        sileo.success({ title: "Planificación completa", description: "Subiste los 5 archivos obligatorios." });
+      } else {
+        sileo.warning({
+          title: "Archivos subidos",
+          description: `Aún está pendiente de subir: ${actualizado.pendientes.map(etiqueta).join(", ")}.`,
+        });
+      }
+    } catch (err) {
+      sileo.error({ title: "No se pudieron subir los archivos", description: err instanceof Error ? err.message : "" });
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  const subidos = seleccionada ? 5 - seleccionada.pendientes.length : 0;
 
   return (
     <div className="max-w-6xl mx-auto py-2 space-y-6">
-      {/* Botón Volver */}
       {onBack && (
         <div>
           <button
@@ -205,211 +313,341 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
         </div>
       )}
 
-      {/* Encabezado Principal */}
+      {/* Encabezado */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="size-14 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600 shadow-2xs shrink-0">
               <CalendarDays className="size-7" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  Planificación Didáctica Multi-Archivo
-                </h1>
-              </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Planificación</h1>
               <p className="text-slate-600 text-xs sm:text-sm mt-1">
-                Adjunta en conjunto todos los recursos pedagógicos de tu planificación: guías didácticas, presentaciones PowerPoint, pautas y materiales complementarios.
+                Cada planificación requiere 5 archivos: planificación, presentación, guía de actividades, rúbrica de
+                evaluación y material didáctico.
               </p>
             </div>
           </div>
 
+          <div className="flex items-center gap-2 self-start lg:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={cargar}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer whitespace-nowrap"
+              title="Actualizar datos"
+            >
+              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Actualizar</span>
+            </button>
+            <button
+              type="button"
+              onClick={crearPlanificacion}
+              disabled={creando || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>Nueva planificación</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {loading && planificaciones.length === 0 ? (
+        <div className="py-16 flex flex-col items-center justify-center text-center">
+          <RefreshCw className="size-7 text-sky-600 animate-spin mb-2" />
+          <p className="text-sm text-slate-600">Cargando planificaciones...</p>
+        </div>
+      ) : planificaciones.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+          <CalendarDays className="size-10 text-slate-300 mx-auto mb-3" />
+          <h2 className="text-base font-bold text-slate-800">Aún no tienes planificaciones</h2>
+          <p className="text-sm text-slate-500 mt-1">Crea una planificación y sube sus 5 archivos obligatorios.</p>
+        </div>
+      ) : (
+        <>
+          {/* Selector de planificaciones */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {planificaciones.map((plan) => {
+              const activa = plan.idPlanificacion === seleccionadaId;
+              return (
+                <button
+                  key={plan.idPlanificacion}
+                  type="button"
+                  onClick={() => setSeleccionadaId(plan.idPlanificacion)}
+                  className={`px-4 py-2.5 rounded-xl text-left border transition-all shrink-0 cursor-pointer ${
+                    activa
+                      ? "bg-sky-600 border-sky-600 text-white font-bold shadow-xs"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="text-xs">Planificación #{numero(plan.idPlanificacion)}</p>
+                  <p className={`text-[10px] ${activa ? "text-sky-100" : plan.completa ? "text-emerald-600" : "text-amber-600"}`}>
+                    {plan.completa ? "Completa" : `${5 - plan.pendientes.length} de 5 archivos`}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {seleccionada && (
+            <>
+              {/* Resumen de la planificación seleccionada y lista de sus 5 archivos */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-xs space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="size-4.5 text-sky-600" />
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 whitespace-nowrap">Planificación #{numero(seleccionada.idPlanificacion)}</h2>
+                    {seleccionada.completa ? (
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        COMPLETA
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                        INCOMPLETA
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={abrirModal}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer whitespace-nowrap"
+                    >
+                      <Upload className="size-3.5" />
+                      <span>Subir archivos</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteAction(() => () => eliminarPlanificacion(seleccionada))}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="Eliminar planificación"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>
+                      {seleccionada.asignatura ? `${seleccionada.asignatura} • ` : ""}Creada el{" "}
+                      {new Date(seleccionada.fechaCreacion).toLocaleDateString("es-CL")}
+                    </span>
+                    <span className="font-semibold text-slate-800">{subidos} de 5 archivos</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${seleccionada.completa ? "bg-emerald-500" : "bg-sky-500"}`}
+                      style={{ width: `${(subidos / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {!seleccionada.completa && (
+                  <p className="text-xs text-amber-700 flex items-start gap-1.5">
+                    <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                    <span>Pendiente de subir: {seleccionada.pendientes.map(etiqueta).join(", ")}.</span>
+                  </p>
+                )}
+
+                {/* Lista de archivos: nombre, tipo y estado */}
+                {/* w-0 min-w-full: la tabla hace scroll dentro de la tarjeta en vez de ensanchar toda la página */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 w-0 min-w-full">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="px-4 py-2.5 font-semibold">Nombre</th>
+                        <th className="px-4 py-2.5 font-semibold">Tipo</th>
+                        <th className="px-4 py-2.5 font-semibold">Estado</th>
+                        <th className="px-4 py-2.5 font-semibold text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {CATEGORIAS.map((cat) => {
+                        const Icon = cat.icon;
+                        const archivo = seleccionada.archivos.find((a) => a.categoria === cat.key);
+                        const subido = !!archivo?.idDocumento;
+                        return (
+                          <tr key={cat.key} className="hover:bg-slate-50/60">
+                            <td className="px-4 py-3">
+                              {subido && archivo ? (
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-800 truncate max-w-[260px]" title={archivo.nombre ?? ""}>
+                                    {archivo.nombre}
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">
+                                    {formatoTamanio(archivo.tamanioBytes)} •{" "}
+                                    {archivo.fechaCarga ? new Date(archivo.fechaCarga).toLocaleDateString("es-CL") : ""}
+                                  </p>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">Sin archivo ({cat.extensiones.join(", ")})</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 whitespace-nowrap">
+                                <Icon className={`size-3.5 ${cat.colorText}`} />
+                                {cat.label}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {subido ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                  <CheckCircle2 className="size-3" />
+                                  Subido
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+                                  <Clock className="size-3" />
+                                  Pendiente de subir
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {subido && archivo && (
+                                <div className="flex items-center justify-end gap-1">
+                                  <a
+                                    href={archivo.urlDescarga ?? undefined}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-colors"
+                                    title="Descargar archivo"
+                                  >
+                                    <Download className="size-3.5" />
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteAction(() => () => eliminarArchivo(seleccionada, archivo))}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="Eliminar archivo"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Modal de subida: varios archivos, cada uno con su categoría */}
+      <Dialog open={modalAbierto} onOpenChange={(open) => !subiendo && setModalAbierto(open)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Subir archivos de la planificación</DialogTitle>
+            <DialogDescription>
+              Selecciona tus archivos y elige la categoría de cada uno. Un archivo nuevo reemplaza al que ya exista en su
+              categoría. Máximo 20 MB por archivo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => agregarArchivos(e.target.files)}
+          />
           <button
             type="button"
-            onClick={fetchPlanificaciones}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer self-start sm:self-auto"
-            title="Actualizar datos"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full border-2 border-dashed border-slate-300 hover:border-sky-400 hover:bg-sky-50/30 rounded-xl p-5 text-center cursor-pointer transition-colors"
           >
-            <RefreshCw className={`size-3.5 ${loading || loadingArchivos ? "animate-spin" : ""}`} />
-            <span>Actualizar</span>
+            <Upload className="size-6 text-slate-400 mx-auto mb-1.5" />
+            <p className="text-xs font-semibold text-slate-700">Haz clic para seleccionar archivos</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Puedes elegir varios a la vez</p>
           </button>
 
-        </div>
-      </div>
-
-      {/* Selector de Planificaciones */}
-      {planificaciones.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {planificaciones.map((plan) => {
-            const isSelected = selectedPlan?.idPlanificacion === plan.idPlanificacion;
-            return (
-              <button
-                key={plan.idPlanificacion}
-                onClick={() => handleSelectPlan(plan)}
-                className={`px-4 py-2.5 rounded-xl text-left border transition-all shrink-0 cursor-pointer ${isSelected
-                  ? "bg-sky-600 border-sky-600 text-white font-bold shadow-xs"
-                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
-              >
-                <p className="text-xs truncate max-w-[200px]">{plan.titulo}</p>
-                <p className={`text-[10px] ${isSelected ? "text-sky-100" : "text-slate-400"}`}>
-                  Versión {plan.versionAutoincremental} • {plan.estado}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Tarjeta de Detalle de la Planificación Actual */}
-      {selectedPlan && (
-        <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="size-4.5 text-sky-400" />
-              <h2 className="text-base sm:text-lg font-bold text-white">{selectedPlan.titulo}</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                Versión {selectedPlan.versionAutoincremental}
-              </span>
-              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
-                {selectedPlan.estado}
-              </span>
-            </div>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            {selectedPlan.objetivo || "Diseño y estructura de la sesión de práctica pedagógica."}
-          </p>
-          <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-            <span>{archivos.length} archivos adjuntos en total</span>
-          </div>
-        </div>
-      )}
-
-      {/* Secciones por Categoría de Archivos (Guías, Recursos, PPT, Pautas) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {CATEGORIAS.map((cat) => {
-          const IconComponent = cat.icon;
-          const archivosDeCategoria = archivos.filter((a) => a.tipo === cat.key);
-
-          return (
-            <div
-              key={cat.key}
-              className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between"
-            >
-              <div>
-                {/* Cabecera de la Categoría */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`size-10 rounded-xl ${cat.colorBg} ${cat.colorText} flex items-center justify-center font-bold`}>
-                      <IconComponent className="size-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900">{cat.label}</h3>
-                      <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{cat.descripcion}</p>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                    {archivosDeCategoria.length} {archivosDeCategoria.length === 1 ? "archivo" : "archivos"}
-                  </span>
-                </div>
-
-                {/* Lista de Archivos Adjuntos en esta Categoría */}
-                <div className="space-y-2 my-4 min-h-[90px]">
-                  {archivosDeCategoria.length === 0 ? (
-                    <div className="h-full py-4 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-center p-3 bg-slate-50/50">
-                      <FolderOpen className="size-6 text-slate-300 mb-1" />
-                      <p className="text-xs text-slate-400 font-medium">Aún no hay {cat.label.toLowerCase()} adjuntas.</p>
-                      <p className="text-[10px] text-slate-400">Formatos permitidos: {cat.extensiones.join(", ")}</p>
-                    </div>
-                  ) : (
-                    archivosDeCategoria.map((arch) => (
-                      <div
-                        key={arch.idDocumento}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:bg-slate-100/70 transition-colors"
+          {seleccion.length > 0 && (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {seleccion.map((item) => {
+                const error = errorDe(item);
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-3 rounded-xl border ${error ? "border-rose-200 bg-rose-50/40" : "border-slate-200 bg-slate-50"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Paperclip className="size-3.5 text-slate-400 shrink-0" />
+                      <span className="text-xs font-semibold text-slate-800 truncate flex-1" title={item.file.name}>
+                        {item.file.name}
+                      </span>
+                      <select
+                        value={item.categoria}
+                        onChange={(e) =>
+                          setSeleccion((lista) =>
+                            lista.map((s) => (s.id === item.id ? { ...s, categoria: e.target.value as Categoria } : s))
+                          )
+                        }
+                        className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                        aria-label={`Categoría de ${item.file.name}`}
                       >
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <IconComponent className={`size-4 ${cat.colorText} shrink-0`} />
-                          <div className="overflow-hidden">
-                            <p className="text-xs font-semibold text-slate-800 truncate max-w-[180px] sm:max-w-[240px]" title={arch.nombre}>
-                              {arch.nombre}
-                            </p>
-                            <p className="text-[10px] text-slate-500">
-                              {arch.tamanio || "—"} • {arch.fechaCarga ? new Date(arch.fechaCarga).toLocaleDateString("es-CL") : ""}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          {/* Botón Descargar */}
-                          <a
-                            href={arch.urlDescarga}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 transition-colors"
-                            title="Descargar archivo"
-                          >
-                            <Download className="size-3.5" />
-                          </a>
-
-                          {/* Botón Eliminar */}
-                          <button
-                            type="button"
-                            onClick={() => setDeleteAction(() => () => handleDeleteArchivo(arch.idDocumento, arch.nombre))}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                            title="Eliminar de la planificación"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Botón con Icono para Adjuntar Archivo a esta Categoría */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400 font-medium">
-                  Límite máximo: <strong>20 MB</strong>
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => handleOpenUploadForCategory(cat.key)}
-                  disabled={!selectedPlan}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <Upload className="size-3" />
-                  <span>Adjuntar {cat.label.split(" ")[0]}</span>
-                </button>
-              </div>
+                        <option value="">Elegir categoría…</option>
+                        {CATEGORIAS.map((c) => (
+                          <option key={c.key} value={c.key}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setSeleccion((lista) => lista.filter((s) => s.id !== item.id))}
+                        className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-white cursor-pointer"
+                        title="Quitar archivo"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                    {error && <p className="text-[11px] text-rose-600 mt-1.5 pl-5">{error}</p>}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      {/* Modal Reutilizable de Carga (DRY) */}
-      {selectedPlan && (
-        <FileUploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          title={`Adjuntar ${activeCategoryMeta.label}`}
-          description={`Adjuntando a "${selectedPlan.titulo}". Límite: 20 MB • Formatos: ${activeCategoryMeta.extensiones.join(", ")}`}
-          endpoint={`/api/planificaciones/${selectedPlan.idPlanificacion}/archivos`}
-          additionalData={{
-            tipo: selectedCategoryForUpload,
-            rutUsuario: user?.rut,
-          }}
-          maxSizeMB={20}
-          allowedExtensions={activeCategoryMeta.extensiones}
-          onSuccess={() => {
-            fetchArchivos(selectedPlan.idPlanificacion);
-          }}
-        />
-      )}
+          {seleccionada && (
+            <p
+              className={`text-xs flex items-start gap-1.5 ${pendientesTrasSubir.length ? "text-amber-700" : "text-emerald-700"}`}
+            >
+              {pendientesTrasSubir.length ? (
+                <>
+                  <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                  <span>Quedará pendiente de subir: {pendientesTrasSubir.map(etiqueta).join(", ")}.</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="size-3.5 shrink-0 mt-0.5" />
+                  <span>Con estos archivos la planificación queda completa.</span>
+                </>
+              )}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setModalAbierto(false)} disabled={subiendo} className="text-xs">
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={subir}
+              disabled={seleccion.length === 0 || hayErrores || subiendo}
+              className="text-xs gap-1.5 bg-sky-700 hover:bg-sky-800 text-white"
+            >
+              {subiendo ? <RefreshCw className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+              {subiendo ? "Subiendo..." : `Subir ${seleccion.length || ""} ${seleccion.length === 1 ? "archivo" : "archivos"}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <ConfirmDeleteDialog
         open={!!deleteAction}
         onOpenChange={(open) => !open && setDeleteAction(null)}
