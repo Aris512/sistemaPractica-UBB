@@ -163,6 +163,7 @@ public class ChatService {
     public void eliminarConversacion(String rut, Long idConversacion) {
         transaccion.executeWithoutResult(status -> {
             ChatConversacion conversacion = obtenerPropia(rut, idConversacion);
+            revisionPlanificacion.eliminarDeConversacion(idConversacion);
             // Los mensajes se eliminan por la FK ON DELETE CASCADE de chat_mensaje
             conversacionRepository.delete(conversacion);
         });

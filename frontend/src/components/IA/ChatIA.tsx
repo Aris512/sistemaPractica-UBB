@@ -552,7 +552,11 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
         onOpenChange={setConfirmarEliminarAbierto}
         onConfirm={confirmarEliminacion}
         title="Eliminar conversación"
-        description={`Se eliminará «${eliminando?.titulo ?? ""}» con todos sus mensajes. Esta acción no se puede deshacer.`}
+        description={
+          eliminando && revision?.esRevision(eliminando.id)
+            ? `Se eliminará «${eliminando.titulo}» con todos sus mensajes y su retroalimentación: la planificación quedará sin revisión. Esta acción no se puede deshacer.`
+            : `Se eliminará «${eliminando?.titulo ?? ""}» con todos sus mensajes. Esta acción no se puede deshacer.`
+        }
       />
     </div>
   );
