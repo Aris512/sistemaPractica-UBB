@@ -21,7 +21,9 @@ public final class PautaDTOs {
                                   String especialidad, String momento, String evaluador,
                                   Integer escalaMin, Integer escalaMax, String modoCalculo, Integer exigencia,
                                   Integer puntajeMaximo, String ponderacion, String instrucciones,
-                                  String version, Boolean activa, List<CriterioDTO> criterios) {}
+                                  String version, Boolean activa, List<CriterioDTO> criterios,
+                                  // true si ya hay evaluaciones registradas: la estructura de la pauta queda bloqueada
+                                  Boolean tieneEvaluaciones) {}
 
     /** Cuerpo para crear/editar una pauta (gestión de pautas). */
     public record PautaRequest(String codigo, String titulo, String asignatura, String tipo,

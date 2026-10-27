@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,11 @@ public class PautaService {
     static final double NOTA_MIN = 2.0;
     static final double NOTA_APROBACION = 4.0;
     static final double NOTA_MAX = 7.0;
+
+    private static final Set<String> EVALUADORES = Set.of("COLABORADOR", "TUTOR", "ACADEMICO");
+    private static final Set<String> MOMENTOS = Set.of("PRIMERA", "SEGUNDA", "UNICA");
+    private static final Set<String> ESPECIALIDADES = Set.of("ESPECIALIDAD", "ORIENTACION");
+    private static final Set<String> MODOS_CALCULO = Set.of("ESCALA_EXIGENCIA", "PROMEDIO");
 
     private final PautaRepository pautaRepository;
     private final PautaAplicacionRepository aplicacionRepository;
@@ -85,6 +91,7 @@ public class PautaService {
         if (req.codigo() == null || req.codigo().isBlank() || req.titulo() == null || req.titulo().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Código y título son obligatorios.");
         }
+        validarCampos(req, null);
         if (pautaRepository.existsByCodigo(req.codigo())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una pauta con ese código.");
         }
@@ -98,9 +105,15 @@ public class PautaService {
     public PautaDetalleDTO actualizar(String rut, Long id, PautaRequest req) {
         acceso.exigirGestion(acceso.identificar(rut));
         Pauta p = obtenerPauta(id);
-        if (req.criterios() != null && aplicacionRepository.existsByPautaId(id)) {
+        boolean conEvaluaciones = aplicacionRepository.existsByPautaId(id);
+        if (req.criterios() != null && conEvaluaciones) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "La pauta ya tiene evaluaciones registradas: no se pueden modificar sus criterios. Cree una nueva versión.");
+        }
+        if (conEvaluaciones) exigirSinCambiosEstructurales(p, req);
+        validarCampos(req, p);
+        if (req.codigo() != null && !req.codigo().equals(p.getCodigo()) && pautaRepository.existsByCodigo(req.codigo())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una pauta con ese código.");
         }
         aplicarDatos(p, req);
         if (req.criterios() != null) reemplazarCriterios(p, req.criterios());
@@ -337,6 +350,72 @@ public class PautaService {
         return valor != null && valor.toUpperCase(Locale.ROOT).equals(filtro.trim().toUpperCase(Locale.ROOT));
     }
 
+    /**
+     * Valida los datos de una pauta. Al crear (existente == null) son obligatorios asignatura, evaluador, momento,
+     * especialidad y al menos un indicador; al editar solo se validan los campos que vienen en la solicitud.
+     */
+    private void validarCampos(PautaRequest r, Pauta existente) {
+        boolean crear = existente == null;
+        if (crear && (r.asignatura() == null || r.asignatura().isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La asignatura es obligatoria.");
+        }
+        if (crear && (r.criterios() == null || r.criterios().isEmpty())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La pauta necesita al menos un indicador.");
+        }
+        validarOpcion(r.evaluador(), EVALUADORES, "evaluador", crear);
+        validarOpcion(r.momento(), MOMENTOS, "momento de evaluación", crear);
+        validarOpcion(r.especialidad(), ESPECIALIDADES, "especialidad", crear);
+        validarOpcion(r.modoCalculo(), MODOS_CALCULO, "modo de cálculo", false);
+
+        int min = r.escalaMin() != null ? r.escalaMin() : (!crear && existente.getEscalaMin() != null ? existente.getEscalaMin() : 1);
+        int max = r.escalaMax() != null ? r.escalaMax() : (!crear && existente.getEscalaMax() != null ? existente.getEscalaMax() : 7);
+        if (min < 0 || max > 10 || min >= max) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "La escala de puntaje debe tener un mínimo menor que el máximo, entre 0 y 10.");
+        }
+        if (r.exigencia() != null && (r.exigencia() < 1 || r.exigencia() > 99)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La exigencia debe estar entre 1 y 99 %.");
+        }
+    }
+
+    private static void validarOpcion(String valor, Set<String> permitidos, String nombre, boolean obligatorio) {
+        if (valor == null || valor.isBlank()) {
+            if (obligatorio) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta indicar: " + nombre + ".");
+            }
+            return;
+        }
+        if (!permitidos.contains(valor.toUpperCase(Locale.ROOT))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor no válido para " + nombre + ": " + valor);
+        }
+    }
+
+    /**
+     * Con evaluaciones registradas solo se pueden editar título, tipo, ponderación, versión, instrucciones y estado.
+     * Cambiar la asignatura, el evaluador, el momento o la escala dejaría inconsistentes las notas ya calculadas.
+     */
+    private void exigirSinCambiosEstructurales(Pauta p, PautaRequest r) {
+        boolean cambia = distinto(p.getAsignatura(), r.asignatura(), false)
+            || distinto(p.getEspecialidad(), r.especialidad(), true)
+            || distinto(p.getMomento(), r.momento(), true)
+            || distinto(p.getEvaluador(), r.evaluador(), true)
+            || distinto(p.getModoCalculo(), r.modoCalculo(), true)
+            || (r.escalaMin() != null && !r.escalaMin().equals(p.getEscalaMin()))
+            || (r.escalaMax() != null && !r.escalaMax().equals(p.getEscalaMax()))
+            || (r.exigencia() != null && !r.exigencia().equals(p.getExigencia()));
+        if (cambia) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "La pauta ya tiene evaluaciones registradas: solo se pueden editar título, tipo, ponderación, "
+                    + "versión e instrucciones. Cree una nueva versión para cambiar lo demás.");
+        }
+    }
+
+    private static boolean distinto(String actual, String nuevo, boolean mayusculas) {
+        if (nuevo == null) return false;
+        String n = mayusculas ? nuevo.toUpperCase(Locale.ROOT) : nuevo;
+        return !n.equals(actual);
+    }
+
     private void aplicarDatos(Pauta p, PautaRequest r) {
         if (r.codigo() != null) p.setCodigo(r.codigo());
         if (r.titulo() != null) p.setTitulo(r.titulo());
@@ -392,7 +471,7 @@ public class PautaService {
         return new PautaDetalleDTO(p.getId(), p.getCodigo(), p.getTitulo(), p.getAsignatura(), p.getTipo(),
             p.getEspecialidad(), p.getMomento(), p.getEvaluador(), p.getEscalaMin(), p.getEscalaMax(),
             p.getModoCalculo(), p.getExigencia(), n * escalaMax, p.getPonderacion(), p.getInstrucciones(),
-            p.getVersion(), p.getActiva(), criterios);
+            p.getVersion(), p.getActiva(), criterios, aplicacionRepository.existsByPautaId(p.getId()));
     }
 
     private AplicacionDTO aplicacionDTO(PautaAplicacion a, Pauta pauta) {
