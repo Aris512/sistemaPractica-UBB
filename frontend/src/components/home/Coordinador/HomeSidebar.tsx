@@ -1,5 +1,6 @@
 import type { UserSession } from "@/types/auth";
 import type { CoordinadorMenuKey } from "./types";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Sidebar,
   SidebarHeader,
@@ -17,6 +18,7 @@ import {
   UserPlus,
   Building2,
   ClipboardCheck,
+  ClipboardList,
   FolderArchive,
   Briefcase,
   LogOut,
@@ -58,11 +60,14 @@ function AdeccaLogo() {
 }
 
 export function HomeSidebar({
-  user: _user,
+  user,
   activeMenu,
   onSelectMenu,
   onLogout,
 }: HomeSidebarProps) {
+  const { hasPermission } = usePermissions(user);
+  const puedeAsociar = hasPermission("PRACTICAS_ASOCIAR");
+
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
       <SidebarHeader className="p-4 border-b border-slate-100">
@@ -93,6 +98,7 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Asociar Docentes y Tutores */}
+              {puedeAsociar && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "asociar"}
@@ -107,6 +113,7 @@ export function HomeSidebar({
                   <span>Asociar</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Centros de Práctica (Reutilización de admin/centros_practica) */}
               <SidebarMenuItem>
@@ -137,6 +144,22 @@ export function HomeSidebar({
                 >
                   <ClipboardCheck className="size-4 mr-2" />
                   <span>Evaluaciones</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {/* Pautas de evaluación (seguimiento y catálogo) */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={activeMenu === "pautas"}
+                  onClick={() => onSelectMenu("pautas")}
+                  className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                    activeMenu === "pautas"
+                      ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                      : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <ClipboardList className="size-4 mr-2" />
+                  <span>Pautas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 

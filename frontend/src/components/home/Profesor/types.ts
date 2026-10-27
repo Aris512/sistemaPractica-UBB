@@ -7,6 +7,7 @@ export type ProfesorMenuKey =
   | "cursos-practica"
   | "planificacion"
   | "evaluaciones"
+  | "pautas-practica"
   | "observaciones"
   | "asistentes-ia"
   | "perfil";

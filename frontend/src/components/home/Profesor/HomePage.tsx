@@ -7,6 +7,7 @@ import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "./Portafolio";
 import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
+import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
 import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
@@ -141,6 +142,11 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           return null;
         }
         return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
+      case "pautas-practica":
+        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
+          return null;
+        }
+        return <PautasResultados user={user} modo="profesor" onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
         return null;
