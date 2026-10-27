@@ -193,10 +193,10 @@ function FormularioEvaluacionTutor({
         title: "Descarga completada",
         description: "El archivo se ha descargado correctamente",
       });
-    } catch (err: any) {
+    } catch (err) {
       sileo.error({
         title: "Error en descarga",
-        description: err.message || "No se pudo descargar el archivo",
+        description: err instanceof Error && err.message ? err.message : "No se pudo descargar el archivo",
       });
     } finally {
       setIsDownloading(false);
@@ -256,11 +256,11 @@ function FormularioEvaluacionTutor({
       });
 
       onSaved();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error al guardar evaluación:", err);
       sileo.error({
         title: "Error al guardar",
-        description: err.message || "No se pudo registrar la evaluación.",
+        description: err instanceof Error && err.message ? err.message : "No se pudo registrar la evaluación.",
       });
     } finally {
       setIsSaving(false);

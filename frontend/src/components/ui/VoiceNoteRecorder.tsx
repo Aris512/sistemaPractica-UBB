@@ -25,13 +25,38 @@ import {
   transcribirAudioConIA,
 } from "../../services/profesorEvaluacionApi";
 
-// Declaración global para Web Speech API
+// Tipos mínimos de la Web Speech API (no vienen en lib.dom de TypeScript)
+interface ResultadoReconocimiento {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+interface EventoResultadoReconocimiento {
+  resultIndex: number;
+  results: ArrayLike<ResultadoReconocimiento>;
+}
+interface ReconocimientoVoz {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: EventoResultadoReconocimiento) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+type ConstructorReconocimientoVoz = new () => ReconocimientoVoz;
+
 declare global {
   interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
+    SpeechRecognition?: ConstructorReconocimientoVoz;
+    webkitSpeechRecognition?: ConstructorReconocimientoVoz;
   }
 }
+
+const mensajeDeError = (err: unknown, porDefecto: string) =>
+  err instanceof Error && err.message ? err.message : porDefecto;
 
 interface VoiceNoteRecorderProps {
   idEvaluacion?: number | null;
@@ -82,8 +107,8 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   // Refs de audio, transcripción y MediaRecorder
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const timerIntervalRef = useRef<any>(null);
-  const recognitionRef = useRef<any>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recognitionRef = useRef<ReconocimientoVoz | null>(null);
   const accumulatedFinalRef = useRef<string>("");
   const isRecordingRef = useRef<boolean>(false);
 
@@ -98,7 +123,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -123,9 +148,19 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
     }
   }, [idEvaluacion]);
 
+  // Carga inicial: el estado se actualiza solo cuando llega la respuesta (y si el panel sigue montado)
   useEffect(() => {
-    void cargarNotasDeVoz();
-  }, [cargarNotasDeVoz]);
+    if (!idEvaluacion) return;
+    let cancelado = false;
+    getNotasDeVozPorEvaluacion(idEvaluacion)
+      .then((notas) => {
+        if (!cancelado) setNotasList(notas || []);
+      })
+      .catch((err) => console.error("Error al cargar notas de voz:", err));
+    return () => {
+      cancelado = true;
+    };
+  }, [idEvaluacion]);
 
   const puedeModificar = (nota: NotaDeVozDTO) =>
     !readOnly &&
@@ -153,11 +188,11 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
           description: "La IA no detectó palabras audibles en la grabación.",
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.warn("Fallo al transcribir con IA:", err);
-      const msg = err.message?.includes("GROQ_API_KEY")
+      const msg = mensajeDeError(err, "").includes("GROQ_API_KEY")
         ? "El servidor no tiene configurada la clave GROQ_API_KEY en .env. Puedes escribir la observación manualmente o configurar la clave en el servidor."
-        : (err.message || "No se pudo transcribir el audio con IA.");
+        : mensajeDeError(err, "No se pudo transcribir el audio con IA.");
       setErrorMsg(msg);
       sileo.error({
         title: "Transcripción IA no disponible",
@@ -239,7 +274,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
             setIsListeningSpeech(true);
           };
 
-          recognition.onresult = (event: any) => {
+          recognition.onresult = (event) => {
             let interim = "";
             for (let i = event.resultIndex; i < event.results.length; ++i) {
               const res = event.results[i];
@@ -255,7 +290,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
             setInterimTranscript(interim);
           };
 
-          recognition.onerror = (event: any) => {
+          recognition.onerror = (event) => {
             console.warn("Speech recognition notice:", event.error);
             if (event.error === "no-speech") return;
             if (event.error === "network") {
@@ -284,7 +319,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
           console.warn("Error al inicializar SpeechRecognition:", e);
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error al acceder al micrófono:", err);
       setIsRecording(false);
       isRecordingRef.current = false;
@@ -307,7 +342,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {
+      } catch {
         // ignore
       }
       recognitionRef.current = null;
@@ -383,9 +418,9 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       }
 
       handleCancelCurrent();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error al subir nota de voz:", err);
-      setErrorMsg(err.message || "Error al subir la nota de voz.");
+      setErrorMsg(mensajeDeError(err, "Error al subir la nota de voz."));
     } finally {
       setIsUploading(false);
     }
@@ -397,8 +432,8 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
     try {
       await eliminarNotaDeVoz(idAudio, rutGrabador ?? "");
       setNotasList((prev) => prev.filter((n) => n.idAudio !== idAudio));
-    } catch (err: any) {
-      alert("Error al eliminar la nota de voz: " + err.message);
+    } catch (err) {
+      alert("Error al eliminar la nota de voz: " + mensajeDeError(err, "error desconocido"));
     }
   };
 
@@ -408,8 +443,8 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       const updated = await actualizarTranscripcionNotaVoz(idAudio, editText, rutGrabador ?? "");
       setNotasList((prev) => prev.map((n) => (n.idAudio === idAudio ? updated : n)));
       setEditingId(null);
-    } catch (err: any) {
-      alert("Error al actualizar la transcripción: " + err.message);
+    } catch (err) {
+      alert("Error al actualizar la transcripción: " + mensajeDeError(err, "error desconocido"));
     }
   };
 
