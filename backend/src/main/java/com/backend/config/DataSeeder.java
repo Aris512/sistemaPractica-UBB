@@ -258,7 +258,6 @@ public class DataSeeder implements CommandLineRunner {
     private void seedAsignaturas() {
         List<AsignaturaInfo> asignaturasIniciales = List.of(
             new AsignaturaInfo("Curriculum Educacional", "Asignatura del área curricular pedagógica", "4"),
-            new AsignaturaInfo("Aproximación al Sistema Escolar", "Estructura del sistema educativo, funciones directivas y tipos de establecimientos (simulaciones en aula universitaria)", "4"),
             new AsignaturaInfo("Ambientes de Aprendizaje", "Gestión y diseño de ambientes de aprendizaje", "5"),
             new AsignaturaInfo("Trabajo Colaborativo en Aula", "Estrategias de trabajo colaborativo en aula", "6"),
             new AsignaturaInfo("Investigación en Aula", "Metodologías de investigación aplicadas al aula", "7"),
