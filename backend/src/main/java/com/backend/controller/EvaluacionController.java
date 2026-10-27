@@ -49,9 +49,11 @@ public class EvaluacionController {
      */
     @GetMapping
     public ResponseEntity<List<Evaluacion>> obtenerTodos(
-            @RequestParam(value = "rutProfesor", required = false) String rutProfesor) {
-        if (rutProfesor != null && !rutProfesor.isBlank()) {
-            return ResponseEntity.ok(evaluacionService.obtenerEvaluacionesPorProfesor(rutProfesor));
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Rut", required = false) String headerRut) {
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : headerRut;
+        if (rutFinal != null && !rutFinal.isBlank()) {
+            return ResponseEntity.ok(evaluacionService.obtenerEvaluacionesPorProfesor(rutFinal));
         }
         return ResponseEntity.ok(evaluacionService.obtenerTodos());
     }
@@ -67,13 +69,15 @@ public class EvaluacionController {
     @GetMapping("/{id}")
     public ResponseEntity<?> obtenerPorId(
             @PathVariable Long id,
-            @RequestParam(value = "rutProfesor", required = false) String rutProfesor) {
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Rut", required = false) String headerRut) {
         Evaluacion evaluacion = evaluacionService.obtenerPorId(id);
         if (evaluacion == null) {
             return ResponseEntity.notFound().build();
         }
-        if (rutProfesor != null && !rutProfesor.isBlank()) {
-            if (!evaluacionService.profesorTieneAccesoAEvaluacion(id, rutProfesor)) {
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : headerRut;
+        if (rutFinal != null && !rutFinal.isBlank()) {
+            if (!evaluacionService.profesorTieneAccesoAEvaluacion(id, rutFinal)) {
                 return ResponseEntity.status(403).body("Acceso denegado: No tiene permisos sobre esta evaluación.");
             }
         }

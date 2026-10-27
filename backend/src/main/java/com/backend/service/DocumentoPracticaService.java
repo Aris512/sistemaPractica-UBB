@@ -34,6 +34,7 @@ import com.backend.model.Asignatura;
 import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
+import com.backend.model.Practica;
 import com.backend.model.Profesor;
 import com.backend.model.Usuario;
 import com.backend.repository.ActividadRepository;
@@ -41,6 +42,7 @@ import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.DocumentoPracticaRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
@@ -60,6 +62,7 @@ public class DocumentoPracticaService {
     private final EvidenciaRepository evidenciaRepository;
     private final AvanceAcademicoService avanceAcademicoService;
     private final ActividadRepository actividadRepository;
+    private final PracticaRepository practicaRepository;
 
     public DocumentoPracticaService(DocumentoPracticaRepository documentoPracticaRepository,
                                    EstudianteRepository estudianteRepository,
@@ -69,7 +72,8 @@ public class DocumentoPracticaService {
                                    FileStorageService fileStorageService,
                                    EvidenciaRepository evidenciaRepository,
                                    AvanceAcademicoService avanceAcademicoService,
-                                   ActividadRepository actividadRepository) {
+                                   ActividadRepository actividadRepository,
+                                   PracticaRepository practicaRepository) {
         this.documentoPracticaRepository = documentoPracticaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
@@ -79,6 +83,7 @@ public class DocumentoPracticaService {
         this.evidenciaRepository = evidenciaRepository;
         this.avanceAcademicoService = avanceAcademicoService;
         this.actividadRepository = actividadRepository;
+        this.practicaRepository = practicaRepository;
         initUploadsDirectory();
     }
 
@@ -95,8 +100,94 @@ public class DocumentoPracticaService {
 
     @Transactional(readOnly = true)
     public List<EstudianteDocumentoDTO> obtenerEstudiantesConProgreso() {
+        return obtenerEstudiantesConProgreso(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<EstudianteDocumentoDTO> obtenerEstudiantesConProgreso(String rutProfesor) {
         List<Estudiante> estudiantes = estudianteRepository.findAll();
         List<EstudianteDocumentoDTO> resultado = new ArrayList<>();
+
+        boolean filtrar = rutProfesor != null && !rutProfesor.isBlank();
+        Set<Long> asignaturasPermitidas = new HashSet<>();
+        Set<Long> estudiantesDirectos = new HashSet<>();
+
+        if (filtrar) {
+            String cleanRut = RutUtils.clean(rutProfesor);
+            String stdRut = RutUtils.formatStandard(rutProfesor);
+
+            // 1. Si es Administrador o Coordinador, ve a todos los estudiantes sin restricción
+            Optional<Usuario> uConsultanteOpt = usuarioRepository.findByRut(stdRut);
+            if (uConsultanteOpt.isEmpty()) uConsultanteOpt = usuarioRepository.findByRut(cleanRut);
+            if (uConsultanteOpt.isEmpty()) uConsultanteOpt = usuarioRepository.findByRut(rutProfesor);
+
+            if (uConsultanteOpt.isPresent()) {
+                Usuario uProf = uConsultanteOpt.get();
+                boolean esAdminOCoord = uProf.getRoles() != null && uProf.getRoles().stream().anyMatch(r -> {
+                    String rolNom = r.getNombre() != null ? r.getNombre().toUpperCase() : "";
+                    return rolNom.contains("ADMIN") || rolNom.contains("COORD");
+                });
+                if (esAdminOCoord) {
+                    filtrar = false;
+                }
+            }
+
+            if (filtrar) {
+                // 2. Asignaturas asociadas en tabla 'profesor' (comparando de forma normalizada)
+                List<Profesor> todosProfesores = profesorRepository.findAll();
+                for (Profesor p : todosProfesores) {
+                    if (p.getUsuario() != null && p.getUsuario().getRut() != null) {
+                        String pClean = RutUtils.clean(p.getUsuario().getRut());
+                        if (pClean.equalsIgnoreCase(cleanRut)) {
+                            if (p.getAsignatura() != null && p.getAsignatura().getIdAsignatura() != null) {
+                                asignaturasPermitidas.add(p.getAsignatura().getIdAsignatura());
+                            }
+                        }
+                    }
+                }
+
+                // 3. Asignaturas donde el profesor ha creado actividades pedagógicas
+                List<Actividad> actividades = actividadRepository.findAll();
+                for (Actividad act : actividades) {
+                    if (act.getProfesor() != null && act.getProfesor().getUsuario() != null) {
+                        String actClean = RutUtils.clean(act.getProfesor().getUsuario().getRut());
+                        if (actClean.equalsIgnoreCase(cleanRut)) {
+                            if (act.getAsignatura() != null && act.getAsignatura().getIdAsignatura() != null) {
+                                asignaturasPermitidas.add(act.getAsignatura().getIdAsignatura());
+                            }
+                        }
+                    }
+                }
+
+                // 4. Estudiantes y asignaturas donde el usuario figura como Tutor o Colaborador de Práctica
+                List<Practica> practicas = practicaRepository.findAll();
+                for (Practica prac : practicas) {
+                    boolean tutorCoincide = prac.getTutorPractica() != null &&
+                        prac.getTutorPractica().getUsuario() != null &&
+                        cleanRut.equalsIgnoreCase(RutUtils.clean(prac.getTutorPractica().getUsuario().getRut()));
+
+                    boolean colabCoincide = prac.getProfesoresColaboradores() != null &&
+                        prac.getProfesoresColaboradores().stream().anyMatch(colab ->
+                            colab.getUsuario() != null &&
+                            cleanRut.equalsIgnoreCase(RutUtils.clean(colab.getUsuario().getRut()))
+                        );
+
+                    if (tutorCoincide || colabCoincide) {
+                        if (prac.getEstudiante() != null && prac.getEstudiante().getIdEstudiante() != null) {
+                            estudiantesDirectos.add(prac.getEstudiante().getIdEstudiante());
+                        }
+                        if (prac.getAsignatura() != null && prac.getAsignatura().getIdAsignatura() != null) {
+                            asignaturasPermitidas.add(prac.getAsignatura().getIdAsignatura());
+                        }
+                    }
+                }
+
+                logger.info("Filtro profesor RUT '{}' (limpio '{}'): {} asignaturas permitidas {}, {} estudiantes directos",
+                    rutProfesor, cleanRut, asignaturasPermitidas.size(), asignaturasPermitidas, estudiantesDirectos.size());
+            }
+        }
+
+        List<Practica> allPracticas = practicaRepository.findAll();
 
         for (Estudiante est : estudiantes) {
             Usuario usuario = est.getUsuario();
@@ -107,13 +198,35 @@ public class DocumentoPracticaService {
                 continue;
             }
 
+            Asignatura asig = est.getAsignatura();
+            Long idAsignatura = asig != null ? asig.getIdAsignatura() : null;
+
+            if (idAsignatura == null) {
+                for (Practica pr : allPracticas) {
+                    if (pr.getEstudiante() != null && est.getIdEstudiante().equals(pr.getEstudiante().getIdEstudiante())) {
+                        if (pr.getAsignatura() != null && pr.getAsignatura().getIdAsignatura() != null) {
+                            asig = pr.getAsignatura();
+                            idAsignatura = asig.getIdAsignatura();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Si se filtra por profesor, verificar que pertenezca a sus asignaturas a cargo o esté asignado directamente
+            if (filtrar) {
+                boolean coincideAsignatura = idAsignatura != null && asignaturasPermitidas.contains(idAsignatura);
+                boolean coincideDirecto = estudiantesDirectos.contains(est.getIdEstudiante());
+                if (!coincideAsignatura && !coincideDirecto) {
+                    continue;
+                }
+            }
+
             String rut = usuario.getRut();
             String nombreCompleto = usuario.getNombre() + " " + usuario.getApellido();
             String correo = usuario.getCorreo();
 
-            Asignatura asig = est.getAsignatura();
             String asignaturaNombre = asig != null ? asig.getNombre() : "—";
-            Long idAsignatura = asig != null ? asig.getIdAsignatura() : null;
             String semestre = asig != null ? asig.getSemestre() : "—";
 
             // Obtener profesores asociados a la asignatura

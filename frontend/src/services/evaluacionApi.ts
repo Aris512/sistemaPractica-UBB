@@ -6,7 +6,9 @@ export const getEvaluaciones = async (rutProfesor?: string): Promise<Evaluacion[
   const url = rutProfesor
     ? `${API_URL}/evaluaciones?rutProfesor=${encodeURIComponent(rutProfesor)}`
     : `${API_URL}/evaluaciones`;
-  const response = await fetch(url);
+  const headers: Record<string, string> = {};
+  if (rutProfesor) headers["X-User-Rut"] = rutProfesor;
+  const response = await fetch(url, { headers });
   if (!response.ok) throw new Error("Error al obtener las evaluaciones");
   return response.json();
 };
@@ -15,7 +17,9 @@ export const getEvaluacionById = async (id: number, rutProfesor?: string): Promi
   const url = rutProfesor
     ? `${API_URL}/evaluaciones/${id}?rutProfesor=${encodeURIComponent(rutProfesor)}`
     : `${API_URL}/evaluaciones/${id}`;
-  const response = await fetch(url);
+  const headers: Record<string, string> = {};
+  if (rutProfesor) headers["X-User-Rut"] = rutProfesor;
+  const response = await fetch(url, { headers });
   if (!response.ok) throw new Error("Error al obtener la evaluación");
   return response.json();
 };

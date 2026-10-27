@@ -309,8 +309,8 @@ public class EstudianteService {
         }
 
         Asignatura asig = est.getAsignatura();
-        String sem = asig != null ? String.valueOf(asig.getSemestre()) : "";
-        String nom = asig != null ? asig.getNombre().toLowerCase() : "";
+        String sem = asig != null && asig.getSemestre() != null ? String.valueOf(asig.getSemestre()) : "";
+        String nom = asig != null && asig.getNombre() != null ? asig.getNombre().toLowerCase() : "";
         List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
 
         boolean esPractica = sem.contains("8") || sem.contains("9")
