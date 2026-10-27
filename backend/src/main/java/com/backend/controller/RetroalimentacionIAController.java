@@ -48,13 +48,14 @@ public class RetroalimentacionIAController {
         return service.iniciarRevisionIa(rut, idPlanificacion);
     }
 
-    /** Botón + del chat de revisión: reemplaza el archivo «Planificación» y devuelve la conversación a mostrar. */
+    /** Botón + del chat de revisión: reemplaza el archivo «Planificación» (con un mensaje opcional del alumno) y devuelve la conversación a mostrar. */
     @PostMapping("/planificacion/{idPlanificacion}/archivo")
     public InicioRevisionDTO reemplazarArchivo(
             @RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
             @PathVariable Long idPlanificacion,
-            @RequestParam("archivo") MultipartFile archivo) {
-        return service.reemplazarArchivo(rut, idPlanificacion, archivo);
+            @RequestParam("archivo") MultipartFile archivo,
+            @RequestParam(value = "mensaje", required = false) String mensaje) {
+        return service.reemplazarArchivo(rut, idPlanificacion, archivo, mensaje);
     }
 
     @PostMapping("/{id}/enviar")

@@ -18,10 +18,19 @@ export function iniciarRevisionIa(rut: string, idPlanificacion: number): Promise
   return requestConUsuario(rut, `${BASE_URL}/planificacion/${idPlanificacion}/revision-ia`, { method: "POST" });
 }
 
-/** Botón + del chat: reemplaza el archivo «Planificación». Devuelve la conversación de revisión a mostrar (nueva si se reinició el ciclo). */
-export function reemplazarArchivoPlanificacion(rut: string, idPlanificacion: number, archivo: File): Promise<InicioRevision> {
+/**
+ * Botón + del chat: reemplaza el archivo «Planificación»; `mensaje` (opcional) es lo que el alumno escribió junto al archivo.
+ * Devuelve la conversación de revisión a mostrar (nueva si se reinició el ciclo).
+ */
+export function reemplazarArchivoPlanificacion(
+  rut: string,
+  idPlanificacion: number,
+  archivo: File,
+  mensaje = ""
+): Promise<InicioRevision> {
   const datos = new FormData();
   datos.append("archivo", archivo);
+  if (mensaje) datos.append("mensaje", mensaje);
   return requestConUsuario(rut, `${BASE_URL}/planificacion/${idPlanificacion}/archivo`, { method: "POST", body: datos });
 }
 
