@@ -43,10 +43,10 @@ export function EstudiantesPracticaList({
       }
       const data = await res.json();
       setEstudiantes(Array.isArray(data) ? data : []);
-    } catch (err: any) {
+    } catch (err) {
       sileo.error({
         title: "Error de conexión",
-        description: err.message || "Error al consultar la base de datos.",
+        description: err instanceof Error && err.message ? err.message : "Error al consultar la base de datos.",
       });
     } finally {
       setLoading(false);

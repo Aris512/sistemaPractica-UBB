@@ -111,7 +111,7 @@ export function AsociarPracticaView({
           description: err?.error || "No se pudieron obtener los datos para la asignatura.",
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
     } finally {
       setLoadingCandidatos(false);
@@ -315,10 +315,10 @@ export function AsociarPracticaView({
       onClearInitialEstudiante?.();
       fetchAsociaciones();
       fetchCandidatos(selectedAsignaturaId);
-    } catch (err: any) {
+    } catch (err) {
       sileo.error({
         title: "Error al asociar",
-        description: err.message || "No se pudo completar la asociación.",
+        description: err instanceof Error && err.message ? err.message : "No se pudo completar la asociación.",
       });
     } finally {
       setSubmitting(false);
@@ -346,10 +346,10 @@ export function AsociarPracticaView({
         if (res.status === 409) fetchAsociaciones();
         throw new Error(json?.error || "Error al desvincular.");
       }
-    } catch (err: any) {
+    } catch (err) {
       sileo.error({
         title: "Error al desvincular",
-        description: err.message,
+        description: err instanceof Error && err.message ? err.message : "No se pudo desvincular la práctica.",
       });
     }
   };

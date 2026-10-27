@@ -16,6 +16,7 @@ import { Toaster } from "sileo";
 import "sileo/styles.css";
 import { RefreshCw } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
 
 interface PracticaEstudianteHomePageProps {
   user: UserSession;
@@ -92,7 +93,8 @@ export function PracticaEstudianteHomePage({
 
     // Portafolio e IA son los mismos módulos del estudiante regular, con los mismos permisos; sin
     // permiso se vuelve a la línea de tiempo del inicio. En práctica (8.° y 9.° semestre) no hay
-    // Evaluaciones ni Observaciones: los profesores evalúan con pautas.
+    // Evaluaciones ni Observaciones: los profesores evalúan con pautas, cuyos resultados finalizados
+    // el alumno ve en «Mis Pautas».
     switch (activeMenu) {
       case "perfil":
         return <PerfilUsuario user={user} onBack={volverAlInicio} />;
@@ -110,6 +112,11 @@ export function PracticaEstudianteHomePage({
               onIrAPlanificacion={() => setActiveMenu("planificacion")}
             />
           );
+        }
+        break;
+      case "pautas":
+        if (hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <PautasResultados user={user} modo="estudiante" onBack={volverAlInicio} />;
         }
         break;
       case "planificacion":
