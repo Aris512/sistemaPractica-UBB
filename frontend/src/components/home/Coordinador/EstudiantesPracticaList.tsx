@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { EstudiantePractica } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,29 +33,40 @@ export function EstudiantesPracticaList({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAsignatura, setFilterAsignatura] = useState<string>("TODAS");
+  // Al subir la versión se vuelve a consultar la BD (botón "Actualizar")
+  const [version, setVersion] = useState(0);
 
-  const fetchEstudiantes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/coordinador/estudiantes-practica");
-      if (!res.ok) {
-        throw new Error("No se pudieron cargar los estudiantes de práctica.");
-      }
-      const data = await res.json();
-      setEstudiantes(Array.isArray(data) ? data : []);
-    } catch (err) {
-      sileo.error({
-        title: "Error de conexión",
-        description: err instanceof Error && err.message ? err.message : "Error al consultar la base de datos.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // El estado solo se actualiza cuando llega la respuesta, y no si el componente ya se desmontó
   useEffect(() => {
-    fetchEstudiantes();
-  }, [fetchEstudiantes]);
+    let cancelado = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/coordinador/estudiantes-practica");
+        if (!res.ok) {
+          throw new Error("No se pudieron cargar los estudiantes de práctica.");
+        }
+        const data = await res.json();
+        if (!cancelado) setEstudiantes(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (!cancelado) {
+          sileo.error({
+            title: "Error de conexión",
+            description: err instanceof Error && err.message ? err.message : "Error al consultar la base de datos.",
+          });
+        }
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [version]);
+
+  const fetchEstudiantes = () => {
+    setLoading(true);
+    setVersion((v) => v + 1);
+  };
 
   // Pestañas: una por cada asignatura de práctica presente, en el orden de la línea de práctica
   const nombresAsignaturas = useMemo(() => {
@@ -154,7 +165,7 @@ export function EstudiantesPracticaList({
           <button
             type="button"
             onClick={() => setFilterAsignatura("TODAS")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors whitespace-nowrap ${
               filterAsignatura === "TODAS"
                 ? "bg-slate-900 text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
