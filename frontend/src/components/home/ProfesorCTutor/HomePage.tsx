@@ -5,7 +5,6 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { TableEstudiantes } from "./table";
 import { Pautas } from "./Pautas";
-import { Observaciones } from "./Observaciones";
 import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "../Profesor/Portafolio";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -22,33 +21,35 @@ export function HomePage({ user, onLogout }: HomePageProps) {
     try {
       const saved = sessionStorage.getItem("ubb_active_menu_profesor_ctutor");
       if (saved) return saved as ProfesorCTutorMenuKey;
-    } catch {}
+    } catch {
+      // sessionStorage no disponible: se abre en el inicio
+    }
     return "inicio";
   });
-  const [formattedDate, setFormattedDate] = useState("");
-  const { hasPermission } = usePermissions(user);
-
-  useEffect(() => {
+  // La fecha se calcula una sola vez al montar, sin un efecto que vuelva a renderizar
+  const [formattedDate] = useState(() => {
     try {
-      sessionStorage.setItem("ubb_active_menu_profesor_ctutor", activeMenu);
-    } catch {}
-  }, [activeMenu]);
-
-  useEffect(() => {
-    try {
-      const now = new Date();
       const options: Intl.DateTimeFormatOptions = {
         weekday: "long",
         day: "numeric",
         month: "long",
         year: "numeric",
       };
-      const dateStr = new Intl.DateTimeFormat("es-CL", options).format(now);
-      setFormattedDate(dateStr.charAt(0).toUpperCase() + dateStr.slice(1));
+      const dateStr = new Intl.DateTimeFormat("es-CL", options).format(new Date());
+      return dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
     } catch {
-      setFormattedDate("Miércoles, 16 de septiembre de 2026");
+      return "Miércoles, 16 de septiembre de 2026";
     }
-  }, []);
+  });
+  const { hasPermission } = usePermissions(user);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("ubb_active_menu_profesor_ctutor", activeMenu);
+    } catch {
+      // sessionStorage no disponible: el menú no se recuerda al recargar
+    }
+  }, [activeMenu]);
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -57,11 +58,6 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           return <TableEstudiantes user={user} />;
         }
         return <Pautas user={user} onBack={() => setActiveMenu("inicio")} />;
-      case "observaciones":
-        if (!hasPermission("OBSERVACIONES_CONSULTAR") && !hasPermission("OBSERVACIONES_REGISTRAR")) {
-          return <TableEstudiantes user={user} />;
-        }
-        return <Observaciones onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
         if (!hasPermission("PORTAFOLIO_SUBIR")) {
           return <TableEstudiantes user={user} />;
