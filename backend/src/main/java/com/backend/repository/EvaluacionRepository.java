@@ -23,7 +23,8 @@ public interface EvaluacionRepository extends JpaRepository<Evaluacion, Long> {
 
     List<Evaluacion> findByPracticaEstudianteUsuarioRut(String rut);
 
-    List<Evaluacion> findByPracticaEstudianteAsignaturaIdAsignatura(Long idAsignatura);
+    /** Evaluaciones registradas por un evaluador (profesor, tutor o colaborador) según su RUT. */
+    List<Evaluacion> findByRutEvaluador(String rutEvaluador);
 
     List<Evaluacion> findByIdEvaluador(Long idEvaluador);
 
