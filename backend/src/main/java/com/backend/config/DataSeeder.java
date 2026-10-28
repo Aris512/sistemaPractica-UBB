@@ -162,7 +162,8 @@ public class DataSeeder implements CommandLineRunner {
             new PermisoSeedInfo("OBSERVACIONES_REGISTRAR", "Registrar observaciones", "OBSERVACIONES", "Permite registrar observaciones formativas y pedagógicas"),
             new PermisoSeedInfo("OBSERVACIONES_CONSULTAR", "Consultar observaciones", "OBSERVACIONES", "Permite consultar el historial de observaciones formativas"),
             new PermisoSeedInfo("ESTUDIANTES_CONSULTAR", "Consultar información de otros estudiantes", "ESTUDIANTES", "Permite visualizar listas y expedientes de otros estudiantes"),
-            new PermisoSeedInfo("IA_ACCESO", "Acceso a funcionalidades de IA", "INTELIGENCIA ARTIFICIAL", "Permite acceder a los asistentes inteligentes y recomendaciones pedagógicas con IA")
+            new PermisoSeedInfo("IA_ACCESO", "Acceso a funcionalidades de IA", "INTELIGENCIA ARTIFICIAL", "Permite acceder a los asistentes inteligentes y recomendaciones pedagógicas con IA"),
+            new PermisoSeedInfo("PRACTICAS_ASOCIAR", "Asociar prácticas", "ESTUDIANTES", "Permite asociar estudiantes con profesores colaboradores, tutores y centros en las 6 asignaturas de práctica")
         );
 
         for (PermisoSeedInfo info : permisosIniciales) {
@@ -228,7 +229,8 @@ public class DataSeeder implements CommandLineRunner {
                 "OBSERVACIONES_REGISTRAR", new RolPermisoDefecto(true, "ALL"),
                 "OBSERVACIONES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
                 "ESTUDIANTES_CONSULTAR", new RolPermisoDefecto(true, "ALL"),
-                "IA_ACCESO", new RolPermisoDefecto(true, "ALL")
+                "IA_ACCESO", new RolPermisoDefecto(true, "ALL"),
+                "PRACTICAS_ASOCIAR", new RolPermisoDefecto(true, "ALL")
             )
         );
 
@@ -488,53 +490,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedPautas() {
-        if (pautaRepository.count() == 0) {
-            List<Pauta> pautas = List.of(
-                new Pauta(
-                    "PAU-OBS-01",
-                    "Pauta de Observación de Desempeño Docente en Aula",
-                    "Práctica Pedagógica / Profesional",
-                    "Observación de Aula",
-                    12,
-                    "Evalúa clima de aula, diseño de actividades de aprendizaje, dominio de contenido y fomento de la participación activa de los alumnos.",
-                    "30%",
-                    "2026.1"
-                ),
-                new Pauta(
-                    "RUB-DES-02",
-                    "Rúbrica Analítica de Planificación y Gestión Curricular",
-                    "Todas las Prácticas",
-                    "Rúbrica de Desempeño",
-                    8,
-                    "Rúbrica graduada con 4 niveles (Insuficiente, Básico, Competente, Destacado) para evaluar carpetas y planificaciones didácticas.",
-                    "35%",
-                    "2026.1"
-                ),
-                new Pauta(
-                    "PAU-EVA-03",
-                    "Pauta de Evaluación Final del Profesor Colaborador",
-                    "Práctica Profesional (Semestre 9)",
-                    "Evaluación Final",
-                    15,
-                    "Informe evaluativo consolidado del desempeño integral del practicante durante su estadía completa en la institución educativa.",
-                    "35%",
-                    "2026.1"
-                ),
-                new Pauta(
-                    "RUB-INF-04",
-                    "Rúbrica de Informe de Práctica y Reflexión Pedagógica",
-                    "Práctica Pedagógica (Semestre 8)",
-                    "Rúbrica de Desempeño",
-                    10,
-                    "Criterios para calificar la profundidad reflexiva, marco teórico y análisis pedagógico de la experiencia docente en aula.",
-                    "25%",
-                    "2026.2"
-                )
-            );
-
-            pautaRepository.saveAll(pautas);
-            logger.info("Pautas y rúbricas oficiales UBB sembradas en la base de datos ({} registros).", pautas.size());
-        }
+        // El catálogo oficial de pautas (con sus criterios) lo carga PautaCatalogoSeeder desde pautas_seed.json.
     }
 
     private void seedObservaciones() {

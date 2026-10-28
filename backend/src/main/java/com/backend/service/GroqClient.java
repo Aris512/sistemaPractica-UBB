@@ -11,18 +11,21 @@ import java.util.regex.Pattern;
 import java.util.logging.Logger;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.BufferingClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
- * Cliente del endpoint de chat completions de Groq (compatible con OpenAI).
+ * Cliente del endpoint de chat completions y transcripción Whisper de Groq (compatible con OpenAI).
  * La clave se lee de GROQ_API_KEY y el modelo de GROQ_MODEL (ver application.properties).
  * Nunca registra la clave ni el contenido de los mensajes: solo estados y códigos de error.
  */
@@ -39,16 +42,22 @@ public class GroqClient {
     private final RestClient restClient;
     private final String apiKey;
     private final String model;
+    private final String whisperUrl;
+    private final String whisperModel;
     private final int maxCompletionTokens;
 
     public GroqClient(
             @Value("${groq.api.url}") String apiUrl,
             @Value("${groq.api.key:}") String apiKey,
             @Value("${groq.model}") String model,
+            @Value("${groq.whisper.url:https://api.groq.com/openai/v1/audio/transcriptions}") String whisperUrl,
+            @Value("${groq.whisper.model:whisper-large-v3-turbo}") String whisperModel,
             @Value("${groq.timeout-segundos:60}") int timeoutSegundos,
             @Value("${groq.max-completion-tokens:2048}") int maxCompletionTokens) {
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.model = model != null ? model.trim() : "";
+        this.whisperUrl = whisperUrl != null && !whisperUrl.isBlank() ? whisperUrl.trim() : "https://api.groq.com/openai/v1/audio/transcriptions";
+        this.whisperModel = whisperModel != null && !whisperModel.isBlank() ? whisperModel.trim() : "whisper-large-v3-turbo";
         this.maxCompletionTokens = maxCompletionTokens;
 
         HttpClient httpClient = HttpClient.newBuilder()
@@ -159,6 +168,11 @@ public class GroqClient {
             return new ChatException(HttpStatus.TOO_MANY_REQUESTS, "IA_LIMITE_USO",
                     "El servicio de IA alcanzó su límite de uso. Espera un momento antes de volver a intentarlo.", reintentar);
         }
+        if (status == 413) {
+            // Groq responde 413 cuando una sola solicitud supera el límite de tokens por minuto del plan
+            return new ChatException(HttpStatus.BAD_GATEWAY, "IA_SOLICITUD_MUY_GRANDE",
+                    "El mensaje y su contexto superan lo que el servicio de IA acepta de una vez. Escribe un mensaje más breve o inicia una nueva conversación.");
+        }
         if (status >= 400 && status < 500 && status != 408) {
             return new ChatException(HttpStatus.BAD_GATEWAY, "IA_SOLICITUD_INVALIDA",
                     "El servicio de IA rechazó la solicitud. Si persiste, inicia una nueva conversación o contacta al administrador.");
@@ -186,5 +200,56 @@ public class GroqClient {
             }
         }
         return false;
+    }
+
+    /**
+     * Transcribe un archivo de audio a texto usando Groq Whisper (whisper-large-v3-turbo).
+     * Retorna el texto transcrito o null si no se pudo transcribir o no hay API key configurada.
+     */
+    public String transcribirAudio(byte[] audioBytes, String nombreArchivo) {
+        if (!estaConfigurado() || audioBytes == null || audioBytes.length == 0) {
+            logger.warning("[GroqClient] No se puede transcribir audio: Groq no está configurado (GROQ_API_KEY vacía).");
+            return null;
+        }
+
+        final String filename = (nombreArchivo != null && !nombreArchivo.isBlank()) ? nombreArchivo : "audio.webm";
+
+        ByteArrayResource fileResource = new ByteArrayResource(audioBytes) {
+            @Override
+            public String getFilename() {
+                return filename;
+            }
+        };
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", fileResource);
+        body.add("model", this.whisperModel);
+        body.add("language", "es");
+        body.add("response_format", "json");
+
+        try {
+            logger.info("[GroqClient] Enviando audio a Groq Whisper (" + this.whisperModel + ") para transcripción...");
+            Map<?, ?> respuesta = RestClient.builder()
+                    .baseUrl(this.whisperUrl)
+                    .requestFactory(new BufferingClientHttpRequestFactory(new JdkClientHttpRequestFactory()))
+                    .build()
+                    .post()
+                    .header("Authorization", "Bearer " + this.apiKey)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (respuesta != null && respuesta.get("text") != null) {
+                String transcripcion = respuesta.get("text").toString().trim();
+                logger.info("[GroqClient] Transcripción completada con éxito (" + transcripcion.length() + " caracteres).");
+                return transcripcion;
+            }
+        } catch (RestClientResponseException e) {
+            logger.warning("[GroqClient] Groq Whisper respondió error HTTP " + e.getStatusCode() + ": " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            logger.warning("[GroqClient] Error al conectar con Groq Whisper: " + e.getMessage());
+        }
+        return null;
     }
 }

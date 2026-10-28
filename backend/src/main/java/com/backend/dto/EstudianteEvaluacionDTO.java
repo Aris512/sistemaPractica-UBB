@@ -22,6 +22,7 @@ public class EstudianteEvaluacionDTO {
     private String tipoEvaluacion;
     private String evaluadorRut;
     private String evaluadorNombre;
+    private String tipoEvaluador;
     private String archivoUrl;
     private String nombreArchivo;
     private Boolean tieneArchivo;
@@ -197,6 +198,14 @@ public class EstudianteEvaluacionDTO {
 
     public void setEvaluadorNombre(String evaluadorNombre) {
         this.evaluadorNombre = evaluadorNombre;
+    }
+
+    public String getTipoEvaluador() {
+        return tipoEvaluador;
+    }
+
+    public void setTipoEvaluador(String tipoEvaluador) {
+        this.tipoEvaluador = tipoEvaluador;
     }
 
     public String getArchivoUrl() {

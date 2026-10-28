@@ -4,16 +4,19 @@ import type { PracticaMenuKey } from "./types";
 import { PracticaSidebar } from "./PracticaSidebar";
 import { HomeHeader } from "@/components/home/Estudiante/HomeHeader";
 import { PerfilUsuario } from "@/components/home/Estudiante/PerfilUsuario";
+import { Portafolio } from "@/components/home/Estudiante/Portafolio";
+import { Planificacion } from "@/components/home/Estudiante/Planificacion";
+import { PracticaAsistentesIAView } from "./views/PracticaAsistentesIAView";
 import { PracticaInicioView } from "./views/PracticaInicioView";
-import { PracticaPortafolioView } from "./views/PracticaPortafolioView";
-import { PracticaDocumentosView } from "./views/PracticaDocumentosView";
-import { PracticaEvaluacionesView } from "./views/PracticaEvaluacionesView";
 import { PracticaEquipoView } from "./views/PracticaEquipoView";
+import { PracticaRetroalimentacionView } from "./views/PracticaRetroalimentacionView";
 import { usePracticaEstudiante } from "./hooks/usePracticaEstudiante";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
 import { RefreshCw } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
 
 interface PracticaEstudianteHomePageProps {
   user: UserSession;
@@ -33,7 +36,19 @@ export function PracticaEstudianteHomePage({
   });
 
   const [formattedDate, setFormattedDate] = useState("");
-  const { datos, loading, recargar } = usePracticaEstudiante(user);
+  const { datos, loading } = usePracticaEstudiante(user);
+  const { hasPermission } = usePermissions(user);
+  const volverAlInicio = () => setActiveMenu("inicio");
+
+  // Abre «Asistentes de IA» con esa conversación: ChatIA restaura la conversación guardada en esta clave al montarse
+  const abrirChat = (idConversacion: number) => {
+    try {
+      sessionStorage.setItem(`ubb_chat_activa_${user.rut}`, String(idConversacion));
+    } catch {
+      // sin sessionStorage el chat abre sin conversación seleccionada
+    }
+    setActiveMenu("asistentes-ia");
+  };
 
   useEffect(() => {
     try {
@@ -76,33 +91,41 @@ export function PracticaEstudianteHomePage({
       return null;
     }
 
+    // Portafolio e IA son los mismos módulos del estudiante regular, con los mismos permisos; sin
+    // permiso se vuelve a la línea de tiempo del inicio. En práctica (8.° y 9.° semestre) no hay
+    // Evaluaciones ni Observaciones: los profesores evalúan con pautas, cuyos resultados finalizados
+    // el alumno ve en «Mis Pautas».
     switch (activeMenu) {
       case "perfil":
-        return <PerfilUsuario user={user} onBack={() => setActiveMenu("inicio")} />;
+        return <PerfilUsuario user={user} onBack={volverAlInicio} />;
       case "portafolio":
-        return (
-          <PracticaPortafolioView
-            user={user}
-            datos={datos}
-            onNavigate={setActiveMenu}
-            onReload={recargar}
-          />
-        );
-      case "documentos":
-        return (
-          <PracticaDocumentosView
-            user={user}
-            datos={datos}
-            onReload={recargar}
-          />
-        );
-      case "evaluaciones":
-        return (
-          <PracticaEvaluacionesView
-            user={user}
-            datos={datos}
-          />
-        );
+        if (hasPermission("PORTAFOLIO_SUBIR") || hasPermission("PORTAFOLIO_CONSULTAR")) {
+          return <Portafolio user={user} onBack={volverAlInicio} />;
+        }
+        break;
+      case "retroalimentacion":
+        if (hasPermission("IA_ACCESO")) {
+          return (
+            <PracticaRetroalimentacionView
+              user={user}
+              onAbrirChat={abrirChat}
+              onIrAPlanificacion={() => setActiveMenu("planificacion")}
+            />
+          );
+        }
+        break;
+      case "pautas":
+        if (hasPermission("EVALUACIONES_CONSULTAR")) {
+          return <PautasResultados user={user} modo="estudiante" onBack={volverAlInicio} />;
+        }
+        break;
+      case "planificacion":
+        return <Planificacion user={user} onBack={volverAlInicio} />;
+      case "asistentes-ia":
+        if (hasPermission("IA_ACCESO")) {
+          return <PracticaAsistentesIAView user={user} />;
+        }
+        break;
       case "equipo":
         return (
           <PracticaEquipoView
@@ -110,16 +133,8 @@ export function PracticaEstudianteHomePage({
             datos={datos}
           />
         );
-      case "inicio":
-      default:
-        return (
-          <PracticaInicioView
-            user={user}
-            datos={datos}
-            onNavigate={setActiveMenu}
-          />
-        );
     }
+    return <PracticaInicioView user={user} datos={datos} />;
   };
 
   return (

@@ -23,6 +23,7 @@ import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
 import com.backend.model.Evidencia;
 import com.backend.model.Nota;
+import com.backend.model.NotaDeVoz;
 import com.backend.model.ObservacionEvaluacion;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
@@ -33,6 +34,7 @@ import com.backend.repository.DocumentoRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.NotaDeVozRepository;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionEvaluacionRepository;
 import com.backend.repository.PracticaRepository;
@@ -57,6 +59,7 @@ public class EvaluacionService {
     private final EvidenciaRepository evidenciaRepository;
     private final AvanceAcademicoService avanceAcademicoService;
     private final ActividadRepository actividadRepository;
+    private final NotaDeVozRepository notaDeVozRepository;
 
     public EvaluacionService(
             EvaluacionRepository evaluacionRepository,
@@ -71,7 +74,8 @@ public class EvaluacionService {
             DocumentoRepository documentoRepository,
             EvidenciaRepository evidenciaRepository,
             AvanceAcademicoService avanceAcademicoService,
-            ActividadRepository actividadRepository) {
+            ActividadRepository actividadRepository,
+            NotaDeVozRepository notaDeVozRepository) {
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
         this.profesorRepository = profesorRepository;
@@ -85,6 +89,7 @@ public class EvaluacionService {
         this.evidenciaRepository = evidenciaRepository;
         this.avanceAcademicoService = avanceAcademicoService;
         this.actividadRepository = actividadRepository;
+        this.notaDeVozRepository = notaDeVozRepository;
     }
 
     public List<Evaluacion> obtenerTodos() {
@@ -196,6 +201,7 @@ public class EvaluacionService {
         Evaluacion evaluacion = evaluacionRepository.findById(id).orElse(null);
         if (evaluacion == null) return;
         eliminarArchivoDeEvaluacion(evaluacion);
+        eliminarNotasDeVoz(evaluacion);
         evaluacionRepository.delete(evaluacion);
     }
 
@@ -326,8 +332,12 @@ public class EvaluacionService {
         if (req.getIdEstudiante() == null) {
             throw new IllegalArgumentException("El ID del estudiante es requerido.");
         }
-        if (req.getRutProfesor() == null || req.getRutProfesor().trim().isEmpty()) {
-            throw new IllegalArgumentException("El RUT del profesor es requerido.");
+        String rutEfectivo = req.getRutEvaluador();
+        if (rutEfectivo == null || rutEfectivo.trim().isEmpty()) {
+            rutEfectivo = req.getRutProfesor();
+        }
+        if (rutEfectivo == null || rutEfectivo.trim().isEmpty()) {
+            throw new IllegalArgumentException("El RUT del evaluador es requerido.");
         }
         // Validar nota si viene informada
         if (req.getPuntajeObtenido() != null) {
@@ -339,12 +349,39 @@ public class EvaluacionService {
         Estudiante estudiante = estudianteRepository.findById(req.getIdEstudiante())
                 .orElseThrow(() -> new RuntimeException("Estudiante no encontrado con ID: " + req.getIdEstudiante()));
 
-        Profesor profesor = profesorRepository.findByUsuarioRut(req.getRutProfesor())
-                .orElseThrow(() -> new RuntimeException("Profesor no encontrado con RUT: " + req.getRutProfesor()));
+        Usuario evaluadorUser = usuarioRepository.findByRut(rutEfectivo).orElse(null);
+        String nombreEvaluador = req.getNombreEvaluador();
+        if ((nombreEvaluador == null || nombreEvaluador.isBlank()) && evaluadorUser != null) {
+            nombreEvaluador = evaluadorUser.getNombre() + " " + evaluadorUser.getApellido();
+        }
 
-        // 1. Resolver si ya existe una Nota previa de este profesor para el estudiante
-        // (las notas de otros profesores/asignaturas no se tocan).
-        List<Nota> notasEstudiante = notasDelProfesor(estudiante.getIdEstudiante(), profesor);
+        // Determinar rol del evaluador
+        String tipoEvaluador = req.getTipoEvaluador();
+        if (tipoEvaluador == null || tipoEvaluador.isBlank()) {
+            if (evaluadorUser != null && evaluadorUser.getRoles() != null) {
+                for (com.backend.model.Rol r : evaluadorUser.getRoles()) {
+                    String rNom = r.getNombre().toUpperCase();
+                    if (rNom.contains("TUTOR")) {
+                        tipoEvaluador = "TUTOR_PRACTICA";
+                        break;
+                    } else if (rNom.contains("COLABORADOR")) {
+                        tipoEvaluador = "PROFESOR_COLABORADOR";
+                        break;
+                    } else if (rNom.contains("PROFESOR")) {
+                        tipoEvaluador = "PROFESOR_ASIGNATURA";
+                        break;
+                    }
+                }
+            }
+            if (tipoEvaluador == null || tipoEvaluador.isBlank()) {
+                tipoEvaluador = "PROFESOR_ASIGNATURA";
+            }
+        }
+
+        Profesor profesor = profesorRepository.findByUsuarioRut(rutEfectivo).orElse(null);
+
+        // 1. Resolver si ya existe una Nota previa de este evaluador para el estudiante
+        List<Nota> notasEstudiante = notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(estudiante.getIdEstudiante(), rutEfectivo);
         Nota notaExistente = notasEstudiante.isEmpty() ? null : notasEstudiante.get(0);
         if (notasEstudiante.size() > 1) {
             for (int i = 1; i < notasEstudiante.size(); i++) {
@@ -352,10 +389,16 @@ public class EvaluacionService {
             }
         }
 
-        // 2. Resolver la Evaluación existente (evitar crear registros redundantes)
+        // 2. Resolver la Evaluación existente (evitar crear registros redundantes).
+        // Solo se reutiliza una evaluación de este mismo evaluador: así un tutor no puede
+        // sobrescribir la del profesor (ni al revés) enviando su idEvaluacion.
         Evaluacion evaluacion = null;
         if (req.getIdEvaluacion() != null) {
-            evaluacion = evaluacionRepository.findById(req.getIdEvaluacion()).orElse(null);
+            final Nota notaPrevia = notaExistente;
+            final String rutDelEvaluador = rutEfectivo;
+            evaluacion = evaluacionRepository.findById(req.getIdEvaluacion())
+                    .filter(ev -> perteneceAlEvaluador(ev, rutDelEvaluador, notaPrevia))
+                    .orElse(null);
         }
         if (evaluacion == null && notaExistente != null && notaExistente.getEvaluacion() != null) {
             evaluacion = notaExistente.getEvaluacion();
@@ -378,19 +421,22 @@ public class EvaluacionService {
                     observacionEvaluacionRepository.flush();
                 }
                 eliminarArchivoDeEvaluacion(evaluacion);
+                eliminarNotasDeVoz(evaluacion);
                 evaluacionRepository.delete(evaluacion);
                 evaluacionRepository.flush();
                 evaluacion = null;
             }
-            return construirDTO(estudiante, evaluacion, null, profesor.getUsuario().getRut());
+            return construirDTO(estudiante, evaluacion, null, rutEfectivo);
         }
 
         // CASO B: Existe nota, observación o ambas
         if (evaluacion != null) {
-            // Actualizar la evaluación existente SIN crear una nueva
             evaluacion.setPractica(null); // NO completa id_practica
             evaluacion.setObservacion(obsLimpia);
             evaluacion.setFecha(LocalDateTime.now());
+            evaluacion.setRutEvaluador(rutEfectivo);
+            evaluacion.setNombreEvaluador(nombreEvaluador);
+            evaluacion.setTipoEvaluador(tipoEvaluador);
             if (req.getTipoEvaluacion() != null && !req.getTipoEvaluacion().trim().isEmpty()) {
                 evaluacion.setTipoEvaluacion(req.getTipoEvaluacion());
             }
@@ -402,21 +448,18 @@ public class EvaluacionService {
             }
             evaluacion = evaluacionRepository.save(evaluacion);
         } else {
-            // Solo crear nueva si realmente no existía ninguna
             evaluacion = new Evaluacion();
             evaluacion.setPractica(null);
-            evaluacion.setIdEvaluador(profesor.getIdProfesor());
-            evaluacion.setTipoEvaluador("PROFESOR_ASIGNATURA");
+            if (profesor != null) {
+                evaluacion.setIdEvaluador(profesor.getIdProfesor());
+            }
+            evaluacion.setRutEvaluador(rutEfectivo);
+            evaluacion.setNombreEvaluador(nombreEvaluador);
+            evaluacion.setTipoEvaluador(tipoEvaluador);
             evaluacion.setFecha(LocalDateTime.now());
-            evaluacion.setTipoEvaluacion(req.getTipoEvaluacion() != null ? req.getTipoEvaluacion() : "Evaluación Docente");
-            evaluacion.setPuntajeMinimo(1.0);
-            if (req.getPuntajeMinimo() != null) {
-                evaluacion.setPuntajeMinimo(req.getPuntajeMinimo());
-            }
-            evaluacion.setPuntajeMaximo(7.0);
-            if (req.getPuntajeMaximo() != null) {
-                evaluacion.setPuntajeMaximo(req.getPuntajeMaximo());
-            }
+            evaluacion.setTipoEvaluacion(req.getTipoEvaluacion() != null ? req.getTipoEvaluacion() : "Evaluación de Desempeño");
+            evaluacion.setPuntajeMinimo(req.getPuntajeMinimo() != null ? req.getPuntajeMinimo() : 1.0);
+            evaluacion.setPuntajeMaximo(req.getPuntajeMaximo() != null ? req.getPuntajeMaximo() : 7.0);
             evaluacion.setObservacion(obsLimpia);
             evaluacion.setFechaLimite(LocalDateTime.now().plusDays(30));
             evaluacion = evaluacionRepository.save(evaluacion);
@@ -426,16 +469,30 @@ public class EvaluacionService {
         if (notaExistente != null) {
             notaExistente.setEvaluacion(evaluacion);
             notaExistente.setPuntajeObtenido(req.getPuntajeObtenido());
-            notaExistente.setRutEvaluador(profesor.getUsuario().getRut());
+            notaExistente.setRutEvaluador(rutEfectivo);
             notaExistente = notaRepository.save(notaExistente);
         } else {
-            notaExistente = new Nota(evaluacion, estudiante, req.getPuntajeObtenido(), profesor.getUsuario().getRut());
+            notaExistente = new Nota(evaluacion, estudiante, req.getPuntajeObtenido(), rutEfectivo);
             notaExistente = notaRepository.save(notaExistente);
         }
 
-        sincronizarRevisionEnEvidencia(estudiante, profesor, notaExistente, obsLimpia);
+        if (profesor != null) {
+            sincronizarRevisionEnEvidencia(estudiante, profesor, notaExistente, obsLimpia);
+        }
 
-        return construirDTO(estudiante, evaluacion, notaExistente, profesor.getUsuario().getRut());
+        return construirDTO(estudiante, evaluacion, notaExistente, rutEfectivo);
+    }
+
+    /**
+     * Una evaluación es del evaluador si lleva su RUT o si es la de su propia nota. Las
+     * evaluaciones antiguas sin rut_evaluador solo se aceptan por esta última vía.
+     */
+    private boolean perteneceAlEvaluador(Evaluacion evaluacion, String rutEvaluador, Nota notaDelEvaluador) {
+        if (evaluacion.getRutEvaluador() != null) {
+            return evaluacion.getRutEvaluador().equalsIgnoreCase(rutEvaluador);
+        }
+        return notaDelEvaluador != null && notaDelEvaluador.getEvaluacion() != null
+                && evaluacion.getIdEvaluacion().equals(notaDelEvaluador.getEvaluacion().getIdEvaluacion());
     }
 
     /** Notas que el profesor emitió para el estudiante, la más reciente primero. */
@@ -498,6 +555,7 @@ public class EvaluacionService {
                         observacionEvaluacionRepository.flush();
                     }
                     eliminarArchivoDeEvaluacion(evaluacion);
+                    eliminarNotasDeVoz(evaluacion);
                     evaluacionRepository.delete(evaluacion);
                     evaluacionRepository.flush();
                     evaluacion = null;
@@ -534,6 +592,7 @@ public class EvaluacionService {
                         observacionEvaluacionRepository.flush();
                     }
                     eliminarArchivoDeEvaluacion(evaluacion);
+                    eliminarNotasDeVoz(evaluacion);
                     evaluacionRepository.delete(evaluacion);
                     evaluacionRepository.flush();
                     evaluacion = null;
@@ -677,6 +736,7 @@ public class EvaluacionService {
                 observacionEvaluacionRepository.flush();
             }
             eliminarArchivoDeEvaluacion(evaluacion);
+            eliminarNotasDeVoz(evaluacion);
             evaluacionRepository.delete(evaluacion);
             evaluacionRepository.flush();
         } else {
@@ -691,6 +751,18 @@ public class EvaluacionService {
      * partir de él al subirlo (copia en DocumentoPractica del expediente y Documento de revisión
      * de la evidencia). El archivo físico se elimina tras el commit y solo si nada más lo referencia.
      */
+    /** Las notas de voz referencian a la evaluación: se borran (con su audio) antes que ella. */
+    private void eliminarNotasDeVoz(Evaluacion evaluacion) {
+        List<NotaDeVoz> notasDeVoz = notaDeVozRepository.findByEvaluacionIdEvaluacionOrderByFechaGrabacionDesc(evaluacion.getIdEvaluacion());
+        if (notasDeVoz.isEmpty()) return;
+        notaDeVozRepository.deleteAll(notasDeVoz);
+        notaDeVozRepository.flush();
+        notasDeVoz.stream()
+                .map(NotaDeVoz::getUbicacionArchivo)
+                .filter(u -> u != null && !u.isBlank())
+                .forEach(fileStorageService::deleteFile);
+    }
+
     private void eliminarArchivoDeEvaluacion(Evaluacion evaluacion) {
         if (evaluacion == null) return;
         String url = evaluacion.getArchivoUrl();
@@ -808,6 +880,15 @@ public class EvaluacionService {
             dto.setArchivoUrl(evaluacion.getArchivoUrl());
             dto.setNombreArchivo(evaluacion.getNombreArchivo());
             dto.setTieneArchivo(evaluacion.getArchivoUrl() != null && !evaluacion.getArchivoUrl().isBlank());
+            if (evaluacion.getRutEvaluador() != null) {
+                dto.setEvaluadorRut(evaluacion.getRutEvaluador());
+            }
+            if (evaluacion.getNombreEvaluador() != null) {
+                dto.setEvaluadorNombre(evaluacion.getNombreEvaluador());
+            }
+            if (evaluacion.getTipoEvaluador() != null) {
+                dto.setTipoEvaluador(evaluacion.getTipoEvaluador());
+            }
         }
 
         // Si no tiene archivo directo en la evaluación, buscar si el profesor ya subió una pauta/documento de práctica
@@ -822,9 +903,15 @@ public class EvaluacionService {
                     dto.setTieneArchivo(true);
                 });
         }
-        if (nota != null && nota.getRutEvaluador() != null) {
+        if (dto.getEvaluadorRut() == null && nota != null && nota.getRutEvaluador() != null) {
             dto.setEvaluadorRut(nota.getRutEvaluador());
             usuarioRepository.findByRut(nota.getRutEvaluador()).ifPresent(u -> {
+                dto.setEvaluadorNombre(u.getNombre() + " " + u.getApellido());
+            });
+        }
+        if (dto.getEvaluadorRut() == null && rutProfesor != null) {
+            dto.setEvaluadorRut(rutProfesor);
+            usuarioRepository.findByRut(rutProfesor).ifPresent(u -> {
                 dto.setEvaluadorNombre(u.getNombre() + " " + u.getApellido());
             });
         }
@@ -834,6 +921,25 @@ public class EvaluacionService {
                 dto.setEvaluadorNombre(profesores.get(0).getUsuario().getNombre() + " " + profesores.get(0).getUsuario().getApellido());
                 dto.setEvaluadorRut(profesores.get(0).getUsuario().getRut());
             }
+        }
+        if (dto.getTipoEvaluador() == null && dto.getEvaluadorRut() != null) {
+            usuarioRepository.findByRut(dto.getEvaluadorRut()).ifPresent(u -> {
+                if (u.getRoles() != null) {
+                    for (com.backend.model.Rol r : u.getRoles()) {
+                        String rNom = r.getNombre().toUpperCase();
+                        if (rNom.contains("TUTOR")) {
+                            dto.setTipoEvaluador("TUTOR_PRACTICA");
+                            break;
+                        } else if (rNom.contains("COLABORADOR")) {
+                            dto.setTipoEvaluador("PROFESOR_COLABORADOR");
+                            break;
+                        } else if (rNom.contains("PROFESOR")) {
+                            dto.setTipoEvaluador("PROFESOR_ASIGNATURA");
+                            break;
+                        }
+                    }
+                }
+            });
         }
         completarEntregaAlumno(dto, estudiante.getIdEstudiante(), rutProfesor);
 
@@ -884,10 +990,34 @@ public class EvaluacionService {
             String observacion,
             MultipartFile file,
             Boolean eliminarArchivo) {
+        return guardarEvaluacionConArchivo(
+                idEstudiante, rutProfesor, null, null, null, null, idEvaluacion, tipoEvaluacion, puntajeObtenido, observacion, file, eliminarArchivo
+        );
+    }
+
+    @Transactional
+    public EstudianteEvaluacionDTO guardarEvaluacionConArchivo(
+            Long idEstudiante,
+            String rutProfesor,
+            String rutEvaluador,
+            String nombreEvaluador,
+            String tipoEvaluador,
+            Long idPractica,
+            Long idEvaluacion,
+            String tipoEvaluacion,
+            Double puntajeObtenido,
+            String observacion,
+            MultipartFile file,
+            Boolean eliminarArchivo) {
 
         GuardarEvaluacionProfesorRequest req = new GuardarEvaluacionProfesorRequest();
         req.setIdEstudiante(idEstudiante);
-        req.setRutProfesor(rutProfesor);
+        String rutFinal = (rutEvaluador != null && !rutEvaluador.isBlank()) ? rutEvaluador : rutProfesor;
+        req.setRutProfesor(rutFinal);
+        req.setRutEvaluador(rutFinal);
+        req.setNombreEvaluador(nombreEvaluador);
+        req.setTipoEvaluador(tipoEvaluador);
+        req.setIdPractica(idPractica);
         req.setIdEvaluacion(idEvaluacion);
         req.setTipoEvaluacion(tipoEvaluacion);
         req.setPuntajeObtenido(puntajeObtenido);

@@ -7,10 +7,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,9 +36,12 @@ import com.backend.model.Usuario;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.CentroPracticaRepository;
 import com.backend.repository.EstudianteRepository;
+import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
 import com.backend.repository.TutorPracticaRepository;
+import com.backend.service.PermisoService;
+import com.backend.service.PracticaService;
 
 @RestController
 @RequestMapping("/api/coordinador")
@@ -48,50 +54,130 @@ public class CoordinadorController {
     private final TutorPracticaRepository tutorPracticaRepository;
     private final ProfesorColaboradorRepository profesorColaboradorRepository;
     private final PracticaRepository practicaRepository;
+    private final PracticaService practicaService;
+    private final PermisoService permisoService;
+    private final PautaAplicacionRepository pautaAplicacionRepository;
 
     public CoordinadorController(EstudianteRepository estudianteRepository,
                                  AsignaturaRepository asignaturaRepository,
                                  CentroPracticaRepository centroPracticaRepository,
                                  TutorPracticaRepository tutorPracticaRepository,
                                  ProfesorColaboradorRepository profesorColaboradorRepository,
-                                 PracticaRepository practicaRepository) {
+                                 PracticaRepository practicaRepository,
+                                 PracticaService practicaService,
+                                 PermisoService permisoService,
+                                 PautaAplicacionRepository pautaAplicacionRepository) {
         this.estudianteRepository = estudianteRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
         this.tutorPracticaRepository = tutorPracticaRepository;
         this.profesorColaboradorRepository = profesorColaboradorRepository;
         this.practicaRepository = practicaRepository;
+        this.practicaService = practicaService;
+        this.permisoService = permisoService;
+        this.pautaAplicacionRepository = pautaAplicacionRepository;
     }
 
-    /**
-     * Determina si una asignatura corresponde a Práctica Pedagógica o Práctica Profesional.
-     */
-    private boolean esAsignaturaPractica(Asignatura asig) {
-        if (asig == null || asig.getNombre() == null) {
-            return false;
+    /** Permiso que habilita asociar / desvincular prácticas (se administra en el panel de permisos). */
+    private static final String PERMISO_ASOCIAR = "PRACTICAS_ASOCIAR";
+
+    private static String normalizar(String s) {
+        if (s == null) {
+            return "";
         }
-        String normalizado = Normalizer.normalize(asig.getNombre(), Normalizer.Form.NFD)
+        return Normalizer.normalize(s, Normalizer.Form.NFD)
             .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
             .toUpperCase()
             .trim();
-        return normalizado.contains("PRACTICA") &&
-               (normalizado.contains("PEDAGOGICA") || normalizado.contains("PROFESIONAL"));
     }
 
     /**
-     * Retorna únicamente las asignaturas de práctica: Práctica Pedagógica y Práctica Profesional.
+     * Ciclo de la línea de práctica al que pertenece la asignatura: INICIAL, INTERMEDIA, PEDAGOGICA o
+     * PROFESIONAL. Devuelve null si no es una de las 6 asignaturas de práctica.
+     */
+    private String nivelPractica(Asignatura asig) {
+        if (asig == null || asig.getNombre() == null) {
+            return null;
+        }
+        String n = normalizar(asig.getNombre());
+        if (n.contains("APROXIMACION") && n.contains("SISTEMA ESCOLAR")) return "INICIAL";
+        if (n.contains("AMBIENTES") && n.contains("APRENDIZAJE")) return "INICIAL";
+        if (n.contains("TRABAJO COLABORATIVO")) return "INTERMEDIA";
+        if (n.contains("INVESTIGACION") && n.contains("AULA")) return "INTERMEDIA";
+        if (n.contains("PRACTICA") && n.contains("PEDAGOGICA")) return "PEDAGOGICA";
+        if (n.contains("PRACTICA") && n.contains("PROFESIONAL")) return "PROFESIONAL";
+        return null;
+    }
+
+    /**
+     * Determina si una asignatura es una de las 6 de la línea de práctica: Aproximación al Sistema Escolar,
+     * Ambientes de Aprendizaje, Trabajo Colaborativo en el Aula, Investigación en el Aula,
+     * Práctica Pedagógica y Práctica Profesional.
+     */
+    private boolean esAsignaturaPractica(Asignatura asig) {
+        return nivelPractica(asig) != null;
+    }
+
+    /** Las prácticas iniciales son simulaciones en la universidad: no hay colegio ni profesor colaborador. */
+    private boolean requiereColaborador(String nivel) {
+        return nivel != null && !"INICIAL".equals(nivel);
+    }
+
+    /** Solo en la Práctica Profesional interviene un tutor/supervisor contratado por la universidad. */
+    private boolean requiereTutor(String nivel) {
+        return "PROFESIONAL".equals(nivel);
+    }
+
+    private static int semestreNum(Asignatura a) {
+        try {
+            return Integer.parseInt(a.getSemestre() == null ? "" : a.getSemestre().trim());
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    private static Long aLong(Object o) {
+        if (o == null || o.toString().isBlank()) {
+            return null;
+        }
+        return Long.valueOf(o.toString().trim());
+    }
+
+    /** Solo quienes tienen el permiso PRACTICAS_ASOCIAR pueden asociar o desvincular prácticas. */
+    private ResponseEntity<?> exigirPermisoAsociar(String rut) {
+        if (rut == null || rut.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Debe iniciar sesión para asociar prácticas."));
+        }
+        Set<String> permisos = permisoService.obtenerPermisosEfectivosUsuario(rut.trim());
+        boolean ok = permisos != null && permisos.stream().anyMatch(p -> PERMISO_ASOCIAR.equalsIgnoreCase(p));
+        if (!ok) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "No tiene permiso para asociar prácticas."));
+        }
+        return null;
+    }
+
+    /**
+     * Retorna las 6 asignaturas de la línea de práctica (ordenadas por semestre), indicando qué participantes
+     * requiere cada una: profesor colaborador / centro (todas salvo las iniciales) y tutor (solo Práctica Profesional).
      */
     @GetMapping("/asignaturas-practica")
     public ResponseEntity<List<Map<String, Object>>> obtenerAsignaturasPractica() {
         List<Asignatura> todas = asignaturaRepository.findAll();
         List<Map<String, Object>> resultado = todas.stream()
             .filter(this::esAsignaturaPractica)
+            .sorted((x, y) -> Integer.compare(semestreNum(x), semestreNum(y)))
             .map(a -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idAsignatura", a.getIdAsignatura());
                 map.put("nombre", a.getNombre());
                 map.put("descripcion", a.getDescripcion());
                 map.put("semestre", a.getSemestre());
+                String nivel = nivelPractica(a);
+                map.put("nivel", nivel);
+                map.put("requiereColaborador", requiereColaborador(nivel));
+                map.put("requiereTutor", requiereTutor(nivel));
                 return map;
             })
             .collect(Collectors.toList());
@@ -100,9 +186,7 @@ public class CoordinadorController {
     }
 
     /**
-     * Retorna el listado simple de estudiantes que pertenecen EXCLUSIVAMENTE a:
-     * - Práctica Pedagógica
-     * - Práctica Profesional
+     * Retorna el listado simple de estudiantes que pertenecen a alguna de las 6 asignaturas de práctica.
      * Sin columnas innecesarias (RUT, teléfono, etc. sólo expuestos internamente si es necesario).
      */
     @GetMapping("/estudiantes-practica")
@@ -177,7 +261,7 @@ public class CoordinadorController {
         Asignatura asignatura = asigOpt.get();
         if (!esAsignaturaPractica(asignatura)) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La asignatura seleccionada no corresponde a una práctica válida (Práctica Pedagógica o Práctica Profesional)."
+                "error", "La asignatura seleccionada no es una de las 6 asignaturas de la línea de práctica."
             ));
         }
 
@@ -279,45 +363,96 @@ public class CoordinadorController {
         return ResponseEntity.ok(respuesta);
     }
 
+    /** Respuesta 409 con un código que el formulario usa para decidir qué mostrar. */
+    private ResponseEntity<?> conflicto(String codigo, String mensaje) {
+        Map<String, Object> cuerpo = new HashMap<>();
+        cuerpo.put("error", mensaje);
+        cuerpo.put("codigo", codigo);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(cuerpo);
+    }
+
+    private static String nombreCompleto(Usuario u) {
+        return u == null ? "" : ((u.getNombre() == null ? "" : u.getNombre()) + " " + (u.getApellido() == null ? "" : u.getApellido())).trim();
+    }
+
     /**
-     * Asocia Estudiante + Asignatura + Profesor Colaborador + Tutor (+ Centro de Práctica).
-     * Aplica validación estricta en servidor de que el estudiante pertenezca a la misma asignatura
-     * y que sea una asignatura de práctica válida.
+     * Asocia Estudiante + Asignatura de práctica (+ Profesor Colaborador, Tutor y Centro según el ciclo):
+     * - Iniciales (Aproximación al Sistema Escolar, Ambientes de Aprendizaje): solo estudiante y asignatura.
+     * - Intermedias y Práctica Pedagógica: además profesor colaborador y centro (obligatorio, sin valor por defecto).
+     * - Práctica Profesional: además tutor universitario.
+     *
+     * Protecciones:
+     * - Exige el permiso PRACTICAS_ASOCIAR.
+     * - Si el estudiante ya tiene colaborador/tutor y se pretende cambiarlos, responde 409 ASOCIACION_EXISTENTE
+     *   salvo que el cliente envíe {@code reemplazar: true}.
+     * - Si la práctica ya tiene pautas aplicadas, no se permite cambiar evaluadores: 409 PAUTAS_APLICADAS.
+     * - Conserva el estado de aprobación de la práctica existente.
+     * - Mantiene sincronizada la relación práctica-colaborador (el colaborador es el lado propietario).
      */
     @PostMapping("/asociar")
     @Transactional
-    public ResponseEntity<?> asociarPractica(@RequestBody Map<String, Object> payload) {
-        Object idAsigObj = payload.get("idAsignatura");
-        Object idEstObj = payload.get("idEstudiante");
-        Object idColabObj = payload.get("idProfesorColaborador");
-        Object idTutorObj = payload.get("idTutor");
-        Object idCentroObj = payload.get("idCentroPractica");
+    public ResponseEntity<?> asociarPractica(@RequestBody Map<String, Object> payload,
+                                             @RequestHeader(value = "X-User-Rut", required = false) String rutSolicitante) {
+        ResponseEntity<?> denegado = exigirPermisoAsociar(rutSolicitante);
+        if (denegado != null) {
+            return denegado;
+        }
 
-        if (idAsigObj == null || idEstObj == null || idColabObj == null || idTutorObj == null) {
+        Long[] ids;
+        try {
+            ids = new Long[] {
+                aLong(payload.get("idAsignatura")),
+                aLong(payload.get("idEstudiante")),
+                aLong(payload.get("idProfesorColaborador")),
+                aLong(payload.get("idTutor")),
+                aLong(payload.get("idCentroPractica"))
+            };
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Los identificadores enviados no son válidos."));
+        }
+        final Long idAsignatura = ids[0];
+        final Long idEstudiante = ids[1];
+        final Long idColaborador = ids[2];
+        final Long idTutor = ids[3];
+        final Long idCentro = ids[4];
+        final boolean reemplazar = Boolean.parseBoolean(String.valueOf(payload.get("reemplazar")));
+
+        if (idAsignatura == null || idEstudiante == null) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "Todos los campos de asociación son obligatorios: Asignatura, Estudiante, Profesor Colaborador y Tutor."
+                "error", "La asignatura y el estudiante son obligatorios."
             ));
         }
 
-        Long idAsignatura = Long.valueOf(idAsigObj.toString());
-        Long idEstudiante = Long.valueOf(idEstObj.toString());
-        Long idColaborador = Long.valueOf(idColabObj.toString());
-        Long idTutor = Long.valueOf(idTutorObj.toString());
-
-        // 1. Validar Asignatura
+        // 1. Asignatura: debe ser una de las 6 de la línea de práctica
         Optional<Asignatura> asigOpt = asignaturaRepository.findById(idAsignatura);
         if (asigOpt.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "La asignatura especificada no existe."));
         }
         Asignatura asignatura = asigOpt.get();
-        if (!esAsignaturaPractica(asignatura)) {
+        String nivel = nivelPractica(asignatura);
+        if (nivel == null) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La asignatura '" + asignatura.getNombre() + "' no corresponde a Práctica Pedagógica ni Práctica Profesional."
+                "error", "La asignatura '" + asignatura.getNombre() + "' no es una de las 6 asignaturas de la línea de práctica."
+            ));
+        }
+        if (requiereColaborador(nivel) && idColaborador == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "La asignatura '" + asignatura.getNombre() + "' requiere un profesor colaborador."
+            ));
+        }
+        if (requiereColaborador(nivel) && idCentro == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "La asignatura '" + asignatura.getNombre() + "' requiere seleccionar el centro de práctica."
+            ));
+        }
+        if (requiereTutor(nivel) && idTutor == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "La asignatura '" + asignatura.getNombre() + "' requiere un tutor de práctica."
             ));
         }
 
-        // 2. Validar Estudiante y pertenencia a la misma asignatura
-        Optional<Estudiante> estOpt = estudianteRepository.findById(idEstudiante);
+        // 2. Estudiante (bloqueado durante la transacción) y pertenencia a la asignatura
+        Optional<Estudiante> estOpt = estudianteRepository.findByIdForUpdate(idEstudiante);
         if (estOpt.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "El estudiante especificado no existe."));
         }
@@ -326,78 +461,157 @@ public class CoordinadorController {
         if (estudiante.getAsignatura() == null || !idAsignatura.equals(estudiante.getAsignatura().getIdAsignatura())) {
             String asigEstudiante = estudiante.getAsignatura() != null ? estudiante.getAsignatura().getNombre() : "Sin asignatura";
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "No se puede realizar la asociación. El estudiante, profesor colaborador y tutor deben pertenecer a la misma asignatura. " +
+                "error", "No se puede realizar la asociación. El estudiante debe pertenecer a la asignatura seleccionada. " +
                          "El estudiante está matriculado en '" + asigEstudiante + "' y la asignatura seleccionada es '" + asignatura.getNombre() + "'."
             ));
         }
 
-        // 3. Validar Tutor
-        Optional<TutorPractica> tutorOpt = tutorPracticaRepository.findById(idTutor);
-        if (tutorOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El tutor de práctica especificado no existe."));
+        // 3. Tutor (solo Práctica Profesional)
+        TutorPractica tutor = null;
+        if (requiereTutor(nivel)) {
+            tutor = tutorPracticaRepository.findById(idTutor).orElse(null);
+            if (tutor == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El tutor de práctica especificado no existe."));
+            }
         }
-        TutorPractica tutor = tutorOpt.get();
 
-        // 4. Validar Profesor Colaborador
-        Optional<ProfesorColaborador> colabOpt = profesorColaboradorRepository.findById(idColaborador);
-        if (colabOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "El profesor colaborador especificado no existe."));
+        // 4. Profesor colaborador (todas salvo las iniciales)
+        ProfesorColaborador colaborador = null;
+        if (requiereColaborador(nivel)) {
+            colaborador = profesorColaboradorRepository.findById(idColaborador).orElse(null);
+            if (colaborador == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El profesor colaborador especificado no existe."));
+            }
         }
-        ProfesorColaborador colaborador = colabOpt.get();
 
-        // 5. Determinar Centro de Práctica
+        // 5. Centro de práctica: obligatorio donde hay trabajo en establecimiento, sin valor por defecto
         CentroPractica centro = null;
-        if (idCentroObj != null && !idCentroObj.toString().isBlank()) {
-            Long idC = Long.valueOf(idCentroObj.toString());
-            centro = centroPracticaRepository.findById(idC).orElse(null);
-        }
-        if (centro == null && colaborador.getCentroPractica() != null) {
-            centro = colaborador.getCentroPractica();
-        }
-        if (centro == null) {
-            centro = centroPracticaRepository.findAll().stream().findFirst().orElse(null);
+        if (requiereColaborador(nivel)) {
+            centro = centroPracticaRepository.findById(idCentro).orElse(null);
+            if (centro == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El centro de práctica especificado no existe."));
+            }
         }
 
-        // 6. Guardar o actualizar la asociación en la tabla practica existente
+        // 6. Práctica existente del estudiante y qué cambiaría con esta asociación
         List<Practica> practicasEst = practicaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante());
-        Practica practica;
+        Practica existente = null;
         if (practicasEst != null && !practicasEst.isEmpty()) {
-            practica = practicasEst.get(0);
-        } else {
-            practica = new Practica();
-            practica.setEstadoAprobacion("EN_CURSO");
+            existente = practicasEst.stream()
+                .filter(p -> p.getAsignatura() != null && idAsignatura.equals(p.getAsignatura().getIdAsignatura()))
+                .findFirst()
+                .orElse(practicasEst.get(0));
         }
 
+        List<ProfesorColaborador> colaboradoresPrevios = new ArrayList<>();
+        Long tutorActualId = null;
+        boolean tienePautas = false;
+        if (existente != null) {
+            if (existente.getProfesoresColaboradores() != null) {
+                colaboradoresPrevios.addAll(existente.getProfesoresColaboradores());
+            }
+            tutorActualId = existente.getTutorPractica() != null ? existente.getTutorPractica().getIdTutor() : null;
+            tienePautas = pautaAplicacionRepository.existsByPracticaIdPractica(existente.getIdPractica());
+        }
+
+        Set<Long> colaboradoresActualesIds = new HashSet<>();
+        for (ProfesorColaborador previo : colaboradoresPrevios) {
+            colaboradoresActualesIds.add(previo.getIdColaborador());
+        }
+        Set<Long> colaboradoresNuevosIds = new HashSet<>();
+        if (colaborador != null) {
+            colaboradoresNuevosIds.add(colaborador.getIdColaborador());
+        }
+        Long tutorNuevoId = tutor != null ? tutor.getIdTutor() : null;
+
+        boolean teniaAsociacion = !colaboradoresActualesIds.isEmpty() || tutorActualId != null;
+        boolean cambiaEvaluadores = !colaboradoresActualesIds.equals(colaboradoresNuevosIds)
+            || !Objects.equals(tutorActualId, tutorNuevoId);
+        boolean cambiaAsignatura = existente != null && existente.getAsignatura() != null
+            && !idAsignatura.equals(existente.getAsignatura().getIdAsignatura());
+
+        if (existente != null && tienePautas && ((teniaAsociacion && cambiaEvaluadores) || cambiaAsignatura)) {
+            return conflicto("PAUTAS_APLICADAS",
+                "No se puede reemplazar la asociación: la práctica de este estudiante ya tiene pautas de evaluación aplicadas. " +
+                "Cambiar a sus evaluadores dejaría esas evaluaciones sin respaldo.");
+        }
+        if (teniaAsociacion && cambiaEvaluadores && !reemplazar) {
+            String actual = colaboradoresPrevios.isEmpty() ? "sin colaborador"
+                : "colaborador " + colaboradoresPrevios.stream()
+                    .map(c -> nombreCompleto(c.getUsuario()))
+                    .collect(Collectors.joining(", "));
+            return conflicto("ASOCIACION_EXISTENTE",
+                "El estudiante ya tiene una asociación (" + actual + "). Confirma el reemplazo para continuar.");
+        }
+
+        // 7. Sin cambios reales: no se toca nada
+        boolean mismoCentro = existente != null && Objects.equals(
+            existente.getCentroPractica() != null ? existente.getCentroPractica().getIdCentro() : null,
+            centro != null ? centro.getIdCentro() : null);
+        if (existente != null && !cambiaEvaluadores && !cambiaAsignatura && mismoCentro) {
+            return ResponseEntity.ok(respuestaAsociacion(
+                "La asociación ya estaba registrada con esos datos.", true,
+                existente, estudiante, asignatura, colaborador, tutor, centro));
+        }
+
+        // 8. Guardar. El estado de aprobación se conserva si la práctica ya existía.
+        Practica practica = existente != null ? existente : new Practica();
         practica.setEstudiante(estudiante);
         practica.setAsignatura(asignatura);
         practica.setTutorPractica(tutor);
         practica.setCentroPractica(centro);
-        practica.setEstadoAprobacion("EN_CURSO");
-
-        Set<ProfesorColaborador> colabs = new HashSet<>();
-        colabs.add(colaborador);
-        practica.setProfesoresColaboradores(colabs);
-
-        Practica guardada = practicaRepository.save(practica);
-
-        if (colaborador.getPracticas() == null) {
-            colaborador.setPracticas(new HashSet<>());
+        if (practica.getEstadoAprobacion() == null || practica.getEstadoAprobacion().isBlank()) {
+            practica.setEstadoAprobacion("EN_CURSO");
         }
-        colaborador.getPracticas().add(guardada);
-        if (centro != null && colaborador.getCentroPractica() == null) {
-            colaborador.setCentroPractica(centro);
-        }
-        profesorColaboradorRepository.save(colaborador);
+        final Practica guardada = practicaRepository.save(practica);
+        final Long idPracticaGuardada = guardada.getIdPractica();
 
-        return ResponseEntity.ok(Map.of(
-            "message", "Asociación confirmada y registrada exitosamente.",
-            "idPractica", guardada.getIdPractica(),
-            "estudiante", estudiante.getUsuario() != null ? estudiante.getUsuario().getNombre() + " " + estudiante.getUsuario().getApellido() : "",
-            "asignatura", asignatura.getNombre(),
-            "profesorColaborador", colaborador.getUsuario() != null ? colaborador.getUsuario().getNombre() + " " + colaborador.getUsuario().getApellido() : "",
-            "tutor", tutor.getNombre(),
-            "centroPractica", centro != null ? centro.getNombre() : "Sin centro"
-        ));
+        // 9. La relación práctica-colaborador la guarda el colaborador (lado propietario): se retira la práctica
+        //    de los colaboradores anteriores y se agrega al nuevo, para que no queden dos colaboradores vinculados.
+        for (ProfesorColaborador previo : colaboradoresPrevios) {
+            boolean sigue = colaborador != null && previo.getIdColaborador().equals(colaborador.getIdColaborador());
+            if (!sigue && previo.getPracticas() != null) {
+                previo.getPracticas().removeIf(p -> idPracticaGuardada.equals(p.getIdPractica()));
+                profesorColaboradorRepository.save(previo);
+            }
+        }
+        if (colaborador != null) {
+            if (colaborador.getPracticas() == null) {
+                colaborador.setPracticas(new HashSet<>());
+            }
+            colaborador.getPracticas().removeIf(p -> idPracticaGuardada.equals(p.getIdPractica()));
+            colaborador.getPracticas().add(guardada);
+            if (centro != null && colaborador.getCentroPractica() == null) {
+                colaborador.setCentroPractica(centro);
+            }
+            profesorColaboradorRepository.save(colaborador);
+        }
+        Set<ProfesorColaborador> colaboradoresFinales = new HashSet<>();
+        if (colaborador != null) {
+            colaboradoresFinales.add(colaborador);
+        }
+        guardada.setProfesoresColaboradores(colaboradoresFinales);
+
+        return ResponseEntity.ok(respuestaAsociacion(
+            "Asociación confirmada y registrada exitosamente.", false,
+            guardada, estudiante, asignatura, colaborador, tutor, centro));
+    }
+
+    private Map<String, Object> respuestaAsociacion(String mensaje, boolean sinCambios, Practica practica,
+                                                    Estudiante estudiante, Asignatura asignatura,
+                                                    ProfesorColaborador colaborador, TutorPractica tutor,
+                                                    CentroPractica centro) {
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("message", mensaje);
+        respuesta.put("sinCambios", sinCambios);
+        respuesta.put("idPractica", practica.getIdPractica());
+        respuesta.put("estudiante", nombreCompleto(estudiante.getUsuario()));
+        respuesta.put("asignatura", asignatura.getNombre());
+        respuesta.put("profesorColaborador", colaborador != null ? nombreCompleto(colaborador.getUsuario()) : "");
+        respuesta.put("tutor", tutor != null && tutor.getNombre() != null ? tutor.getNombre() : "");
+        respuesta.put("centroPractica", centro != null ? centro.getNombre() : "Sin centro");
+        respuesta.put("estadoAprobacion", practica.getEstadoAprobacion());
+        return respuesta;
     }
 
     /**
@@ -406,6 +620,7 @@ public class CoordinadorController {
     @GetMapping("/asociaciones")
     public ResponseEntity<List<Map<String, Object>>> obtenerAsociaciones() {
         List<Practica> practicas = practicaRepository.findAll();
+        Set<Long> practicasConPautas = new HashSet<>(pautaAplicacionRepository.practicaIdsConAplicaciones());
         List<Map<String, Object>> resultado = new ArrayList<>();
 
         for (Practica p : practicas) {
@@ -425,10 +640,18 @@ public class CoordinadorController {
             String nomColab = "Sin colaborador";
             Long idColab = null;
             if (p.getProfesoresColaboradores() != null && !p.getProfesoresColaboradores().isEmpty()) {
-                ProfesorColaborador colab = p.getProfesoresColaboradores().iterator().next();
-                idColab = colab.getIdColaborador();
-                if (colab.getUsuario() != null) {
-                    nomColab = colab.getUsuario().getNombre() + " " + colab.getUsuario().getApellido();
+                List<String> nombres = new ArrayList<>();
+                for (ProfesorColaborador colab : p.getProfesoresColaboradores()) {
+                    if (idColab == null) {
+                        idColab = colab.getIdColaborador();
+                    }
+                    String nombre = nombreCompleto(colab.getUsuario());
+                    if (!nombre.isBlank()) {
+                        nombres.add(nombre);
+                    }
+                }
+                if (!nombres.isEmpty()) {
+                    nomColab = String.join(", ", nombres);
                 }
             }
 
@@ -445,6 +668,7 @@ public class CoordinadorController {
             dto.put("idCentro", p.getCentroPractica() != null ? p.getCentroPractica().getIdCentro() : null);
             dto.put("centroNombre", nomCentro);
             dto.put("estadoAprobacion", p.getEstadoAprobacion() != null ? p.getEstadoAprobacion() : "EN_CURSO");
+            dto.put("tienePautas", practicasConPautas.contains(p.getIdPractica()));
 
             resultado.add(dto);
         }
@@ -456,22 +680,20 @@ public class CoordinadorController {
      * Elimina / desvincula una práctica asociada.
      */
     @DeleteMapping("/asociaciones/{idPractica}")
-    @Transactional
-    public ResponseEntity<?> eliminarAsociacion(@PathVariable Long idPractica) {
-        Optional<Practica> opt = practicaRepository.findById(idPractica);
-        if (opt.isEmpty()) {
+    public ResponseEntity<?> eliminarAsociacion(@PathVariable Long idPractica,
+                                                @RequestHeader(value = "X-User-Rut", required = false) String rutSolicitante) {
+        ResponseEntity<?> denegado = exigirPermisoAsociar(rutSolicitante);
+        if (denegado != null) {
+            return denegado;
+        }
+        if (!practicaRepository.existsById(idPractica)) {
             return ResponseEntity.notFound().build();
         }
-        Practica p = opt.get();
-        if (p.getProfesoresColaboradores() != null) {
-            for (ProfesorColaborador c : p.getProfesoresColaboradores()) {
-                if (c.getPracticas() != null) {
-                    c.getPracticas().remove(p);
-                    profesorColaboradorRepository.save(c);
-                }
-            }
+        if (pautaAplicacionRepository.existsByPracticaIdPractica(idPractica)) {
+            return conflicto("PAUTAS_APLICADAS",
+                "No se puede desvincular: la práctica ya tiene pautas de evaluación aplicadas.");
         }
-        practicaRepository.delete(p);
+        practicaService.eliminar(idPractica);
         return ResponseEntity.ok(Map.of("message", "Asociación eliminada exitosamente."));
     }
 }
