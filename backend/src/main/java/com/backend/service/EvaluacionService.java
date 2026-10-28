@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -421,8 +422,8 @@ public class EvaluacionService {
             evaluacion.setTipoEvaluador(tipoEvaluador);
             evaluacion.setFecha(LocalDateTime.now());
             evaluacion.setTipoEvaluacion(req.getTipoEvaluacion() != null ? req.getTipoEvaluacion() : "Evaluación de Desempeño");
-            evaluacion.setPuntajeMinimo(req.getPuntajeMinimo() != null ? req.getPuntajeMinimo() : 1.0);
-            evaluacion.setPuntajeMaximo(req.getPuntajeMaximo() != null ? req.getPuntajeMaximo() : 7.0);
+            evaluacion.setPuntajeMinimo(Objects.requireNonNullElse(req.getPuntajeMinimo(), 1.0));
+            evaluacion.setPuntajeMaximo(Objects.requireNonNullElse(req.getPuntajeMaximo(), 7.0));
             evaluacion.setObservacion(obsLimpia);
             evaluacion.setFechaLimite(LocalDateTime.now().plusDays(30));
             evaluacion = evaluacionRepository.save(evaluacion);
@@ -721,7 +722,7 @@ public class EvaluacionService {
         notaDeVozRepository.deleteAll(notasDeVoz);
         notaDeVozRepository.flush();
         notasDeVoz.stream()
-                .map(NotaDeVoz::getUbicacionArchivo)
+                .map(nota -> nota.getUbicacionArchivo())
                 .filter(u -> u != null && !u.isBlank())
                 .forEach(fileStorageService::deleteFile);
     }
