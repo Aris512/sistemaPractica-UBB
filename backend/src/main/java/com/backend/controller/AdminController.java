@@ -166,9 +166,9 @@ public class AdminController {
                 }
             }
 
-            // Solo mostrar Centro de Práctica si es Profesor Colaborador, Tutor o Coordinador y no es Profesor de Asignatura
+            // Solo mostrar Centro de Práctica si es Profesor Colaborador o Tutor y no es Profesor de Asignatura
             boolean esColaboradorOTutor = roles.stream().anyMatch(r ->
-                r != null && (r.toUpperCase().contains("COLABORADOR") || r.toUpperCase().contains("TUTOR") || r.toUpperCase().contains("COORDINADOR"))
+                r != null && (r.toUpperCase().contains("COLABORADOR") || r.toUpperCase().contains("TUTOR"))
             ) && roles.stream().noneMatch(r -> r != null && r.toUpperCase().contains("ASIGNATURA"));
 
             if (esColaboradorOTutor) {
@@ -282,8 +282,7 @@ public class AdminController {
 
         // Validar compatibilidad de rol con campos opcionales
         boolean esColaborador = (rolNombre.toUpperCase().contains("COLABORADOR")
-            || rolNombre.toUpperCase().contains("TUTOR")
-            || rolNombre.toUpperCase().contains("COORDINADOR"))
+            || rolNombre.toUpperCase().contains("TUTOR"))
             && !rolNombre.toUpperCase().contains("ASIGNATURA");
 
         Object idCentroObj = payload.get("idCentro");
@@ -1340,11 +1339,10 @@ public class AdminController {
             boolean tieneAsig = asigCol != null && !asigRaw.isEmpty() && !asigRaw.equals("—") && !asigRaw.equals("-");
 
             boolean esColaborador = (rolDisplay.contains("COLABORADOR")
-                || rolDisplay.contains("TUTOR")
-                || rolDisplay.contains("COORDINADOR"))
+                || rolDisplay.contains("TUTOR"))
                 && !rolDisplay.contains("ASIGNATURA");
 
-            // 1. Un rol que no sea colaborador, tutor o coordinador no puede tener lugar de práctica (ej. ESTUDIANTE, PROFESOR_ASIGNATURA)
+            // 1. Un rol que no sea colaborador o tutor no puede tener lugar de práctica (ej. ESTUDIANTE, PROFESOR_ASIGNATURA, COORDINADOR)
             if (tieneCentro && !esColaborador) {
                 omitidos.add(Map.of("usuario", usuarioLabel, "motivo", "el rol " + rolDisplay + " no puede tener lugar de práctica."));
                 continue;
