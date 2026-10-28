@@ -21,7 +21,6 @@ import com.backend.model.DocumentoPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
 import com.backend.model.ObservacionPractica;
-import com.backend.model.Pauta;
 import com.backend.model.Permiso;
 import com.backend.model.Practica;
 import com.backend.model.Profesor;
@@ -38,7 +37,6 @@ import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
-import com.backend.repository.PautaRepository;
 import com.backend.repository.PermisoRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
@@ -67,7 +65,6 @@ public class DataSeeder implements CommandLineRunner {
     private final TutorPracticaRepository tutorPracticaRepository;
     private final ProfesorColaboradorRepository profesorColaboradorRepository;
     private final PracticaRepository practicaRepository;
-    private final PautaRepository pautaRepository;
     private final ObservacionPracticaRepository observacionPracticaRepository;
     private final DocumentoPracticaRepository documentoPracticaRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -86,7 +83,6 @@ public class DataSeeder implements CommandLineRunner {
                       TutorPracticaRepository tutorPracticaRepository,
                       ProfesorColaboradorRepository profesorColaboradorRepository,
                       PracticaRepository practicaRepository,
-                      PautaRepository pautaRepository,
                       ObservacionPracticaRepository observacionPracticaRepository,
                       DocumentoPracticaRepository documentoPracticaRepository) {
         this.rolRepository = rolRepository;
@@ -103,7 +99,6 @@ public class DataSeeder implements CommandLineRunner {
         this.tutorPracticaRepository = tutorPracticaRepository;
         this.profesorColaboradorRepository = profesorColaboradorRepository;
         this.practicaRepository = practicaRepository;
-        this.pautaRepository = pautaRepository;
         this.observacionPracticaRepository = observacionPracticaRepository;
         this.documentoPracticaRepository = documentoPracticaRepository;
     }

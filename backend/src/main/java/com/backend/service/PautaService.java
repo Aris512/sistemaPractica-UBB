@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -219,9 +220,9 @@ public class PautaService {
         }
 
         Map<Long, PautaCriterio> criteriosPorId = pauta.getCriterios().stream()
-            .collect(Collectors.toMap(PautaCriterio::getId, c -> c));
-        int min = pauta.getEscalaMin() != null ? pauta.getEscalaMin() : 1;
-        int max = pauta.getEscalaMax() != null ? pauta.getEscalaMax() : 7;
+            .collect(Collectors.toMap(c -> c.getId(), c -> c));
+        int min = Objects.requireNonNullElse(pauta.getEscalaMin(), 1);
+        int max = Objects.requireNonNullElse(pauta.getEscalaMax(), 7);
 
         if (req.respuestas() != null) {
             Map<Long, PautaRespuesta> existentes = app.getRespuestas().stream()
@@ -304,8 +305,8 @@ public class PautaService {
     // ---------------------------------------------------------- Cálculo de puntaje y nota
 
     private void recalcular(PautaAplicacion app, Pauta pauta) {
-        int escalaMax = pauta.getEscalaMax() != null ? pauta.getEscalaMax() : 7;
-        double puntaje = app.getRespuestas().stream().mapToInt(PautaRespuesta::getPuntaje).sum();
+        int escalaMax = Objects.requireNonNullElse(pauta.getEscalaMax(), 7);
+        double puntaje = app.getRespuestas().stream().mapToInt(resp -> resp.getPuntaje()).sum();
         double maximo = (double) pauta.getCriterios().size() * escalaMax;
         app.setPuntajeObtenido(puntaje);
         app.setPuntajeMaximo(maximo);
@@ -322,7 +323,7 @@ public class PautaService {
         if ("PROMEDIO".equalsIgnoreCase(pauta.getModoCalculo())) {
             nota = puntaje / respondidos;
         } else {
-            double exig = (pauta.getExigencia() != null ? pauta.getExigencia() : 60) / 100.0;
+            double exig = Objects.requireNonNullElse(pauta.getExigencia(), 60) / 100.0;
             double pExig = maximo * exig;
             if (puntaje < pExig) {
                 nota = NOTA_MIN + (NOTA_APROBACION - NOTA_MIN) * puntaje / pExig;
@@ -367,8 +368,8 @@ public class PautaService {
         validarOpcion(r.especialidad(), ESPECIALIDADES, "especialidad", crear);
         validarOpcion(r.modoCalculo(), MODOS_CALCULO, "modo de cálculo", false);
 
-        int min = r.escalaMin() != null ? r.escalaMin() : (!crear && existente.getEscalaMin() != null ? existente.getEscalaMin() : 1);
-        int max = r.escalaMax() != null ? r.escalaMax() : (!crear && existente.getEscalaMax() != null ? existente.getEscalaMax() : 7);
+        int min = Objects.requireNonNullElse(r.escalaMin(), existente != null ? Objects.requireNonNullElse(existente.getEscalaMin(), 1) : 1);
+        int max = Objects.requireNonNullElse(r.escalaMax(), existente != null ? Objects.requireNonNullElse(existente.getEscalaMax(), 7) : 7);
         if (min < 0 || max > 10 || min >= max) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "La escala de puntaje debe tener un mínimo menor que el máximo, entre 0 y 10.");
@@ -424,8 +425,8 @@ public class PautaService {
         if (r.especialidad() != null) p.setEspecialidad(r.especialidad().toUpperCase(Locale.ROOT));
         if (r.momento() != null) p.setMomento(r.momento().toUpperCase(Locale.ROOT));
         if (r.evaluador() != null) p.setEvaluador(r.evaluador().toUpperCase(Locale.ROOT));
-        p.setEscalaMin(r.escalaMin() != null ? r.escalaMin() : (p.getEscalaMin() != null ? p.getEscalaMin() : 1));
-        p.setEscalaMax(r.escalaMax() != null ? r.escalaMax() : (p.getEscalaMax() != null ? p.getEscalaMax() : 7));
+        p.setEscalaMin(Objects.requireNonNullElse(r.escalaMin(), Objects.requireNonNullElse(p.getEscalaMin(), 1)));
+        p.setEscalaMax(Objects.requireNonNullElse(r.escalaMax(), Objects.requireNonNullElse(p.getEscalaMax(), 7)));
         p.setModoCalculo(r.modoCalculo() != null ? r.modoCalculo().toUpperCase(Locale.ROOT)
             : (p.getModoCalculo() != null ? p.getModoCalculo() : "PROMEDIO"));
         if (r.exigencia() != null) p.setExigencia(r.exigencia());
@@ -455,7 +456,7 @@ public class PautaService {
 
     private PautaResumenDTO resumen(Pauta p, PautaAplicacion app) {
         int n = p.getCriterios().size();
-        int escalaMax = p.getEscalaMax() != null ? p.getEscalaMax() : 7;
+        int escalaMax = Objects.requireNonNullElse(p.getEscalaMax(), 7);
         return new PautaResumenDTO(p.getId(), p.getCodigo(), p.getTitulo(), p.getAsignatura(), p.getTipo(),
             p.getEspecialidad(), p.getMomento(), p.getEvaluador(), n, n * escalaMax, p.getPonderacion(),
             p.getVersion(), p.getActiva(),
@@ -464,7 +465,7 @@ public class PautaService {
 
     private PautaDetalleDTO detalle(Pauta p) {
         int n = p.getCriterios().size();
-        int escalaMax = p.getEscalaMax() != null ? p.getEscalaMax() : 7;
+        int escalaMax = Objects.requireNonNullElse(p.getEscalaMax(), 7);
         List<CriterioDTO> criterios = p.getCriterios().stream()
             .map(c -> new CriterioDTO(c.getId(), c.getOrden(), c.getDimension(), c.getNumero(), c.getTexto()))
             .collect(Collectors.toList());

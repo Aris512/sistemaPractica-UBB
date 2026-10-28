@@ -10,14 +10,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.backend.dto.EstudianteTutorDTO;
-import com.backend.model.Estudiante;
 import com.backend.model.Evaluacion;
 import com.backend.model.Nota;
 import com.backend.model.ObservacionPractica;
 import com.backend.model.Practica;
 import com.backend.model.Usuario;
-import com.backend.repository.EstudianteRepository;
-import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PracticaRepository;
@@ -29,8 +26,6 @@ import java.util.Collections;
 public class PracticaService {
 
     private final PracticaRepository practicaRepository;
-    private final EstudianteRepository estudianteRepository;
-    private final EvaluacionRepository evaluacionRepository;
     private final NotaRepository notaRepository;
     private final ObservacionPracticaRepository observacionPracticaRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -38,16 +33,12 @@ public class PracticaService {
     private final ProfesorRepository profesorRepository;
 
     public PracticaService(PracticaRepository practicaRepository,
-                           EstudianteRepository estudianteRepository,
-                           EvaluacionRepository evaluacionRepository,
                            NotaRepository notaRepository,
                            ObservacionPracticaRepository observacionPracticaRepository,
                            JdbcTemplate jdbcTemplate,
                            FileStorageService fileStorageService,
                            ProfesorRepository profesorRepository) {
         this.practicaRepository = practicaRepository;
-        this.estudianteRepository = estudianteRepository;
-        this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
         this.observacionPracticaRepository = observacionPracticaRepository;
         this.jdbcTemplate = jdbcTemplate;
@@ -133,7 +124,7 @@ public class PracticaService {
 
         List<EstudianteTutorDTO> resultado = new ArrayList<>();
 
-        if (practicas != null && !practicas.isEmpty()) {
+        if (!practicas.isEmpty()) {
             for (Practica p : practicas) {
                 if (p.getEstudiante() == null || p.getEstudiante().getUsuario() == null) continue;
 
@@ -174,9 +165,9 @@ public class PracticaService {
                 ? notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutEvaluador)
                         .stream().findFirst()
                 : Optional.empty();
-        Evaluacion evaluacion = notaOpt.map(Nota::getEvaluacion).orElse(null);
+        Evaluacion evaluacion = notaOpt.map(n -> n.getEvaluacion()).orElse(null);
 
-        Double calificacion = notaOpt.map(Nota::getPuntajeObtenido).orElse(null);
+        Double calificacion = notaOpt.map(n -> n.getPuntajeObtenido()).orElse(null);
         String obsTexto = evaluacion != null ? evaluacion.getObservacion() : null;
 
         dto.setCalificacion(calificacion);

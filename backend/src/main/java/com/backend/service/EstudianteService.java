@@ -22,7 +22,6 @@ import com.backend.model.Nota;
 import com.backend.model.ObservacionEvaluacion;
 import com.backend.model.Practica;
 import com.backend.model.Usuario;
-import com.backend.repository.ActividadRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
@@ -38,7 +37,6 @@ public class EstudianteService {
 
     private final EstudianteRepository estudianteRepository;
     private final EvidenciaRepository evidenciaRepository;
-    private final ActividadRepository actividadRepository;
     private final PracticaRepository practicaRepository;
     private final EvaluacionRepository evaluacionRepository;
     private final NotaRepository notaRepository;
@@ -48,7 +46,6 @@ public class EstudianteService {
 
     public EstudianteService(EstudianteRepository estudianteRepository,
                              EvidenciaRepository evidenciaRepository,
-                             ActividadRepository actividadRepository,
                              PracticaRepository practicaRepository,
                              EvaluacionRepository evaluacionRepository,
                              NotaRepository notaRepository,
@@ -57,7 +54,6 @@ public class EstudianteService {
                              ProfesorRepository profesorRepository) {
         this.estudianteRepository = estudianteRepository;
         this.evidenciaRepository = evidenciaRepository;
-        this.actividadRepository = actividadRepository;
         this.practicaRepository = practicaRepository;
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
@@ -88,7 +84,7 @@ public class EstudianteService {
         if (rut == null || rut.isBlank()) {
             return null;
         }
-        Estudiante est = null;
+        Estudiante est;
         java.util.Optional<Estudiante> opt = estudianteRepository.findByUsuarioRut(rut);
         if (opt.isPresent()) {
             est = opt.get();
@@ -131,7 +127,6 @@ public class EstudianteService {
         }
 
         List<HistorialItemDTO> items = new ArrayList<>();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         DateTimeFormatter simpleFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         // 1. Actividades y Evidencias académicas
@@ -289,7 +284,7 @@ public class EstudianteService {
         }
 
         // Ordenar cronológicamente descendente (más recientes primero)
-        items.sort(Comparator.comparing(HistorialItemDTO::getFecha, Comparator.nullsLast(Comparator.reverseOrder())));
+        items.sort(Comparator.comparing((HistorialItemDTO item) -> item.getFecha(), Comparator.nullsLast(Comparator.reverseOrder())));
         return items;
     }
 
@@ -357,7 +352,7 @@ public class EstudianteService {
 
         // Determinación de la etapa actual en la línea de práctica:
         // 0: Inscripción, 1: Inicio, 2: Seguimiento, 3: Evaluación Final
-        long totalCompletadas = historial.stream().filter(HistorialItemDTO::isCompletado).count();
+        long totalCompletadas = historial.stream().filter(item -> item.isCompletado()).count();
         if (p != null && "APROBADO".equalsIgnoreCase(p.getEstadoAprobacion())) {
             dto.setEtapaActual("EVALUACION_FINAL");
             dto.setEtapaIndex(3);

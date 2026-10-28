@@ -46,6 +46,7 @@ class RevisionIAPlanificacionTest {
     private RevisionIAPlanificacion revision;
 
     @BeforeEach
+    @SuppressWarnings("unused")
     void setUp() throws IOException {
         revision = new RevisionIAPlanificacion(repository, jdbcTemplate, 6000);
     }
@@ -58,6 +59,7 @@ class RevisionIAPlanificacionTest {
     }
 
     @Nested
+    @SuppressWarnings("unused")
     @DisplayName("veredicto de la IA")
     class Veredicto {
 
@@ -96,6 +98,7 @@ class RevisionIAPlanificacionTest {
     }
 
     @Nested
+    @SuppressWarnings("unused")
     @DisplayName("registrar la respuesta de la IA")
     class RegistrarRespuesta {
 
@@ -147,6 +150,7 @@ class RevisionIAPlanificacionTest {
     }
 
     @Nested
+    @SuppressWarnings("unused")
     @DisplayName("seguir conversando con la IA")
     class ValidarPuedeConversar {
 
@@ -178,6 +182,7 @@ class RevisionIAPlanificacionTest {
     }
 
     @Nested
+    @SuppressWarnings("unused")
     @DisplayName("contexto que recibe la IA")
     class Contexto {
 
@@ -215,7 +220,7 @@ class RevisionIAPlanificacionTest {
                     mensaje(4, "Ahora sí la reviso"));
 
             assertThat(revision.historialVigente(retro, historial))
-                    .extracting(ChatMensaje::getContenido)
+                    .extracting(m -> m.getContenido())
                     .containsExactly("Adjunto una versión actualizada", "Ahora sí la reviso");
         }
 
@@ -226,6 +231,7 @@ class RevisionIAPlanificacionTest {
     }
 
     @Nested
+    @SuppressWarnings("unused")
     @DisplayName("eliminar la conversación de una revisión")
     class EliminarDeConversacion {
 
