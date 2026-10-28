@@ -15,6 +15,9 @@ interface ConfirmDeleteDialogProps {
   onConfirm: () => Promise<void> | void;
   title?: string;
   description?: string;
+  /** Texto del botón de confirmación y el que muestra mientras se ejecuta. */
+  confirmLabel?: string;
+  confirmingLabel?: string;
 }
 
 export function ConfirmDeleteDialog({
@@ -23,6 +26,8 @@ export function ConfirmDeleteDialog({
   onConfirm,
   title = "Confirmar eliminación",
   description = "¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.",
+  confirmLabel = "Eliminar",
+  confirmingLabel = "Eliminando...",
 }: ConfirmDeleteDialogProps) {
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -50,7 +55,7 @@ export function ConfirmDeleteDialog({
             Cancelar
           </Button>
           <Button variant="destructive" onClick={handleConfirm} disabled={isConfirming}>
-            {isConfirming ? "Eliminando..." : "Eliminar"}
+            {isConfirming ? confirmingLabel : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
