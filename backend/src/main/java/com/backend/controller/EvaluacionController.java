@@ -121,15 +121,20 @@ public class EvaluacionController {
     @PostMapping(value = "/guardar-con-archivo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<EstudianteEvaluacionDTO> guardarEvaluacionMultipart(
             @RequestParam("idEstudiante") Long idEstudiante,
-            @RequestParam("rutProfesor") String rutProfesor,
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @RequestParam(value = "rutEvaluador", required = false) String rutEvaluador,
+            @RequestParam(value = "nombreEvaluador", required = false) String nombreEvaluador,
+            @RequestParam(value = "tipoEvaluador", required = false) String tipoEvaluador,
+            @RequestParam(value = "idPractica", required = false) Long idPractica,
             @RequestParam(value = "idEvaluacion", required = false) Long idEvaluacion,
             @RequestParam(value = "tipoEvaluacion", required = false) String tipoEvaluacion,
             @RequestParam(value = "puntajeObtenido", required = false) Double puntajeObtenido,
             @RequestParam(value = "observacion", required = false) String observacion,
             @RequestParam(value = "file", required = false) MultipartFile file,
             @RequestParam(value = "eliminarArchivo", required = false, defaultValue = "false") Boolean eliminarArchivo) {
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : rutEvaluador;
         return ResponseEntity.ok(evaluacionService.guardarEvaluacionConArchivo(
-                idEstudiante, rutProfesor, idEvaluacion, tipoEvaluacion, puntajeObtenido, observacion, file, eliminarArchivo
+                idEstudiante, rutFinal, rutEvaluador, nombreEvaluador, tipoEvaluador, idPractica, idEvaluacion, tipoEvaluacion, puntajeObtenido, observacion, file, eliminarArchivo
         ));
     }
 

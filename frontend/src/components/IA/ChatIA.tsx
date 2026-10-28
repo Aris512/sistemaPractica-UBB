@@ -15,6 +15,7 @@ import {
   renombrarConversacion,
 } from "@/services/chatApi";
 import type { ChatConversacion, ChatMensaje } from "@/types/chat";
+import type { InicioRevision } from "@/types/retroalimentacion";
 import { EntradaMensaje, type EntradaMensajeHandle } from "./EntradaMensaje";
 import { ListaConversaciones } from "./ListaConversaciones";
 import { IndicadorRespondiendo, MensajeChat } from "./MensajeChat";
@@ -66,11 +67,21 @@ function useEnLinea(): boolean {
   return enLinea;
 }
 
-interface ChatIAProps {
-  rut: string;
+/** Conversaciones de revisión de planificación: habilitan el botón + para subir una versión corregida. */
+export interface RevisionChat {
+  esRevision: (idConversacion: number) => boolean;
+  /** Reemplaza el archivo de la planificación y devuelve la conversación a mostrar (nueva si se reinició el ciclo). */
+  reemplazarArchivo: (idConversacion: number, archivo: File, mensaje: string) => Promise<InicioRevision>;
 }
 
-export function ChatIA({ rut }: ChatIAProps) {
+interface ChatIAProps {
+  rut: string;
+  revision?: RevisionChat;
+}
+
+const AYUDA_ADJUNTAR = "Usa + para adjuntar tu planificación corregida (.docx o .pdf); puedes escribir un mensaje y luego enviar.";
+
+export function ChatIA({ rut, revision }: ChatIAProps) {
   const claveActiva = `ubb_chat_activa_${rut}`;
   const enLinea = useEnLinea();
 
@@ -95,6 +106,9 @@ export function ChatIA({ rut }: ChatIAProps) {
   const [eliminando, setEliminando] = useState<ChatConversacion | null>(null);
   const [confirmarEliminarAbierto, setConfirmarEliminarAbierto] = useState(false);
   const [listaMovilAbierta, setListaMovilAbierta] = useState(false);
+  const [adjuntando, setAdjuntando] = useState(false);
+  // Archivo elegido con + en una conversación de revisión; se envía al presionar enviar
+  const [adjunto, setAdjunto] = useState<{ conversacionId: number; archivo: File } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pegadoAlFinalRef = useRef(true);
@@ -207,6 +221,50 @@ export function ChatIA({ rut }: ChatIAProps) {
       irAlFinal();
     }
   }, [mensajes, enCurso, fallido, activaId, irAlFinal]);
+
+  // ---------------------------------------------------------------------------------------------
+  // Adjuntar nueva versión de la planificación (solo conversaciones de revisión)
+  // ---------------------------------------------------------------------------------------------
+
+  const puedeAdjuntar = !!revision && activaId !== null && revision.esRevision(activaId);
+  // El adjunto pertenece a la conversación donde se eligió: al cambiar de conversación deja de mostrarse
+  const adjuntoActivo = puedeAdjuntar && adjunto?.conversacionId === activaId ? adjunto.archivo : null;
+
+  const elegirAdjunto = (archivo: File) => {
+    if (activaId === null) return;
+    const extension = archivo.name.split(".").pop()?.toLowerCase();
+    if (extension !== "docx" && extension !== "pdf") {
+      sileo.error({ title: "Formato no soportado", description: "La IA solo puede leer planificaciones en .docx o .pdf." });
+      return;
+    }
+    setAdjunto({ conversacionId: activaId, archivo });
+  };
+
+  const adjuntarArchivo = async (archivo: File, mensaje: string) => {
+    if (!revision || activaId === null || adjuntando || !enLinea) return;
+    setAdjuntando(true);
+    try {
+      const inicio = await revision.reemplazarArchivo(activaId, archivo, mensaje.trim());
+      // El texto y el archivo se limpian solo si se enviaron, para no perderlos ante un error
+      setAdjunto(null);
+      setBorrador("");
+      await cargarConversaciones();
+      seleccionar(inicio.idConversacion);
+      sileo.success({
+        title: "Planificación actualizada",
+        description: inicio.conversacionNueva
+          ? "Empezó una revisión nueva con tu versión corregida."
+          : (inicio.aviso ?? "La IA está revisando tu versión corregida."),
+      });
+      if (inicio.conversacionNueva && inicio.aviso) {
+        sileo.warning({ title: "Revisión con IA", description: inicio.aviso });
+      }
+    } catch (e) {
+      sileo.error({ title: "No se pudo adjuntar el archivo", description: aChatError(e).message });
+    } finally {
+      setAdjuntando(false);
+    }
+  };
 
   // ---------------------------------------------------------------------------------------------
   // Envío
@@ -488,10 +546,15 @@ export function ChatIA({ rut }: ChatIAProps) {
           ref={entradaRef}
           valor={borrador}
           onCambiar={setBorrador}
-          onEnviar={() => void enviar(borrador)}
+          onEnviar={() => void (adjuntoActivo ? adjuntarArchivo(adjuntoActivo, borrador) : enviar(borrador))}
           enviando={enCurso !== null}
           deshabilitado={!enLinea || estadoMensajes === "cargando"}
           motivoDeshabilitado={!enLinea ? "Sin conexión" : undefined}
+          onAdjuntar={puedeAdjuntar ? elegirAdjunto : undefined}
+          adjunto={adjuntoActivo}
+          onQuitarAdjunto={() => setAdjunto(null)}
+          adjuntando={adjuntando}
+          ayudaAdjuntar={AYUDA_ADJUNTAR}
         />
       </section>
 
@@ -508,7 +571,11 @@ export function ChatIA({ rut }: ChatIAProps) {
         onOpenChange={setConfirmarEliminarAbierto}
         onConfirm={confirmarEliminacion}
         title="Eliminar conversación"
-        description={`Se eliminará «${eliminando?.titulo ?? ""}» con todos sus mensajes. Esta acción no se puede deshacer.`}
+        description={
+          eliminando && revision?.esRevision(eliminando.id)
+            ? `Se eliminará «${eliminando.titulo}» con todos sus mensajes y su retroalimentación: la planificación quedará sin revisión. Esta acción no se puede deshacer.`
+            : `Se eliminará «${eliminando?.titulo ?? ""}» con todos sus mensajes. Esta acción no se puede deshacer.`
+        }
       />
     </div>
   );

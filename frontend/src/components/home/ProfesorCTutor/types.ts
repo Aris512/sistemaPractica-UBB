@@ -13,6 +13,14 @@ export interface EstudianteTutorRow {
   calificacion?: number | null;
   observacionTexto?: string | null;
   fechaActualizacion?: string | null;
+  idEvaluacion?: number | null;
+  tipoEvaluacion?: string | null;
+  evaluadorRut?: string | null;
+  evaluadorNombre?: string | null;
+  tipoEvaluador?: string | null;
+  archivoUrl?: string | null;
+  nombreArchivo?: string | null;
+  tieneArchivo?: boolean;
 }
 
 export type SortDirection = "asc" | "desc" | null;

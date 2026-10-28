@@ -386,6 +386,8 @@ function AdminPanel({ onLogout }: { onLogout: () => void }) {
           open={!!usuarioAEliminar}
           onOpenChange={(open) => !open && setUsuarioAEliminar(null)}
           onConfirm={handleConfirmarEliminarUsuario}
+          title="Eliminar usuario"
+          description={`¿Eliminar a ${usuarioAEliminar?.nombre ?? "este usuario"}? También se eliminarán sus planificaciones, archivos, entregas, notas y conversaciones con la IA. Esta acción no se puede deshacer.`}
         />
       </SidebarProvider>
     </TooltipProvider>

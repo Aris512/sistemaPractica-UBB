@@ -4,6 +4,7 @@ import type { EstudianteTutorRow, SortState } from "./types";
 import { TableToolbar } from "./TableToolbar";
 import { ObservacionBadge, EvaluacionBadge } from "./TableBadges";
 import { ModalDetalleEstudiante } from "./ModalDetalleEstudiante";
+import { ModalEvaluarEstudianteTutor } from "./ModalEvaluarEstudianteTutor";
 import { Button } from "@/components/ui/button";
 import {
   UnifiedTableContainer,
@@ -22,6 +23,7 @@ import {
   Eye,
   RefreshCw,
   Lock,
+  Award,
 } from "lucide-react";
 import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -38,6 +40,7 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
   const [observacionFilter, setObservacionFilter] = useState("ALL");
   const [evaluacionFilter, setEvaluacionFilter] = useState("ALL");
   const [selectedStudent, setSelectedStudent] = useState<EstudianteTutorRow | null>(null);
+  const [studentToEvaluate, setStudentToEvaluate] = useState<EstudianteTutorRow | null>(null);
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(8);
@@ -280,8 +283,8 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
                 </button>
               </UnifiedTableHead>
 
-              <UnifiedTableHead className="text-right w-[140px]">
-                Acción
+              <UnifiedTableHead className="text-right w-[190px]">
+                Acciones
               </UnifiedTableHead>
             </UnifiedTableRow>
           </UnifiedTableHeader>
@@ -348,17 +351,30 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
                     />
                   </UnifiedTableCell>
 
-                  {/* Columna: Acción (Ver Detalles) */}
+                  {/* Columna: Acciones (Detalles y Evaluar) */}
                   <UnifiedTableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedStudent(item)}
-                      className="h-8.5 px-3 text-xs font-medium border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <Eye className="size-3.5 text-slate-500" />
-                      Ver Detalles
-                    </Button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedStudent(item)}
+                        className="h-8 px-2.5 text-xs font-medium border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 gap-1 cursor-pointer shadow-2xs"
+                        title="Ver detalles"
+                      >
+                        <Eye className="size-3.5 text-slate-500" />
+                        Detalles
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => setStudentToEvaluate(item)}
+                        className="h-8 px-2.5 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white gap-1 cursor-pointer shadow-2xs"
+                        title="Registrar o gestionar evaluación"
+                      >
+                        <Award className="size-3.5" />
+                        Evaluar
+                      </Button>
+                    </div>
                   </UnifiedTableCell>
                 </UnifiedTableRow>
               ))
@@ -409,6 +425,20 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
         <ModalDetalleEstudiante
           student={selectedStudent}
           onClose={() => setSelectedStudent(null)}
+        />
+      )}
+
+      {/* Modal de Evaluación para Tutor / Profesor Colaborador */}
+      {studentToEvaluate && (
+        <ModalEvaluarEstudianteTutor
+          isOpen={!!studentToEvaluate}
+          student={studentToEvaluate}
+          user={user}
+          onClose={() => setStudentToEvaluate(null)}
+          onSaved={() => {
+            setStudentToEvaluate(null);
+            fetchData();
+          }}
         />
       )}
     </div>
