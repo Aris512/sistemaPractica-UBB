@@ -56,9 +56,13 @@ public class ObservacionEvaluacionController {
         return ResponseEntity.ok(observacionEvaluacionService.obtenerPorEvaluacion(idEvaluacion));
     }
 
-    /** Nuevo (módulo Pedro) — actualizar texto de una observación (respeta fechaLimite) */
+    /**
+     * Nuevo (módulo Pedro) — actualizar texto de una observación (respeta
+     * fechaLimite)
+     */
     @PutMapping("/{id}")
-    public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody ObservacionEvaluacion observacionEvaluacion) {
+    public ResponseEntity<?> actualizar(@PathVariable Long id,
+            @RequestBody ObservacionEvaluacion observacionEvaluacion) {
         try {
             ObservacionEvaluacion actualizada = observacionEvaluacionService.actualizar(id, observacionEvaluacion);
             if (actualizada == null) {

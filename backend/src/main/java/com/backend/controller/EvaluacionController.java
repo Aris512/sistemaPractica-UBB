@@ -20,8 +20,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.dto.EstudianteEvaluacionDTO;
 import com.backend.dto.GuardarEvaluacionProfesorRequest;
+import com.backend.dto.HistorialItemDTO;
 import com.backend.model.Evaluacion;
 import com.backend.model.Nota;
+import com.backend.service.EstudianteService;
 import com.backend.service.EvaluacionService;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -32,21 +34,52 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 public class EvaluacionController {
 
     private final EvaluacionService evaluacionService;
+    private final EstudianteService estudianteService;
 
-    public EvaluacionController(EvaluacionService evaluacionService) {
+    public EvaluacionController(EvaluacionService evaluacionService,
+                                EstudianteService estudianteService) {
         this.evaluacionService = evaluacionService;
+        this.estudianteService = estudianteService;
     }
 
+    /**
+     * HU-25: Filtro de privilegios por rol.
+     * Si se envía 'rutProfesor', retorna EXCLUSIVAMENTE las evaluaciones de los estudiantes
+     * que tiene asignados el profesor. Si no se envía (ej. rol Administrador), retorna todas.
+     */
     @GetMapping
-    public ResponseEntity<List<Evaluacion>> obtenerTodos() {
+    public ResponseEntity<List<Evaluacion>> obtenerTodos(
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Rut", required = false) String headerRut) {
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : headerRut;
+        if (rutFinal != null && !rutFinal.isBlank()) {
+            return ResponseEntity.ok(evaluacionService.obtenerEvaluacionesPorProfesor(rutFinal));
+        }
         return ResponseEntity.ok(evaluacionService.obtenerTodos());
     }
 
+    /**
+     * Endpoint directo para listar evaluaciones acotadas a un profesor.
+     */
+    @GetMapping("/profesor/{rutProfesor}/listado")
+    public ResponseEntity<List<Evaluacion>> obtenerEvaluacionesPorProfesor(@PathVariable String rutProfesor) {
+        return ResponseEntity.ok(evaluacionService.obtenerEvaluacionesPorProfesor(rutProfesor));
+    }
+
     @GetMapping("/{id}")
-    public ResponseEntity<Evaluacion> obtenerPorId(@PathVariable Long id) {
+    public ResponseEntity<?> obtenerPorId(
+            @PathVariable Long id,
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User-Rut", required = false) String headerRut) {
         Evaluacion evaluacion = evaluacionService.obtenerPorId(id);
         if (evaluacion == null) {
             return ResponseEntity.notFound().build();
+        }
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : headerRut;
+        if (rutFinal != null && !rutFinal.isBlank()) {
+            if (!evaluacionService.profesorTieneAccesoAEvaluacion(id, rutFinal)) {
+                return ResponseEntity.status(403).body("Acceso denegado: No tiene permisos sobre esta evaluación.");
+            }
         }
         return ResponseEntity.ok(evaluacion);
     }
@@ -70,6 +103,14 @@ public class EvaluacionController {
     @GetMapping("/estudiante/rut/{rutEstudiante}")
     public ResponseEntity<List<EstudianteEvaluacionDTO>> obtenerEvaluacionesParaEstudiante(@PathVariable String rutEstudiante) {
         return ResponseEntity.ok(evaluacionService.obtenerEvaluacionesParaEstudiante(rutEstudiante));
+    }
+
+    /**
+     * HU-09: Historial consolidado del estudiante con checks de completitud.
+     */
+    @GetMapping("/estudiante/rut/{rutEstudiante}/historial")
+    public ResponseEntity<List<HistorialItemDTO>> obtenerHistorialEstudiante(@PathVariable String rutEstudiante) {
+        return ResponseEntity.ok(estudianteService.obtenerHistorialEstudiante(rutEstudiante));
     }
 
     @PostMapping("/guardar")

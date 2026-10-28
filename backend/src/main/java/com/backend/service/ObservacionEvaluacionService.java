@@ -37,7 +37,10 @@ public class ObservacionEvaluacionService {
         return observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(idEvaluacion);
     }
 
-    /** Nuevo (módulo Pedro) — actualiza el texto de una observación respetando fechaLimite */
+    /**
+     * Nuevo (módulo Pedro) — actualiza el texto de una observación respetando
+     * fechaLimite
+     */
     public ObservacionEvaluacion actualizar(Long id, ObservacionEvaluacion detalles) {
         ObservacionEvaluacion observacionExistente = observacionEvaluacionRepository.findById(id).orElse(null);
         if (observacionExistente == null) {

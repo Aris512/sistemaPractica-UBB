@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -94,6 +95,60 @@ public class EvaluacionService {
 
     public List<Evaluacion> obtenerTodos() {
         return evaluacionRepository.findAll();
+    }
+
+    /**
+     * Evaluaciones visibles para un profesor, tutor o colaborador: las que registró él mismo y las de
+     * los estudiantes que tiene a cargo (los de su asignatura y los de las prácticas que supervisa).
+     * Las evaluaciones docentes se guardan sin práctica (id_practica nulo), por eso se buscan también
+     * a través de las notas de cada estudiante y no solo por la práctica.
+     */
+    @Transactional(readOnly = true)
+    public List<Evaluacion> obtenerEvaluacionesPorProfesor(String rutProfesor) {
+        if (rutProfesor == null || rutProfesor.isBlank()) {
+            return java.util.Collections.emptyList();
+        }
+        String rut = rutProfesor.trim();
+        Map<Long, Evaluacion> resultado = new java.util.LinkedHashMap<>();
+
+        // 1. Evaluaciones registradas por el propio usuario
+        Profesor profesor = profesorRepository.findByUsuarioRut(rut).orElse(null);
+        if (profesor != null) {
+            evaluacionRepository.findByIdEvaluador(profesor.getIdProfesor())
+                    .forEach(ev -> resultado.putIfAbsent(ev.getIdEvaluacion(), ev));
+        }
+        evaluacionRepository.findByRutEvaluador(rut)
+                .forEach(ev -> resultado.putIfAbsent(ev.getIdEvaluacion(), ev));
+
+        // 2. Estudiantes a cargo: los de su asignatura y los de las prácticas donde es tutor o colaborador
+        Set<Long> estudiantes = new HashSet<>();
+        if (profesor != null && profesor.getAsignatura() != null && profesor.getAsignatura().getIdAsignatura() != null) {
+            estudianteRepository.findByAsignaturaIdAsignatura(profesor.getAsignatura().getIdAsignatura())
+                    .forEach(est -> estudiantes.add(est.getIdEstudiante()));
+        }
+        List<Practica> practicasSupervisadas = new ArrayList<>(practicaRepository.findByTutorPracticaUsuarioRut(rut));
+        practicasSupervisadas.addAll(practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut));
+        for (Practica p : practicasSupervisadas) {
+            if (p.getEstudiante() != null) estudiantes.add(p.getEstudiante().getIdEstudiante());
+        }
+
+        for (Long idEstudiante : estudiantes) {
+            evaluacionRepository.findByPracticaEstudianteIdEstudiante(idEstudiante)
+                    .forEach(ev -> resultado.putIfAbsent(ev.getIdEvaluacion(), ev));
+            for (Nota nota : notaRepository.findByEstudianteIdEstudiante(idEstudiante)) {
+                Evaluacion ev = nota.getEvaluacion();
+                if (ev != null) resultado.putIfAbsent(ev.getIdEvaluacion(), ev);
+            }
+        }
+        return new ArrayList<>(resultado.values());
+    }
+
+    /** Mismo criterio que obtenerEvaluacionesPorProfesor, para una evaluación concreta. */
+    @Transactional(readOnly = true)
+    public boolean profesorTieneAccesoAEvaluacion(Long idEvaluacion, String rutProfesor) {
+        if (idEvaluacion == null || rutProfesor == null || rutProfesor.isBlank()) return false;
+        return obtenerEvaluacionesPorProfesor(rutProfesor).stream()
+                .anyMatch(ev -> idEvaluacion.equals(ev.getIdEvaluacion()));
     }
 
     public Evaluacion obtenerPorId(Long id) {

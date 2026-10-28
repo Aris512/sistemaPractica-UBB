@@ -14,7 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.backend.dto.DetalleEstudianteDocumentosDTO;
@@ -101,8 +103,11 @@ public class AdminDocumentoController {
      * Obtiene el listado consolidado de estudiantes con su progreso de documentación.
      */
     @GetMapping("/estudiantes")
-    public ResponseEntity<List<EstudianteDocumentoDTO>> obtenerEstudiantes() {
-        return ResponseEntity.ok(documentoPracticaService.obtenerEstudiantesConProgreso());
+    public ResponseEntity<List<EstudianteDocumentoDTO>> obtenerEstudiantes(
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @RequestHeader(value = "X-User-Rut", required = false) String headerRut) {
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : headerRut;
+        return ResponseEntity.ok(documentoPracticaService.obtenerEstudiantesConProgreso(rutFinal));
     }
 
     /**

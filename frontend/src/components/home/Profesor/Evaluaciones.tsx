@@ -302,11 +302,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 setFiltroEstado("TODOS");
                 setCurrentPage(1);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-                filtroEstado === "TODOS"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${filtroEstado === "TODOS"
                   ? "bg-[#0b1329] text-white border-[#0b1329] shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              }`}
+                }`}
             >
               Todos ({conteos.total})
             </button>
@@ -317,11 +316,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 setFiltroEstado("EVALUADO");
                 setCurrentPage(1);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${
-                filtroEstado === "EVALUADO"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${filtroEstado === "EVALUADO"
                   ? "bg-[#0b1329] text-white border-[#0b1329] shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              }`}
+                }`}
             >
               <span className="size-2 rounded-full bg-blue-500 shrink-0" />
               Evaluados ({conteos.evaluados})
@@ -333,11 +331,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 setFiltroEstado("NO_EVALUADO");
                 setCurrentPage(1);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${
-                filtroEstado === "NO_EVALUADO"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${filtroEstado === "NO_EVALUADO"
                   ? "bg-[#0b1329] text-white border-[#0b1329] shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              }`}
+                }`}
             >
               <span className="size-2 rounded-full bg-amber-500 shrink-0" />
               No evaluados ({conteos.noEvaluados})
@@ -349,11 +346,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 setFiltroEstado("NO_ENTREGADO");
                 setCurrentPage(1);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${
-                filtroEstado === "NO_ENTREGADO"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${filtroEstado === "NO_ENTREGADO"
                   ? "bg-[#0b1329] text-white border-[#0b1329] shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              }`}
+                }`}
             >
               <span className="size-2 rounded-full bg-rose-500 shrink-0" />
               No entregados ({conteos.noEntregados})
@@ -365,11 +361,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                 setFiltroEstado("SIN_OBSERVACION");
                 setCurrentPage(1);
               }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${
-                filtroEstado === "SIN_OBSERVACION"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border flex items-center gap-2 ${filtroEstado === "SIN_OBSERVACION"
                   ? "bg-[#0b1329] text-white border-[#0b1329] shadow-xs"
                   : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
-              }`}
+                }`}
             >
               <span className="size-2 rounded-full bg-purple-500 shrink-0" />
               Sin observación ({conteos.sinObs})
@@ -528,11 +523,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           {student.nota != null ? (
                             <span
-                              className={`inline-flex items-center justify-center font-mono font-bold text-xs px-2.5 py-1 rounded-lg ${
-                                student.nota >= 4.0
+                              className={`inline-flex items-center justify-center font-mono font-bold text-xs px-2.5 py-1 rounded-lg ${student.nota >= 4.0
                                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                                   : "bg-rose-50 text-rose-800 border border-rose-200"
-                              }`}
+                                }`}
                             >
                               {student.nota.toFixed(1)}
                             </span>
@@ -571,11 +565,10 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
                                       ? "Eliminar entrega, nota y observación del estudiante"
                                       : "Sin entregas ni evaluaciones para eliminar"
                                   }
-                                  className={`p-2 rounded-lg border transition-all inline-flex items-center justify-center ${
-                                    tieneContenido
+                                  className={`p-2 rounded-lg border transition-all inline-flex items-center justify-center ${tieneContenido
                                       ? "text-rose-600 bg-rose-50/60 hover:bg-rose-100 hover:text-rose-700 border-rose-200/80 hover:border-rose-300 cursor-pointer shadow-2xs"
                                       : "text-slate-300 bg-slate-50 border-slate-200/50 cursor-not-allowed opacity-50"
-                                  }`}
+                                    }`}
                                 >
                                   <Trash2 className="size-3.5" />
                                 </button>
@@ -659,9 +652,8 @@ export function Evaluaciones({ user, onBack }: EvaluacionesProps) {
         title="Eliminar entrega, nota y observación"
         description={
           studentToDelete
-            ? `¿Estás seguro de que deseas eliminar la evaluación de ${studentToDelete.nombre} ${studentToDelete.apellido}? Se eliminarán los archivos entregados por el alumno, la calificación asignada (${
-                studentToDelete.nota != null ? studentToDelete.nota.toFixed(1) : "sin nota"
-              }) y la observación pedagógica. Esta acción no se puede deshacer.`
+            ? `¿Estás seguro de que deseas eliminar la evaluación de ${studentToDelete.nombre} ${studentToDelete.apellido}? Se eliminarán los archivos entregados por el alumno, la calificación asignada (${studentToDelete.nota != null ? studentToDelete.nota.toFixed(1) : "sin nota"
+            }) y la observación pedagógica. Esta acción no se puede deshacer.`
             : "Esta acción no se puede deshacer."
         }
         onConfirm={handleConfirmDelete}
