@@ -1,7 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CheckCircle2, Cloud, CloudOff, Eye, Loader2, Lock, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Cloud,
+  CloudOff,
+  Eraser,
+  Eye,
+  Loader2,
+  Lock,
+  PencilLine,
+  RotateCcw,
+  Save,
+  X,
+} from "lucide-react";
 import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
+import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
 import {
   getAplicacion,
   getPautaDetalle,
@@ -47,6 +61,15 @@ const EVALUADOR_LABEL: Record<string, string> = {
   ACADEMICO: "Académico/a",
 };
 
+/** Puntajes y observaciones de una aplicación tal como quedaron guardados. */
+function aEstado(app: AplicacionPauta): { respuestas: Record<number, number>; observaciones: string } {
+  const respuestas: Record<number, number> = {};
+  app.respuestas.forEach((r) => {
+    if (r.puntaje != null) respuestas[r.criterioId] = r.puntaje;
+  });
+  return { respuestas, observaciones: app.observaciones ?? "" };
+}
+
 function formatearFecha(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -73,16 +96,21 @@ export function PautaFormulario({
   const [guardado, setGuardado] = useState<EstadoGuardado>("idle");
   const [finalizando, setFinalizando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
-
-  const cambiosPendientes = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const estado = useRef({ respuestas, observaciones });
-  useEffect(() => {
-    estado.current = { respuestas, observaciones };
+  // Lo último guardado en el servidor: "Cancelar" vuelve a esto y sirve para saber si hay cambios sin guardar.
+  const [base, setBase] = useState<{ respuestas: Record<number, number>; observaciones: string }>({
+    respuestas: {},
+    observaciones: "",
   });
 
   const finalizada = aplicacion?.estado === "FINALIZADA";
   const bloqueada = finalizada || soloLectura;
+  const hayCambios = useMemo(
+    () =>
+      !bloqueada &&
+      (observaciones !== base.observaciones ||
+        JSON.stringify(respuestas) !== JSON.stringify(base.respuestas)),
+    [bloqueada, respuestas, observaciones, base]
+  );
 
   useEffect(() => {
     let cancelado = false;
@@ -96,12 +124,10 @@ export function PautaFormulario({
         setPauta(detalle);
         setAplicacion(guardada);
         if (guardada) {
-          const mapa: Record<number, number> = {};
-          guardada.respuestas.forEach((r) => {
-            if (r.puntaje != null) mapa[r.criterioId] = r.puntaje;
-          });
-          setRespuestas(mapa);
-          setObservaciones(guardada.observaciones ?? "");
+          const inicial = aEstado(guardada);
+          setRespuestas(inicial.respuestas);
+          setObservaciones(inicial.observaciones);
+          setBase(inicial);
         }
       } catch (e) {
         if (!cancelado) setErrorCarga(e instanceof Error ? e.message : "Error al cargar la pauta");
@@ -114,18 +140,20 @@ export function PautaFormulario({
     };
   }, [pautaId, practicaId, user.rut]);
 
+  // Solo se guarda con "Guardar" o "Finalizar". Se envían todos los indicadores: los vacíos (null) se borran,
+  // así "Limpiar respuestas" también queda guardado.
   const guardar = useCallback(
     async (finalizar = false) => {
-      const { respuestas: resp, observaciones: obs } = estado.current;
+      if (!pauta) throw new Error("La pauta no está cargada.");
       setGuardado("guardando");
       try {
         const res = await guardarAplicacion(user.rut, pautaId, practicaId, {
-          observaciones: obs,
-          respuestas: Object.entries(resp).map(([id, puntaje]) => ({ criterioId: Number(id), puntaje })),
+          observaciones,
+          respuestas: pauta.criterios.map((c) => ({ criterioId: c.id, puntaje: respuestas[c.id] ?? null })),
           finalizar,
         });
-        cambiosPendientes.current = false;
         setAplicacion(res);
+        setBase(aEstado(res));
         setGuardado("guardado");
         return res;
       } catch (e) {
@@ -133,36 +161,50 @@ export function PautaFormulario({
         throw e;
       }
     },
-    [pautaId, practicaId, user.rut]
+    [pauta, respuestas, observaciones, pautaId, practicaId, user.rut]
   );
 
-  // Autoguardado con debounce: protege lo ingresado si se cae la conexión en tablet/móvil.
+  // Aviso del navegador si se cierra o recarga la pestaña con cambios sin guardar.
   useEffect(() => {
-    if (!cambiosPendientes.current || bloqueada) return;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      guardar().catch(() => undefined);
-    }, 900);
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, [respuestas, observaciones, bloqueada, guardar]);
-
-  // Si se sale de la pantalla con cambios pendientes, se guardan antes de desmontar.
-  const guardarRef = useRef(guardar);
-  useEffect(() => {
-    guardarRef.current = guardar;
-  });
-  useEffect(() => {
-    return () => {
-      if (cambiosPendientes.current) guardarRef.current().catch(() => undefined);
-    };
-  }, []);
+    if (!hayCambios) return;
+    const avisar = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", avisar);
+    return () => window.removeEventListener("beforeunload", avisar);
+  }, [hayCambios]);
 
   const seleccionar = (criterioId: number, puntaje: number) => {
     if (bloqueada) return;
-    cambiosPendientes.current = true;
     setRespuestas((prev) => ({ ...prev, [criterioId]: puntaje }));
+  };
+
+  const guardarManual = async () => {
+    try {
+      await guardar();
+      sileo.success({ title: "Pauta guardada", description: "Puede continuarla más tarde." });
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo guardar",
+        description: e instanceof Error ? e.message : "Intente nuevamente.",
+      });
+    }
+  };
+
+  /** Sale descartando lo que no se haya guardado. */
+  const cancelar = () => {
+    if (hayCambios && !window.confirm("Se descartarán los cambios que no ha guardado. ¿Desea salir de la pauta?")) {
+      return;
+    }
+    onBack();
+  };
+
+  const limpiar = () => {
+    if (Object.keys(respuestas).length === 0 && !observaciones) return;
+    const ok = window.confirm(
+      "Se borrarán todos los puntajes y las observaciones de esta pauta. El cambio se aplica al presionar «Guardar». ¿Desea continuar?"
+    );
+    if (!ok) return;
+    setRespuestas({});
+    setObservaciones("");
   };
 
   const finalizar = async () => {
@@ -248,9 +290,9 @@ export function PautaFormulario({
   const usaNiveles = pauta.escalaMin === 2 && pauta.escalaMax === 7;
 
   return (
-    <div className="max-w-3xl mx-auto pb-28 space-y-5">
+    <div className="max-w-3xl mx-auto pb-40 sm:pb-28 space-y-5">
       <div className="pt-4">
-        <BotonVolver onClick={onBack} texto={textoVolver} />
+        <BotonVolver onClick={cancelar} texto={textoVolver} />
       </div>
 
       <header className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-2">
@@ -375,20 +417,30 @@ export function PautaFormulario({
           rows={5}
           value={observaciones}
           disabled={bloqueada}
-          onChange={(e) => {
-            cambiosPendientes.current = true;
-            setObservaciones(e.target.value);
-          }}
+          onChange={(e) => setObservaciones(e.target.value)}
           placeholder={bloqueada ? "Sin observaciones registradas." : "Fortalezas y aspectos a mejorar…"}
           className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:bg-slate-50"
         />
+        {!bloqueada && (
+          <VoiceNoteRecorder
+            soloDictado
+            defaultCollapsed
+            onInsertTranscription={(texto) => {
+              setObservaciones((prev) => (prev ? `${prev}\n${texto}` : texto));
+              sileo.info({
+                title: "Transcripción agregada",
+                description: "El texto dictado se copió a las observaciones. Recuerde guardar la pauta.",
+              });
+            }}
+          />
+        )}
       </section>
 
-      {/* Barra fija inferior: progreso, puntaje y acción */}
+      {/* Barra fija inferior: progreso, puntaje y acciones */}
       <div className="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+        <div className="max-w-3xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+            <div className="flex items-center justify-between gap-2 text-xs text-slate-600 mb-1">
               <span>
                 {respondidos}/{total} criterios · {puntajeActual}/{pauta.puntajeMaximo} pts
                 {aplicacion?.nota != null && (
@@ -397,7 +449,7 @@ export function PautaFormulario({
                   </b>
                 )}
               </span>
-              {!soloLectura && <IndicadorGuardado estado={guardado} />}
+              {!soloLectura && <IndicadorGuardado estado={guardado} hayCambios={hayCambios} />}
             </div>
             <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
               <div
@@ -407,15 +459,49 @@ export function PautaFormulario({
             </div>
           </div>
           {!bloqueada && (
-            <button
-              type="button"
-              disabled={!completa || finalizando}
-              onClick={finalizar}
-              className="shrink-0 inline-flex items-center gap-1.5 h-11 px-4 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:bg-slate-200 disabled:text-slate-400 hover:bg-emerald-700 transition-colors cursor-pointer disabled:cursor-not-allowed"
-            >
-              {finalizando ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-              Finalizar
-            </button>
+            <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={limpiar}
+                disabled={respondidos === 0 && !observaciones}
+                title="Borrar todos los puntajes y observaciones"
+                className="inline-flex items-center gap-1.5 h-11 px-2 sm:px-3 shrink-0 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600"
+              >
+                <Eraser className="size-4" />
+                <span className="hidden sm:inline">Limpiar</span>
+              </button>
+              <button
+                type="button"
+                onClick={cancelar}
+                className="flex-1 sm:flex-none min-w-0 inline-flex items-center justify-center gap-1.5 h-11 px-2 sm:px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <X className="size-4 hidden sm:block" />
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={guardarManual}
+                disabled={!hayCambios || guardado === "guardando" || finalizando}
+                className="flex-1 sm:flex-none min-w-0 inline-flex items-center justify-center gap-1.5 h-11 px-2 sm:px-4 rounded-xl bg-sky-600 text-white text-sm font-semibold hover:bg-sky-700 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                {guardado === "guardando" && !finalizando ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                Guardar
+              </button>
+              <button
+                type="button"
+                disabled={!completa || finalizando || guardado === "guardando"}
+                onClick={finalizar}
+                title={completa ? undefined : "Complete todos los indicadores para finalizar"}
+                className="flex-1 sm:flex-none min-w-0 inline-flex items-center justify-center gap-1.5 h-11 px-2 sm:px-4 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:bg-slate-200 disabled:text-slate-400 hover:bg-emerald-700 transition-colors cursor-pointer disabled:cursor-not-allowed"
+              >
+                {finalizando ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                Finalizar
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -436,11 +522,17 @@ function BotonVolver({ onClick, texto }: { onClick: () => void; texto: string })
   );
 }
 
-function IndicadorGuardado({ estado }: { estado: EstadoGuardado }) {
+function IndicadorGuardado({ estado, hayCambios }: { estado: EstadoGuardado; hayCambios: boolean }) {
   if (estado === "guardando")
     return (
       <span className="inline-flex items-center gap-1 text-slate-500">
         <Loader2 className="size-3 animate-spin" /> Guardando…
+      </span>
+    );
+  if (hayCambios)
+    return (
+      <span className="inline-flex items-center gap-1 text-amber-700 whitespace-nowrap">
+        <PencilLine className="size-3" /> Cambios sin guardar
       </span>
     );
   if (estado === "guardado")

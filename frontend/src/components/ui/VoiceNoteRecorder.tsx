@@ -66,6 +66,8 @@ interface VoiceNoteRecorderProps {
   onVoiceNoteCreated?: (nota: NotaDeVozDTO) => void;
   readOnly?: boolean;
   defaultCollapsed?: boolean;
+  /** Solo graba y transcribe para insertar el texto; no guarda audios ni lista grabaciones (p. ej. pautas). */
+  soloDictado?: boolean;
 }
 
 export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
@@ -76,6 +78,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   onVoiceNoteCreated,
   readOnly = false,
   defaultCollapsed = false,
+  soloDictado = false,
 }) => {
   // Estado para colapsar/expandir el panel
   const [isCollapsed, setIsCollapsed] = useState<boolean>(defaultCollapsed);
@@ -472,24 +475,28 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
           </div>
           <div className="flex items-center gap-2">
             <span className="font-bold text-sky-950 text-xs">
-              Notas de Voz & Transcripción
+              {soloDictado ? "Dictado por voz" : "Notas de Voz & Transcripción"}
             </span>
-            <span className="rounded-full bg-sky-100 px-2 py-0.2 text-[10px] font-semibold text-sky-800">
-              {notasList.length} {notasList.length === 1 ? "grabación" : "grabaciones"}
-            </span>
+            {!soloDictado && (
+              <span className="rounded-full bg-sky-100 px-2 py-0.2 text-[10px] font-semibold text-sky-800">
+                {notasList.length} {notasList.length === 1 ? "grabación" : "grabaciones"}
+              </span>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={cargarNotasDeVoz}
-            disabled={loadingList}
-            className="text-slate-400 hover:text-sky-700 p-1 rounded transition-colors"
-            title="Actualizar notas"
-          >
-            <RefreshCw className={`h-3 w-3 ${loadingList ? "animate-spin text-sky-600" : ""}`} />
-          </button>
+          {!soloDictado && (
+            <button
+              type="button"
+              onClick={cargarNotasDeVoz}
+              disabled={loadingList}
+              className="text-slate-400 hover:text-sky-700 p-1 rounded transition-colors"
+              title="Actualizar notas"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingList ? "animate-spin text-sky-600" : ""}`} />
+            </button>
+          )}
 
           {/* Botón para mostrar o ocultar el panel */}
           <button
@@ -578,25 +585,27 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                     >
                       Descartar
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveVoiceNote}
-                      disabled={isUploading || !idEvaluacion}
-                      title={idEvaluacion ? undefined : "Guarda la evaluación antes de adjuntar notas de voz"}
-                      className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          Guardando...
-                        </>
-                      ) : (
-                        <>
-                          <PlusCircle className="h-3 w-3" />
-                          Adjuntar Nota
-                        </>
-                      )}
-                    </button>
+                    {!soloDictado && (
+                      <button
+                        type="button"
+                        onClick={handleSaveVoiceNote}
+                        disabled={isUploading || !idEvaluacion}
+                        title={idEvaluacion ? undefined : "Guarda la evaluación antes de adjuntar notas de voz"}
+                        className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Guardando...
+                          </>
+                        ) : (
+                          <>
+                            <PlusCircle className="h-3 w-3" />
+                            Adjuntar Nota
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -690,135 +699,137 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
           )}
 
           {/* Lista de grabaciones existentes */}
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-semibold text-slate-700 block">
-              Grabaciones registradas ({notasList.length})
-            </span>
+          {!soloDictado && (
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-700 block">
+                Grabaciones registradas ({notasList.length})
+              </span>
 
-            {notasList.length === 0 && !loadingList && (
-              <p className="text-[11px] text-slate-400 italic p-2 rounded bg-white/70 border border-dashed border-slate-200 text-center">
-                {readOnly
-                  ? "No hay notas de voz registradas para este estudiante."
-                  : "No hay notas de voz registradas todavía. Graba una usando el botón arriba."}
-              </p>
-            )}
+              {notasList.length === 0 && !loadingList && (
+                <p className="text-[11px] text-slate-400 italic p-2 rounded bg-white/70 border border-dashed border-slate-200 text-center">
+                  {readOnly
+                    ? "No hay notas de voz registradas para este estudiante."
+                    : "No hay notas de voz registradas todavía. Graba una usando el botón arriba."}
+                </p>
+              )}
 
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {notasList.map((nota, idx) => (
-                <div
-                  key={nota.idAudio}
-                  className="rounded-lg border border-slate-200 bg-white p-2 shadow-2xs space-y-1.5 hover:border-sky-300 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className="font-bold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded text-[10px]">
-                        #{notasList.length - idx}
-                      </span>
-                      <span className="text-slate-500">
-                        {nota.fechaGrabacion ? new Date(nota.fechaGrabacion).toLocaleString("es-CL") : "Fecha no disp."}
-                      </span>
-                      {(nota.nombreGrabador || nota.rutGrabador) && (
-                        <span className="text-[10px] text-slate-600 font-medium">
-                          • Por: {nota.nombreGrabador || nota.rutGrabador}
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {notasList.map((nota, idx) => (
+                  <div
+                    key={nota.idAudio}
+                    className="rounded-lg border border-slate-200 bg-white p-2 shadow-2xs space-y-1.5 hover:border-sky-300 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className="font-bold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded text-[10px]">
+                          #{notasList.length - idx}
                         </span>
+                        <span className="text-slate-500">
+                          {nota.fechaGrabacion ? new Date(nota.fechaGrabacion).toLocaleString("es-CL") : "Fecha no disp."}
+                        </span>
+                        {(nota.nombreGrabador || nota.rutGrabador) && (
+                          <span className="text-[10px] text-slate-600 font-medium">
+                            • Por: {nota.nombreGrabador || nota.rutGrabador}
+                          </span>
+                        )}
+                      </div>
+
+                      {puedeModificar(nota) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteNote(nota.idAudio)}
+                          className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+                          title="Eliminar grabación"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       )}
                     </div>
 
-                    {puedeModificar(nota) && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteNote(nota.idAudio)}
-                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
-                        title="Eliminar grabación"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
+                    {/* Reproductor de audio */}
+                    <audio
+                      controls
+                      src={getAudioUrl(nota.idAudio)}
+                      preload="metadata"
+                      className="h-6 w-full"
+                    />
 
-                  {/* Reproductor de audio */}
-                  <audio
-                    controls
-                    src={getAudioUrl(nota.idAudio)}
-                    preload="metadata"
-                    className="h-6 w-full"
-                  />
-
-                  {/* Transcripción asociada */}
-                  {editingId === nota.idAudio ? (
-                    <div className="space-y-1 pt-1">
-                      <textarea
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        rows={2}
-                        className="w-full text-[11px] text-slate-800 bg-sky-50/50 p-1.5 rounded border border-sky-300 focus:outline-none"
-                      />
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                          className="px-2 py-0.5 text-[10px] text-slate-600"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveEditTranscription(nota.idAudio)}
-                          className="px-2 py-0.5 text-[10px] font-semibold bg-sky-600 text-white rounded"
-                        >
-                          Guardar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded bg-sky-50/50 p-1.5 border border-sky-100 text-[11px] text-slate-700">
-                      <div className="flex items-center justify-between text-[10px] text-sky-800 font-medium mb-0.5">
-                        <span className="flex items-center gap-1">
-                          <FileText className="h-3 w-3 text-sky-600" />
-                          Transcripción:
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {nota.transcripcion && (
-                            <button
-                              type="button"
-                              onClick={() => handleCopyText(nota.transcripcion!, nota.idAudio)}
-                              className="text-[10px] text-sky-700 hover:text-sky-900"
-                            >
-                              {copiedId === nota.idAudio ? "Copiado" : "Copiar"}
-                            </button>
-                          )}
-                          {onInsertTranscription && nota.transcripcion && !readOnly && (
-                            <button
-                              type="button"
-                              onClick={() => onInsertTranscription(nota.transcripcion!)}
-                              className="text-[10px] font-bold text-sky-800 hover:underline"
-                            >
-                              Insertar en Obs.
-                            </button>
-                          )}
-                          {puedeModificar(nota) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingId(nota.idAudio);
-                                setEditText(nota.transcripcion || "");
-                              }}
-                              className="text-[10px] text-slate-400 hover:text-sky-700"
-                            >
-                              Editar
-                            </button>
-                          )}
+                    {/* Transcripción asociada */}
+                    {editingId === nota.idAudio ? (
+                      <div className="space-y-1 pt-1">
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          rows={2}
+                          className="w-full text-[11px] text-slate-800 bg-sky-50/50 p-1.5 rounded border border-sky-300 focus:outline-none"
+                        />
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="px-2 py-0.5 text-[10px] text-slate-600"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEditTranscription(nota.idAudio)}
+                            className="px-2 py-0.5 text-[10px] font-semibold bg-sky-600 text-white rounded"
+                          >
+                            Guardar
+                          </button>
                         </div>
                       </div>
-                      <p className="italic text-slate-600 leading-relaxed text-[11px]">
-                        {nota.transcripcion ? `"${nota.transcripcion}"` : "(Sin transcripción disponible)"}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    ) : (
+                      <div className="rounded bg-sky-50/50 p-1.5 border border-sky-100 text-[11px] text-slate-700">
+                        <div className="flex items-center justify-between text-[10px] text-sky-800 font-medium mb-0.5">
+                          <span className="flex items-center gap-1">
+                            <FileText className="h-3 w-3 text-sky-600" />
+                            Transcripción:
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {nota.transcripcion && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyText(nota.transcripcion!, nota.idAudio)}
+                                className="text-[10px] text-sky-700 hover:text-sky-900"
+                              >
+                                {copiedId === nota.idAudio ? "Copiado" : "Copiar"}
+                              </button>
+                            )}
+                            {onInsertTranscription && nota.transcripcion && !readOnly && (
+                              <button
+                                type="button"
+                                onClick={() => onInsertTranscription(nota.transcripcion!)}
+                                className="text-[10px] font-bold text-sky-800 hover:underline"
+                              >
+                                Insertar en Obs.
+                              </button>
+                            )}
+                            {puedeModificar(nota) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingId(nota.idAudio);
+                                  setEditText(nota.transcripcion || "");
+                                }}
+                                className="text-[10px] text-slate-400 hover:text-sky-700"
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="italic text-slate-600 leading-relaxed text-[11px]">
+                          {nota.transcripcion ? `"${nota.transcripcion}"` : "(Sin transcripción disponible)"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
