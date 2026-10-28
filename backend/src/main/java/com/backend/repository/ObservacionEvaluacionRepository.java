@@ -1,10 +1,12 @@
 package com.backend.repository;
 
-import java.util.List;
+
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.backend.model.ObservacionEvaluacion;
+
+import java.util.List;
 
 public interface ObservacionEvaluacionRepository extends JpaRepository<ObservacionEvaluacion, Long> {
 

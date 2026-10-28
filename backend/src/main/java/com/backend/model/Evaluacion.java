@@ -41,6 +41,7 @@ public class Evaluacion {
     @Column(name = "puntaje_maximo")
     private Double puntajeMaximo;
 
+    @Column(name = "observacion", columnDefinition = "TEXT")
     private String observacion;
 
     @Column(name = "fecha_limite")
@@ -51,6 +52,12 @@ public class Evaluacion {
 
     @Column(name = "nombre_archivo")
     private String nombreArchivo;
+
+    @Column(name = "rut_evaluador")
+    private String rutEvaluador;
+
+    @Column(name = "nombre_evaluador")
+    private String nombreEvaluador;
 
     public Evaluacion() {
     }
@@ -174,5 +181,21 @@ public class Evaluacion {
 
     public void setNombreArchivo(String nombreArchivo) {
         this.nombreArchivo = nombreArchivo;
+    }
+
+    public String getRutEvaluador() {
+        return rutEvaluador;
+    }
+
+    public void setRutEvaluador(String rutEvaluador) {
+        this.rutEvaluador = rutEvaluador;
+    }
+
+    public String getNombreEvaluador() {
+        return nombreEvaluador;
+    }
+
+    public void setNombreEvaluador(String nombreEvaluador) {
+        this.nombreEvaluador = nombreEvaluador;
     }
 }

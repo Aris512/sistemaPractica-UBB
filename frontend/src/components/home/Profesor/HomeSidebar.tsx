@@ -17,6 +17,7 @@ import {
   Briefcase,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   CalendarPlus,
   MessageSquareCheck,
   FolderGit2,
@@ -207,6 +208,26 @@ export function HomeSidebar({
                     <div className="flex items-center gap-2.5">
                       <ClipboardCheck className="size-4.5 text-slate-900 shrink-0" />
                       <span>Evaluaciones</span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* Pautas de práctica (evaluaciones digitales finalizadas de la asignatura) */}
+              {(hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")) && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={activeMenu === "pautas-practica"}
+                    onClick={() => onSelectMenu("pautas-practica")}
+                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
+                      activeMenu === "pautas-practica"
+                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
+                        : "text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <ClipboardList className="size-4.5 text-slate-900 shrink-0" />
+                      <span>Pautas de práctica</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

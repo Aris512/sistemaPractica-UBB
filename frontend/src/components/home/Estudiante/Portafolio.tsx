@@ -41,9 +41,11 @@ interface PortafolioProps {
 }
 
 const CATEGORIAS_CONFIG: { key: CategoriaPortafolio; label: string }[] = [
-  { key: "TODOS", label: "Todos los archivos" },
+  { key: "TODOS", label: "Todos" },
   { key: "DOCUMENTO", label: "Documentos" },
+  { key: "EVALUACION", label: "Evaluaciones" },
   { key: "EVIDENCIA", label: "Evidencias" },
+  { key: "OBSERVACION", label: "Observaciones" },
   { key: "INFORME", label: "Informes" },
   { key: "OTRO", label: "Otros" },
 ];
@@ -59,15 +61,27 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   const [modalAbierto, setModalAbierto] = useState<boolean>(false);
   const rutEstudiante = user?.rut || "";
 
-  const cargarDocumentos = useCallback(async () => {
+  const cargarDocumentos = useCallback(async (mostrarToast = false) => {
     if (!rutEstudiante) return;
     setCargando(true);
     try {
-      // El alumno solo ve lo que él subió: los archivos del profesor no son parte de su portafolio
-      const docs = await obtenerDocumentosPortafolio(rutEstudiante, true);
+      // Mostrar todos los documentos del portafolio del estudiante, incluyendo los subidos por profesores
+      const docs = await obtenerDocumentosPortafolio(rutEstudiante, false);
       setDocumentos(docs);
+      if (mostrarToast) {
+        sileo.success({
+          title: "Portafolio actualizado",
+          description: `Se cargaron ${docs.length} archivo${docs.length !== 1 ? "s" : ""} correctamente.`,
+        });
+      }
     } catch (err: any) {
       console.warn("No se pudieron cargar evidencias del portafolio:", err);
+      if (mostrarToast) {
+        sileo.error({
+          title: "Error al actualizar",
+          description: "No se pudieron cargar los archivos del portafolio.",
+        });
+      }
     } finally {
       setCargando(false);
     }
@@ -120,9 +134,12 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
   };
 
   const formatearTipo = (tipo: string) => {
-    if (tipo.includes("DOCUMENTO")) return "Documento";
-    if (tipo.includes("INFORME")) return "Informe";
-    if (tipo.includes("OTRO")) return "Otro";
+    const upper = tipo.toUpperCase();
+    if (upper.includes("DOCUMENTO")) return "Documento";
+    if (upper.includes("EVALUACION")) return "Evaluación";
+    if (upper.includes("OBSERVACION")) return "Observación";
+    if (upper.includes("INFORME")) return "Informe";
+    if (upper.includes("OTRO")) return "Otro";
     return "Evidencia";
   };
 
@@ -141,8 +158,18 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
 
   const docsFiltrados = documentos.filter((doc) => {
     if (filtroCategoria === "TODOS") return true;
-    return doc.tipo.includes(filtroCategoria);
+    return doc.tipo.toUpperCase().includes(filtroCategoria);
   });
+
+  // Conteo por categoría para las badges de los filtros
+  const conteosPorCategoria = CATEGORIAS_CONFIG.reduce((acc, cat) => {
+    if (cat.key === "TODOS") {
+      acc[cat.key] = documentos.length;
+    } else {
+      acc[cat.key] = documentos.filter((d) => d.tipo.toUpperCase().includes(cat.key)).length;
+    }
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
@@ -175,7 +202,7 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={cargarDocumentos}
+            onClick={() => cargarDocumentos(true)}
             disabled={cargando}
             className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             title="Recargar archivos"
@@ -202,20 +229,32 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Filtros de Categoría */}
         <div className="flex flex-wrap items-center gap-1.5">
-          {CATEGORIAS_CONFIG.map((cat) => (
-            <button
-              key={cat.key}
-              type="button"
-              onClick={() => setFiltroCategoria(cat.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                filtroCategoria === cat.key
-                  ? "bg-sky-600 text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          {CATEGORIAS_CONFIG.map((cat) => {
+            const count = conteosPorCategoria[cat.key] || 0;
+            return (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setFiltroCategoria(cat.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  filtroCategoria === cat.key
+                    ? "bg-sky-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+                }`}
+              >
+                {cat.label}
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    filtroCategoria === cat.key
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-200/80 text-slate-500"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Contador */}
@@ -278,12 +317,20 @@ export function Portafolio({ user, onBack }: PortafolioProps) {
                     >
                       {doc.nombre}
                     </AttachmentTitle>
-                    <AttachmentDescription className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                    <AttachmentDescription className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 flex-wrap">
                       <span>{doc.tamanio || "—"}</span>
                       <span>•</span>
                       <span>{formatearFecha(doc.fechaCarga)}</span>
                       <span>•</span>
                       <span className="font-medium text-sky-700">{formatearTipo(doc.tipo)}</span>
+                      {doc.subidoPorRut && doc.subidoPorRut !== rutEstudiante && (
+                        <>
+                          <span>•</span>
+                          <span className="font-semibold text-emerald-700" title={`Subido por ${doc.subidoPorNombre}`}>
+                            📎 {doc.subidoPorNombre}
+                          </span>
+                        </>
+                      )}
                     </AttachmentDescription>
                   </AttachmentContent>
                 </div>

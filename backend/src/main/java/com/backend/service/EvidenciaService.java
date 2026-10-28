@@ -87,11 +87,8 @@ public class EvidenciaService {
 
         if (profesor != null && profesor.getAsignatura() != null) {
             estudiantes = estudianteRepository.findByAsignaturaIdAsignatura(profesor.getAsignatura().getIdAsignatura());
-            if (estudiantes.isEmpty()) {
-                estudiantes = estudianteRepository.findAll();
-            }
         } else {
-            estudiantes = estudianteRepository.findAll();
+            estudiantes = java.util.Collections.emptyList();
         }
 
         List<Evidencia> evidenciasProfesor = evidenciaRepository.findByActividadProfesorUsuarioRutOrderByFechaEntregaDesc(rutProfesor);
