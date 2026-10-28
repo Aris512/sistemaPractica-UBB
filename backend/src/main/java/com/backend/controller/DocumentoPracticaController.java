@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -14,12 +16,14 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.dto.DetalleEstudianteDocumentosDTO;
+import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.model.DocumentoPractica;
 import com.backend.service.DocumentoPracticaService;
 
@@ -74,6 +78,17 @@ public class DocumentoPracticaController {
             logger.error("Error al subir evaluación del profesor: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(java.util.Map.of("error", "Error interno al procesar el archivo: " + e.getMessage()));
         }
+    }
+
+    /**
+     * Obtiene el listado consolidado de estudiantes con su progreso de documentación (filtrado por profesor si se indica).
+     */
+    @GetMapping("/estudiantes")
+    public ResponseEntity<List<EstudianteDocumentoDTO>> obtenerEstudiantes(
+            @RequestParam(value = "rutProfesor", required = false) String rutProfesor,
+            @RequestHeader(value = "X-User-Rut", required = false) String headerRut) {
+        String rutFinal = (rutProfesor != null && !rutProfesor.isBlank()) ? rutProfesor : headerRut;
+        return ResponseEntity.ok(documentoPracticaService.obtenerEstudiantesConProgreso(rutFinal));
     }
 
     /**

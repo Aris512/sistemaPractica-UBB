@@ -22,6 +22,9 @@ import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PracticaRepository;
 
+import com.backend.repository.ProfesorRepository;
+import java.util.Collections;
+
 @Service
 public class PracticaService {
 
@@ -32,6 +35,7 @@ public class PracticaService {
     private final ObservacionPracticaRepository observacionPracticaRepository;
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
+    private final ProfesorRepository profesorRepository;
 
     public PracticaService(PracticaRepository practicaRepository,
                            EstudianteRepository estudianteRepository,
@@ -39,7 +43,8 @@ public class PracticaService {
                            NotaRepository notaRepository,
                            ObservacionPracticaRepository observacionPracticaRepository,
                            JdbcTemplate jdbcTemplate,
-                           FileStorageService fileStorageService) {
+                           FileStorageService fileStorageService,
+                           ProfesorRepository profesorRepository) {
         this.practicaRepository = practicaRepository;
         this.estudianteRepository = estudianteRepository;
         this.evaluacionRepository = evaluacionRepository;
@@ -47,6 +52,7 @@ public class PracticaService {
         this.observacionPracticaRepository = observacionPracticaRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.fileStorageService = fileStorageService;
+        this.profesorRepository = profesorRepository;
     }
 
     public List<Practica> obtenerTodos() {
@@ -98,9 +104,31 @@ public class PracticaService {
     }
 
     public List<EstudianteTutorDTO> obtenerSeguimientoTutorColaborador(String rut) {
-        List<Practica> practicas = practicaRepository.findByTutorPracticaUsuarioRut(rut);
-        if (practicas == null || practicas.isEmpty()) {
-            practicas = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut);
+        if (rut == null || rut.isBlank()) {
+            return Collections.emptyList();
+        }
+
+        List<Practica> practicas = new ArrayList<>();
+        List<Practica> byTutor = practicaRepository.findByTutorPracticaUsuarioRut(rut);
+        if (byTutor != null && !byTutor.isEmpty()) {
+            practicas.addAll(byTutor);
+        } else {
+            List<Practica> byColab = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut);
+            if (byColab != null && !byColab.isEmpty()) {
+                practicas.addAll(byColab);
+            }
+        }
+
+        if (practicas.isEmpty()) {
+            // Verificar si el usuario es un profesor de asignatura asignado a una práctica
+            profesorRepository.findByUsuarioRut(rut).ifPresent(prof -> {
+                if (prof.getAsignatura() != null && prof.getAsignatura().getIdAsignatura() != null) {
+                    List<Practica> practicasAsig = practicaRepository.findByAsignaturaIdAsignatura(prof.getAsignatura().getIdAsignatura());
+                    if (practicasAsig != null && !practicasAsig.isEmpty()) {
+                        practicas.addAll(practicasAsig);
+                    }
+                }
+            });
         }
 
         List<EstudianteTutorDTO> resultado = new ArrayList<>();
@@ -133,40 +161,9 @@ public class PracticaService {
 
                 resultado.add(dto);
             }
-            return resultado;
         }
 
-        // Fallback: listar estudiantes matriculados para el curso a evaluar
-        List<Estudiante> estudiantes = estudianteRepository.findAll();
-        for (Estudiante est : estudiantes) {
-            if (est.getUsuario() == null) continue;
-            Usuario u = est.getUsuario();
-            if (!u.isActivo() || "inactivo".equalsIgnoreCase(u.getEstado()) || "INACTIVO".equalsIgnoreCase(est.getEstado())) {
-                continue;
-            }
-            String asigNombre = est.getAsignatura() != null ? est.getAsignatura().getNombre() : "Práctica Pedagógica";
-
-            // Buscar si tiene práctica asociada
-            List<Practica> prList = practicaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
-            Long idPractica = !prList.isEmpty() ? prList.get(0).getIdPractica() : null;
-            String centro = !prList.isEmpty() && prList.get(0).getCentroPractica() != null
-                    ? prList.get(0).getCentroPractica().getNombre()
-                    : "Colegio San Agustín";
-
-            EstudianteTutorDTO dto = new EstudianteTutorDTO();
-            dto.setIdEstudiante(est.getIdEstudiante());
-            dto.setIdPractica(idPractica);
-            dto.setRut(u.getRut());
-            dto.setNombre(u.getNombre() + " " + u.getApellido());
-            dto.setCorreo(u.getCorreo());
-            dto.setAsignaturaNombre(asigNombre);
-            dto.setCentroPractica(centro);
-
-            completarDatosEvaluacionYObservacion(dto, est.getIdEstudiante(), u.getRut(), rut);
-
-            resultado.add(dto);
-        }
-
+        // Filtro estricto: Nunca retornar todos los estudiantes del sistema si el usuario no tiene asignación
         return resultado;
     }
 
