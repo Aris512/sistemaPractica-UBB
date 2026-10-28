@@ -15,7 +15,6 @@ import {
 import {
   Home,
   FileText,
-  Eye,
   LogOut,
   Briefcase,
 } from "lucide-react";
@@ -126,26 +125,6 @@ export function HomeSidebar({
                     <div className="flex items-center gap-2.5">
                       <FileText className="size-4.5 text-slate-900 shrink-0" />
                       <span>Pautas</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {/* Observaciones */}
-              {(hasPermission("OBSERVACIONES_CONSULTAR") || hasPermission("OBSERVACIONES_REGISTRAR")) && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={activeMenu === "observaciones"}
-                    onClick={() => handleSelectMockup("observaciones", "Bitácora de Observaciones")}
-                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                      activeMenu === "observaciones"
-                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Eye className="size-4.5 text-slate-900 shrink-0" />
-                      <span>Observaciones</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

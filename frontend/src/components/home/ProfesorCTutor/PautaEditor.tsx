@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ClipboardPaste, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardPaste, Copy, FilePlus2, ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
 import { sileo } from "sileo";
 import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -349,33 +348,62 @@ function EditorContenido({ user, tipo, id, onCerrar, onGuardada, onEliminada, on
   const descripcion =
     tipo === "duplicar"
       ? "Es una copia de la pauta original: cambie lo necesario. Queda desactivada hasta que la active."
-      : "Los indicadores se muestran a los evaluadores en este orden, igual que en la pauta en papel.";
+      : tipo === "crear"
+        ? "Complete los datos, la escala y los indicadores. Podrá editarla mientras no tenga evaluaciones."
+        : "Los cambios se aplican a las próximas evaluaciones con esta pauta.";
 
   if (cargando) {
     return (
       <>
-        <DialogHeader>
-          <DialogTitle>{titulo}</DialogTitle>
+        <DialogHeader className="px-6 pt-6">
+          <DialogTitle className="text-lg font-bold text-slate-900">{titulo}</DialogTitle>
           <DialogDescription>Cargando la pauta…</DialogDescription>
         </DialogHeader>
-        <div className="flex items-center gap-2 text-sm text-slate-500 py-8 justify-center">
-          <Loader2 className="size-4 animate-spin" /> Cargando…
+        <div className="flex items-center gap-2 text-sm text-slate-500 py-12 justify-center">
+          <Loader2 className="size-4 animate-spin text-sky-600" /> Cargando…
         </div>
-        {error && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3">{error}</p>}
+        {error && (
+          <p className="mx-6 mb-6 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3">{error}</p>
+        )}
       </>
     );
   }
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle className="text-base font-bold text-slate-900">{titulo}</DialogTitle>
-        <DialogDescription className="text-slate-500">{descripcion}</DialogDescription>
-      </DialogHeader>
+      {/* Encabezado fijo con el resumen de la pauta */}
+      <div className="px-6 pt-6 pb-4 border-b border-slate-200 space-y-4 shrink-0">
+        <DialogHeader className="pr-8">
+          <div className="flex items-start gap-3">
+            <span className="p-2 rounded-xl bg-sky-50 text-sky-700 border border-sky-100 shrink-0">
+              <FilePlus2 className="size-5" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <DialogTitle className="text-lg font-bold text-slate-900">{titulo}</DialogTitle>
+              <DialogDescription className="text-slate-500 leading-snug">{descripcion}</DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="grid grid-cols-3 gap-2">
+          <Resumen etiqueta="Indicadores" valor={String(filas.length)} />
+          <Resumen etiqueta="Puntaje máximo" valor={`${puntajeMaximo} pts`} />
+          <Resumen
+            etiqueta={form.modoCalculo === "ESCALA_EXIGENCIA" ? "Nota 4,0 desde" : "Cálculo"}
+            valor={
+              puntajeAprobacion !== null
+                ? `${puntajeAprobacion.toLocaleString("es-CL", { maximumFractionDigits: 1 })} pts`
+                : form.modoCalculo === "PROMEDIO"
+                  ? "Promedio"
+                  : "—"
+            }
+          />
+        </div>
+      </div>
 
-      <div className="space-y-5 overflow-y-auto pr-1 -mr-1 max-h-[65vh]">
+      {/* Cuerpo desplazable */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-5 bg-slate-50/60">
         {bloqueada && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 space-y-2">
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
             <p className="leading-relaxed">
               Esta pauta ya tiene evaluaciones registradas. Puede editar el título, el tipo, la ponderación, la versión,
               las instrucciones y el estado. Los indicadores, la escala y el evaluador quedan bloqueados para no alterar
@@ -393,187 +421,185 @@ function EditorContenido({ user, tipo, id, onCerrar, onGuardada, onEliminada, on
           </div>
         )}
 
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Campo etiqueta="Título" className="sm:col-span-2">
-            <input
-              className={entradaClase}
-              value={form.titulo}
-              onChange={(e) => cambiar("titulo", e.target.value)}
-              placeholder="Ej.: Pauta 1ª observación – Especialidad (Profesor/a colaborador/a)"
-            />
-          </Campo>
-          <Campo
-            etiqueta="Código"
-            ayuda={tipo === "editar" ? "El código no se puede cambiar." : "Identificador único, por ejemplo PED-ESP-1-COL."}
-          >
-            <input
-              className={entradaClase}
-              value={form.codigo}
-              onChange={(e) => cambiar("codigo", e.target.value.toUpperCase().replace(/\s+/g, "-"))}
-              disabled={tipo === "editar"}
-              placeholder="PED-ESP-1-COL"
-            />
-          </Campo>
-          <Campo etiqueta="Asignatura" ayuda="Debe coincidir con la asignatura de la práctica del estudiante.">
-            <select
-              className={entradaClase}
-              value={form.asignatura}
-              onChange={(e) => cambiar("asignatura", e.target.value)}
-              disabled={bloqueada}
+        <Seccion numero={1} titulo="Datos de la pauta" descripcion="Cómo se identifica y a qué práctica corresponde.">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Campo etiqueta="Título" className="sm:col-span-2">
+              <input
+                className={entradaClase}
+                value={form.titulo}
+                onChange={(e) => cambiar("titulo", e.target.value)}
+                placeholder="Ej.: Pauta 1ª observación – Especialidad (Profesor/a colaborador/a)"
+              />
+            </Campo>
+            <Campo
+              etiqueta="Código"
+              ayuda={tipo === "editar" ? "El código no se puede cambiar." : "Identificador único, por ejemplo PED-ESP-1-COL."}
             >
-              <option value="">Seleccione…</option>
-              {opcionesAsignatura.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-          </Campo>
-          <Campo etiqueta="Especialidad">
-            <select
-              className={entradaClase}
-              value={form.especialidad}
-              onChange={(e) => cambiar("especialidad", e.target.value)}
-              disabled={bloqueada}
-            >
-              <option value="ESPECIALIDAD">Especialidad</option>
-              <option value="ORIENTACION">Orientación</option>
-            </select>
-          </Campo>
-          <Campo etiqueta="Momento de evaluación">
-            <select
-              className={entradaClase}
-              value={form.momento}
-              onChange={(e) => cambiar("momento", e.target.value)}
-              disabled={bloqueada}
-            >
-              <option value="PRIMERA">1ª observación</option>
-              <option value="SEGUNDA">2ª observación</option>
-              <option value="UNICA">Única</option>
-            </select>
-          </Campo>
-          <Campo etiqueta="Quién evalúa">
-            <select
-              className={entradaClase}
-              value={form.evaluador}
-              onChange={(e) => cambiar("evaluador", e.target.value)}
-              disabled={bloqueada}
-            >
-              <option value="COLABORADOR">Profesor/a colaborador/a</option>
-              <option value="TUTOR">Tutor/a</option>
-              <option value="ACADEMICO">Académico/a (profesor de la asignatura)</option>
-            </select>
-          </Campo>
-          <Campo etiqueta="Tipo de instrumento">
-            <input
-              className={entradaClase}
-              value={form.tipo}
-              onChange={(e) => cambiar("tipo", e.target.value)}
-              placeholder="Observación de aula"
-            />
-          </Campo>
-        </section>
+              <input
+                className={`${entradaClase} font-mono`}
+                value={form.codigo}
+                onChange={(e) => cambiar("codigo", e.target.value.toUpperCase().replace(/\s+/g, "-"))}
+                disabled={tipo === "editar"}
+                placeholder="PED-ESP-1-COL"
+              />
+            </Campo>
+            <Campo etiqueta="Asignatura" ayuda="Debe coincidir con la asignatura de la práctica del estudiante.">
+              <select
+                className={entradaClase}
+                value={form.asignatura}
+                onChange={(e) => cambiar("asignatura", e.target.value)}
+                disabled={bloqueada}
+              >
+                <option value="">Seleccione…</option>
+                {opcionesAsignatura.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </Campo>
+            <Campo etiqueta="Tipo de instrumento" className="sm:col-span-2">
+              <input
+                className={entradaClase}
+                value={form.tipo}
+                onChange={(e) => cambiar("tipo", e.target.value)}
+                placeholder="Observación de aula"
+              />
+            </Campo>
+          </div>
 
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Campo etiqueta="Cálculo de la nota" className="col-span-2">
-            <select
-              className={entradaClase}
-              value={form.modoCalculo}
-              onChange={(e) => cambiar("modoCalculo", e.target.value as ModoCalculo)}
-              disabled={bloqueada}
-            >
-              <option value="ESCALA_EXIGENCIA">Escala con exigencia (2,0 a 7,0)</option>
-              <option value="PROMEDIO">Promedio de los puntajes</option>
-            </select>
-          </Campo>
-          <Campo etiqueta="Puntaje mínimo">
-            <input
-              className={entradaClase}
-              inputMode="numeric"
-              value={form.escalaMin}
-              onChange={(e) => cambiar("escalaMin", e.target.value)}
-              disabled={bloqueada}
+          <div className="space-y-3 pt-1">
+            <Opciones
+              etiqueta="Especialidad"
+              valor={form.especialidad}
+              onChange={(v) => cambiar("especialidad", v)}
+              deshabilitado={bloqueada}
+              opciones={[
+                { valor: "ESPECIALIDAD", texto: "Especialidad" },
+                { valor: "ORIENTACION", texto: "Orientación" },
+              ]}
             />
-          </Campo>
-          <Campo etiqueta="Puntaje máximo">
-            <input
-              className={entradaClase}
-              inputMode="numeric"
-              value={form.escalaMax}
-              onChange={(e) => cambiar("escalaMax", e.target.value)}
-              disabled={bloqueada}
+            <Opciones
+              etiqueta="Momento de evaluación"
+              valor={form.momento}
+              onChange={(v) => cambiar("momento", v)}
+              deshabilitado={bloqueada}
+              opciones={[
+                { valor: "PRIMERA", texto: "1ª observación" },
+                { valor: "SEGUNDA", texto: "2ª observación" },
+                { valor: "UNICA", texto: "Única" },
+              ]}
             />
-          </Campo>
-          {form.modoCalculo === "ESCALA_EXIGENCIA" && (
-            <Campo etiqueta="Exigencia (%)">
+            <Opciones
+              etiqueta="Quién evalúa"
+              valor={form.evaluador}
+              onChange={(v) => cambiar("evaluador", v)}
+              deshabilitado={bloqueada}
+              opciones={[
+                { valor: "COLABORADOR", texto: "Profesor/a colaborador/a" },
+                { valor: "TUTOR", texto: "Tutor/a" },
+                { valor: "ACADEMICO", texto: "Académico/a (profesor de la asignatura)" },
+              ]}
+            />
+          </div>
+        </Seccion>
+
+        <Seccion numero={2} titulo="Escala y nota" descripcion="Puntaje de cada indicador y cómo se calcula la nota final.">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Campo etiqueta="Cálculo de la nota" className="col-span-2">
+              <select
+                className={entradaClase}
+                value={form.modoCalculo}
+                onChange={(e) => cambiar("modoCalculo", e.target.value as ModoCalculo)}
+                disabled={bloqueada}
+              >
+                <option value="ESCALA_EXIGENCIA">Escala con exigencia (2,0 a 7,0)</option>
+                <option value="PROMEDIO">Promedio de los puntajes</option>
+              </select>
+            </Campo>
+            <Campo etiqueta="Puntaje mínimo">
               <input
                 className={entradaClase}
                 inputMode="numeric"
-                value={form.exigencia}
-                onChange={(e) => cambiar("exigencia", e.target.value)}
+                value={form.escalaMin}
+                onChange={(e) => cambiar("escalaMin", e.target.value)}
                 disabled={bloqueada}
               />
             </Campo>
-          )}
-          <Campo etiqueta="Ponderación">
-            <input
-              className={entradaClase}
-              value={form.ponderacion}
-              onChange={(e) => cambiar("ponderacion", e.target.value)}
-              placeholder="Ej.: 5%"
+            <Campo etiqueta="Puntaje máximo">
+              <input
+                className={entradaClase}
+                inputMode="numeric"
+                value={form.escalaMax}
+                onChange={(e) => cambiar("escalaMax", e.target.value)}
+                disabled={bloqueada}
+              />
+            </Campo>
+            {form.modoCalculo === "ESCALA_EXIGENCIA" && (
+              <Campo etiqueta="Exigencia (%)">
+                <input
+                  className={entradaClase}
+                  inputMode="numeric"
+                  value={form.exigencia}
+                  onChange={(e) => cambiar("exigencia", e.target.value)}
+                  disabled={bloqueada}
+                />
+              </Campo>
+            )}
+            <Campo etiqueta="Ponderación">
+              <input
+                className={entradaClase}
+                value={form.ponderacion}
+                onChange={(e) => cambiar("ponderacion", e.target.value)}
+                placeholder="Ej.: 5%"
+              />
+            </Campo>
+            <Campo etiqueta="Versión">
+              <input
+                className={entradaClase}
+                value={form.version}
+                onChange={(e) => cambiar("version", e.target.value)}
+                placeholder="Ej.: 2026-2"
+              />
+            </Campo>
+          </div>
+          <Campo etiqueta="Instrucciones para el evaluador">
+            <textarea
+              className="w-full min-h-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
+              value={form.instrucciones}
+              onChange={(e) => cambiar("instrucciones", e.target.value)}
+              placeholder="Texto que aparece al inicio de la pauta, igual que en el papel."
             />
           </Campo>
-          <Campo etiqueta="Versión">
-            <input
-              className={entradaClase}
-              value={form.version}
-              onChange={(e) => cambiar("version", e.target.value)}
-              placeholder="Ej.: 2026-2"
-            />
-          </Campo>
-        </section>
+        </Seccion>
 
-        <Campo etiqueta="Instrucciones para el evaluador">
-          <textarea
-            className="w-full min-h-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500"
-            value={form.instrucciones}
-            onChange={(e) => cambiar("instrucciones", e.target.value)}
-            placeholder="Texto que aparece al inicio de la pauta, igual que en el papel."
-          />
-        </Campo>
-
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Indicadores</h3>
-              <p className="text-xs text-slate-500">
-                {filas.length} {filas.length === 1 ? "indicador" : "indicadores"} · puntaje máximo {puntajeMaximo} pts
-                {puntajeAprobacion !== null &&
-                  ` · nota 4,0 desde ${puntajeAprobacion.toLocaleString("es-CL", { maximumFractionDigits: 1 })} pts`}
-              </p>
-            </div>
-            {!bloqueada && (
+        <Seccion
+          numero={3}
+          titulo="Indicadores"
+          descripcion="Se muestran a los evaluadores en este orden, igual que en la pauta en papel."
+          accion={
+            !bloqueada && (
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setMostrarPegar((v) => !v)}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer whitespace-nowrap"
                 >
                   <ClipboardPaste className="size-3.5" /> Pegar lista
                 </button>
                 <button
                   type="button"
                   onClick={agregarFila}
-                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-sky-300 bg-sky-50 text-xs font-semibold text-sky-800 hover:bg-sky-100 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-sky-300 bg-sky-50 text-xs font-semibold text-sky-800 hover:bg-sky-100 cursor-pointer whitespace-nowrap"
                 >
-                  <Plus className="size-3.5" /> Agregar indicador
+                  <Plus className="size-3.5" /> Agregar
                 </button>
               </div>
-            )}
-          </div>
-
+            )
+          }
+        >
           {mostrarPegar && !bloqueada && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+            <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 space-y-2">
               <p className="text-xs text-slate-600">
                 Pegue un indicador por línea. Se agregan al final, con la dimensión del último indicador; los números
                 iniciales como “1.” o “2)” se ignoran.
@@ -609,128 +635,146 @@ function EditorContenido({ user, tipo, id, onCerrar, onGuardada, onEliminada, on
             ))}
           </datalist>
 
-          {filas.length === 0 && (
-            <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-              Todavía no hay indicadores. Agregue uno o pegue la lista completa desde la pauta en papel.
-            </p>
-          )}
-
-          <ol className="space-y-2">
-            {filas.map((f, i) => (
-              <li key={f.clave} className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    aria-label={`Número del indicador ${i + 1}`}
-                    className={`${entradaClase} w-14 text-center shrink-0 font-semibold`}
-                    value={f.numero}
-                    onChange={(e) => cambiarFila(f.clave, "numero", e.target.value)}
-                    disabled={bloqueada}
-                  />
-                  <input
-                    aria-label={`Dimensión del indicador ${i + 1}`}
-                    list="dimensiones-pauta"
-                    className={entradaClase}
-                    value={f.dimension}
-                    onChange={(e) => cambiarFila(f.clave, "dimension", e.target.value)}
-                    placeholder="Dimensión o criterio (ej.: Dimensión A – Conocimiento y preparación)"
-                    disabled={bloqueada}
-                  />
-                  {!bloqueada && (
-                    <div className="flex shrink-0 items-center">
-                      <button
-                        type="button"
-                        onClick={() => moverFila(i, -1)}
-                        disabled={i === 0}
-                        aria-label="Subir indicador"
-                        className="size-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-                      >
-                        <ArrowUp className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moverFila(i, 1)}
-                        disabled={i === filas.length - 1}
-                        aria-label="Bajar indicador"
-                        className="size-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
-                      >
-                        <ArrowDown className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => quitarFila(f.clave)}
-                        aria-label="Quitar indicador"
-                        className="size-8 grid place-items-center rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+          {filas.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 text-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6">
+              <ListChecks className="size-7 text-slate-300 stroke-[1.5]" />
+              <p className="text-xs text-slate-500 max-w-sm">
+                Todavía no hay indicadores. Agregue uno o pegue la lista completa desde la pauta en papel.
+              </p>
+            </div>
+          ) : (
+            <ol className="space-y-2">
+              {filas.map((f, i) => (
+                <li key={f.clave} className="group rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300">
+                  <div className="flex items-start gap-2">
+                    <input
+                      aria-label={`Número del indicador ${i + 1}`}
+                      className="w-12 h-9 shrink-0 rounded-lg border border-slate-300 bg-white px-1 text-center text-sm font-bold text-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-500"
+                      value={f.numero}
+                      onChange={(e) => cambiarFila(f.clave, "numero", e.target.value)}
+                      disabled={bloqueada}
+                    />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <input
+                        aria-label={`Dimensión del indicador ${i + 1}`}
+                        list="dimensiones-pauta"
+                        className={`${entradaClase} h-9 text-xs font-semibold text-slate-700`}
+                        value={f.dimension}
+                        onChange={(e) => cambiarFila(f.clave, "dimension", e.target.value)}
+                        placeholder="Dimensión (ej.: Dimensión A – Conocimiento y preparación)"
+                        disabled={bloqueada}
+                      />
+                      <textarea
+                        aria-label={`Texto del indicador ${i + 1}`}
+                        className="w-full min-h-14 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-600"
+                        value={f.texto}
+                        onChange={(e) => cambiarFila(f.clave, "texto", e.target.value)}
+                        placeholder="Texto del indicador, tal como aparece en la pauta"
+                        disabled={bloqueada}
+                      />
                     </div>
-                  )}
-                </div>
-                <textarea
-                  aria-label={`Texto del indicador ${i + 1}`}
-                  className="w-full min-h-16 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-600"
-                  value={f.texto}
-                  onChange={(e) => cambiarFila(f.clave, "texto", e.target.value)}
-                  placeholder="Texto del indicador, tal como aparece en la pauta"
-                  disabled={bloqueada}
-                />
-              </li>
-            ))}
-          </ol>
-        </section>
+                    {!bloqueada && (
+                      <div className="flex flex-col shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => moverFila(i, -1)}
+                          disabled={i === 0}
+                          aria-label="Subir indicador"
+                          className="size-7 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                        >
+                          <ArrowUp className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moverFila(i, 1)}
+                          disabled={i === filas.length - 1}
+                          aria-label="Bajar indicador"
+                          className="size-7 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                        >
+                          <ArrowDown className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => quitarFila(f.clave)}
+                          aria-label="Quitar indicador"
+                          className="size-7 grid place-items-center rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          {!bloqueada && filas.length > 0 && (
+            <button
+              type="button"
+              onClick={agregarFila}
+              className="w-full inline-flex items-center justify-center gap-1.5 h-9 rounded-xl border border-dashed border-slate-300 text-xs font-semibold text-slate-600 hover:border-sky-300 hover:text-sky-700 hover:bg-sky-50/50 cursor-pointer"
+            >
+              <Plus className="size-3.5" /> Agregar otro indicador
+            </button>
+          )}
+        </Seccion>
 
-        <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3 cursor-pointer">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4 accent-sky-600"
-            checked={form.activa}
-            onChange={(e) => cambiar("activa", e.target.checked)}
-          />
-          <span className="text-sm text-slate-700">
-            <span className="font-semibold text-slate-900">Pauta activa.</span> Los evaluadores solo ven las pautas
-            activas.
-          </span>
-        </label>
+        <Seccion numero={4} titulo="Publicación">
+          <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-sky-600"
+              checked={form.activa}
+              onChange={(e) => cambiar("activa", e.target.checked)}
+            />
+            <span className="text-sm text-slate-700">
+              <span className="font-semibold text-slate-900">Pauta activa.</span> Los evaluadores solo ven las pautas
+              activas.
+            </span>
+          </label>
+        </Seccion>
+      </div>
 
+      {/* Pie fijo */}
+      <div className="px-6 py-4 border-t border-slate-200 bg-white shrink-0 space-y-3">
         {error && (
-          <p role="alert" className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3">
+          <p role="alert" className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
-      </div>
-
-      <DialogFooter className="gap-2 sm:justify-between">
-        <div>
-          {tipo === "editar" && !bloqueada && id != null && (
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            {tipo === "editar" && !bloqueada && id != null && (
+              <button
+                type="button"
+                onClick={() => setConfirmarEliminar(true)}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+              >
+                <Trash2 className="size-4" /> Eliminar pauta
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end">
             <button
               type="button"
-              onClick={() => setConfirmarEliminar(true)}
-              className="h-9 px-3 rounded-lg text-sm font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+              onClick={onCerrar}
+              disabled={guardando}
+              className="h-10 px-4 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
             >
-              Eliminar pauta
+              Cancelar
             </button>
-          )}
+            <button
+              type="button"
+              onClick={guardar}
+              disabled={guardando}
+              className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+            >
+              {guardando && <Loader2 className="size-4 animate-spin" />}
+              {tipo === "editar" ? "Guardar cambios" : "Crear pauta"}
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onCerrar}
-            disabled={guardando}
-            className="h-9 px-4 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={guardar}
-            disabled={guardando}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-sky-600 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-60 cursor-pointer"
-          >
-            {guardando && <Loader2 className="size-4 animate-spin" />}
-            {tipo === "editar" ? "Guardar cambios" : "Crear pauta"}
-          </button>
-        </div>
-      </DialogFooter>
+      </div>
 
       <ConfirmDeleteDialog
         open={confirmarEliminar}
@@ -743,11 +787,95 @@ function EditorContenido({ user, tipo, id, onCerrar, onGuardada, onEliminada, on
   );
 }
 
+function Seccion({
+  numero,
+  titulo,
+  descripcion,
+  accion,
+  children,
+}: {
+  numero: number;
+  titulo: string;
+  descripcion?: string;
+  accion?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="size-6 shrink-0 rounded-full bg-slate-900 text-white text-xs font-bold grid place-items-center">
+            {numero}
+          </span>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">{titulo}</h3>
+            {descripcion && <p className="text-xs text-slate-500 mt-0.5">{descripcion}</p>}
+          </div>
+        </div>
+        {accion}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Resumen({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{etiqueta}</p>
+      <p className="text-sm font-bold text-slate-900">{valor}</p>
+    </div>
+  );
+}
+
+/** Selector de una opción entre pocas, como botones (más rápido que un desplegable). */
+function Opciones({
+  etiqueta,
+  valor,
+  onChange,
+  opciones,
+  deshabilitado,
+}: {
+  etiqueta: string;
+  valor: string;
+  onChange: (valor: string) => void;
+  opciones: { valor: string; texto: string }[];
+  deshabilitado?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-semibold text-slate-700">{etiqueta}</span>
+      <div role="radiogroup" aria-label={etiqueta} className="flex flex-wrap gap-1.5">
+        {opciones.map((o) => {
+          const activa = valor === o.valor;
+          return (
+            <button
+              key={o.valor}
+              type="button"
+              role="radio"
+              aria-checked={activa}
+              disabled={deshabilitado}
+              onClick={() => onChange(o.valor)}
+              className={`h-8 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                activa
+                  ? "bg-sky-600 border-sky-600 text-white"
+                  : "bg-white border-slate-300 text-slate-600 hover:bg-sky-50 hover:border-sky-300"
+              }`}
+            >
+              {o.texto}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** Crear, editar o copiar como nueva versión una pauta del catálogo (HU-21). Solo el coordinador la usa. */
 export function PautaEditor({ user, modo, onCerrar, onGuardada, onEliminada, onNuevaVersion }: PautaEditorProps) {
   return (
     <Dialog open={modo !== null} onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="sm:max-w-3xl bg-white border border-slate-200">
+      <DialogContent className="sm:max-w-4xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden bg-white border border-slate-200">
         {modo && (
           <EditorContenido
             key={`${modo.tipo}-${modo.tipo === "crear" ? "nueva" : modo.id}`}
