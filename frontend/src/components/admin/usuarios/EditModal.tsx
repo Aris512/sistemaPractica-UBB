@@ -105,13 +105,12 @@ export function EditModal({
   const [centroId, setCentroId] = useState("");
   const [loadingCentros, setLoadingCentros] = useState(false);
 
-  // Solo Profesor Colaborador, Tutor de Práctica y Coordinador deben tener la opción de Centro de Práctica
-  // Profesor de Asignatura NO debe tener esta opción
+  // Solo Profesor Colaborador y Tutor de Práctica deben tener la opción de Centro de Práctica
+  // Profesor de Asignatura y Coordinador NO deben tener esta opción
   const isProfesorColaborador =
     !rol.toUpperCase().includes("ASIGNATURA") &&
     (rol.toUpperCase().includes("COLABORADOR") ||
-    rol.toUpperCase().includes("TUTOR") ||
-    rol.toUpperCase().includes("COORDINADOR"));
+    rol.toUpperCase().includes("TUTOR"));
 
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
