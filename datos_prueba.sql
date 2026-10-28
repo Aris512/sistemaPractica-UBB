@@ -4,6 +4,8 @@
 -- Hash BCrypt: $2a$10$ezhtRD1lNXnT8z3Ds7G2qOYnGztHc2/sFiT0zOKeCZlZghk0phZjS
 -- =========================================================================
 
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- 1. Limpieza de tablas previas (para inserción limpia)
