@@ -186,7 +186,7 @@ public class CoordinadorController {
     }
 
     /**
-     * Retorna el listado simple de estudiantes que pertenecen a alguna de las 6 asignaturas de práctica.
+     * Retorna el listado simple de estudiantes de Práctica Pedagógica (8.°) y Práctica Profesional (9.°).
      * Sin columnas innecesarias (RUT, teléfono, etc. sólo expuestos internamente si es necesario).
      */
     @GetMapping("/estudiantes-practica")
@@ -195,7 +195,9 @@ public class CoordinadorController {
         List<Map<String, Object>> resultado = new ArrayList<>();
 
         for (Estudiante est : todos) {
-            if (est.getAsignatura() == null || !esAsignaturaPractica(est.getAsignatura())) {
+            // El inicio del coordinador solo lista a los alumnos de 8.° y 9.° semestre
+            String nivel = nivelPractica(est.getAsignatura());
+            if (!"PEDAGOGICA".equals(nivel) && !"PROFESIONAL".equals(nivel)) {
                 continue;
             }
 
