@@ -59,6 +59,7 @@ public class DataSeeder implements CommandLineRunner {
                       @Value("${SEED_ADMIN_NOMBRE:Administrador}") String adminNombre,
                       @Value("${SEED_ADMIN_APELLIDO:Sistema}") String adminApellido,
                       @Value("${SEED_ADMIN_CORREO:admin@sistema.local}") String adminCorreo) {
+                        
         this.rolRepository = rolRepository;
         this.usuarioRepository = usuarioRepository;
         this.asignaturaRepository = asignaturaRepository;
