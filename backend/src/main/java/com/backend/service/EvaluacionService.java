@@ -663,8 +663,8 @@ public class EvaluacionService {
             documentoPracticaRepository.flush();
         }
 
-        // 4. Eliminar Notas y Evaluaciones del estudiante
-        List<Nota> notas = notaRepository.findByEstudianteIdEstudiante(idEstudiante);
+        // 4. Eliminar Notas y Evaluaciones del estudiante (las de pautas se gestionan desde el módulo de pautas)
+        List<Nota> notas = notaRepository.findSinPautaByEstudiante(idEstudiante);
         Set<Long> evaluacionesProcesadas = new HashSet<>();
 
         for (Nota nota : notas) {

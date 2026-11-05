@@ -20,6 +20,7 @@ import com.backend.model.Evaluacion;
 import com.backend.model.Evidencia;
 import com.backend.model.Nota;
 import com.backend.model.ObservacionEvaluacion;
+import com.backend.model.PautaAplicacion;
 import com.backend.model.Practica;
 import com.backend.model.Usuario;
 import com.backend.repository.EstudianteRepository;
@@ -27,6 +28,7 @@ import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.EvidenciaRepository;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionEvaluacionRepository;
+import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.UsuarioRepository;
@@ -43,6 +45,7 @@ public class EstudianteService {
     private final ObservacionEvaluacionRepository observacionEvaluacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final ProfesorRepository profesorRepository;
+    private final PautaAplicacionRepository pautaAplicacionRepository;
 
     public EstudianteService(EstudianteRepository estudianteRepository,
                              EvidenciaRepository evidenciaRepository,
@@ -51,7 +54,9 @@ public class EstudianteService {
                              NotaRepository notaRepository,
                              ObservacionEvaluacionRepository observacionEvaluacionRepository,
                              UsuarioRepository usuarioRepository,
-                             ProfesorRepository profesorRepository) {
+                             ProfesorRepository profesorRepository,
+                             PautaAplicacionRepository pautaAplicacionRepository) {
+        this.pautaAplicacionRepository = pautaAplicacionRepository;
         this.estudianteRepository = estudianteRepository;
         this.evidenciaRepository = evidenciaRepository;
         this.practicaRepository = practicaRepository;
@@ -188,17 +193,22 @@ public class EstudianteService {
             if (ev != null) {
                 evalsProcesadas.add(ev.getIdEvaluacion());
             }
+            // Nota de una pauta finalizada: se muestra con el título, la fecha y las observaciones de la pauta
+            PautaAplicacion pauta = ev == null
+                    ? pautaAplicacionRepository.findByNotaIdNota(n.getIdNota()).orElse(null)
+                    : null;
 
             String titulo = (ev != null && ev.getTipoEvaluacion() != null && !ev.getTipoEvaluacion().isBlank())
                     ? ev.getTipoEvaluacion()
-                    : "Evaluación Docente";
+                    : pauta != null ? pauta.getPauta().getTitulo() : "Evaluación Docente";
 
             LocalDateTime fecha = (ev != null && ev.getFecha() != null)
                     ? ev.getFecha()
-                    : LocalDateTime.now();
+                    : pauta != null && pauta.getFechaFinalizacion() != null ? pauta.getFechaFinalizacion() : LocalDateTime.now();
             String fechaFormateada = fecha != null ? fecha.format(simpleFormatter) : "—";
 
-            String observacion = (ev != null && ev.getObservacion() != null) ? ev.getObservacion() : "";
+            String observacion = (ev != null && ev.getObservacion() != null) ? ev.getObservacion()
+                    : pauta != null && pauta.getObservaciones() != null ? pauta.getObservaciones() : "";
             if (ev != null) {
                 List<ObservacionEvaluacion> obsExtra = observacionEvaluacionRepository.findByEvaluacion_IdEvaluacion(ev.getIdEvaluacion());
                 if (!obsExtra.isEmpty()) {
@@ -233,7 +243,7 @@ public class EstudianteService {
                     true, // Check completado
                     n.getPuntajeObtenido(),
                     evaluador,
-                    ev != null ? ev.getTipoEvaluador() : "Evaluador",
+                    ev != null ? ev.getTipoEvaluador() : pauta != null ? "Pauta de evaluación" : "Evaluador",
                     observacion,
                     ev != null ? ev.getNombreArchivo() : null,
                     ev != null ? ev.getArchivoUrl() : null

@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -63,7 +64,10 @@ public class PautaAplicacion {
     @Column(name = "puntaje_maximo")
     private Double puntajeMaximo;
 
-    private Double nota;
+    /** Nota de la pauta finalizada: vive en la tabla nota, ligada al estudiante. */
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_nota")
+    private Nota nota;
 
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
@@ -93,8 +97,8 @@ public class PautaAplicacion {
     public void setPuntajeObtenido(Double puntajeObtenido) { this.puntajeObtenido = puntajeObtenido; }
     public Double getPuntajeMaximo() { return puntajeMaximo; }
     public void setPuntajeMaximo(Double puntajeMaximo) { this.puntajeMaximo = puntajeMaximo; }
-    public Double getNota() { return nota; }
-    public void setNota(Double nota) { this.nota = nota; }
+    public Nota getNota() { return nota; }
+    public void setNota(Nota nota) { this.nota = nota; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
     public LocalDateTime getFechaFinalizacion() { return fechaFinalizacion; }

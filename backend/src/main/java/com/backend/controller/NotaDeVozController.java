@@ -60,16 +60,22 @@ public class NotaDeVozController {
         return ResponseEntity.ok(notaDeVozService.obtenerPorEstudiante(idEstudiante));
     }
 
+    @GetMapping("/pauta-aplicacion/{idAplicacion}")
+    public ResponseEntity<List<NotaDeVozDTO>> obtenerPorAplicacionPauta(@PathVariable Long idAplicacion) {
+        return ResponseEntity.ok(notaDeVozService.obtenerPorAplicacionPauta(idAplicacion));
+    }
+
     @PostMapping(value = "/subir", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<NotaDeVozDTO> subirNotaDeVoz(
             @RequestParam(value = "idEvaluacion", required = false) Long idEvaluacion,
+            @RequestParam(value = "idAplicacionPauta", required = false) Long idAplicacionPauta,
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "duracion", required = false) String duracion,
             @RequestParam(value = "transcripcion", required = false) String transcripcion,
             @RequestParam(value = "rutGrabador", required = false) String rutGrabador,
             @RequestParam(value = "nombreGrabador", required = false) String nombreGrabador) {
         return ResponseEntity.ok(notaDeVozService.guardarNotaDeVoz(
-                idEvaluacion, file, duracion, transcripcion, rutGrabador, nombreGrabador
+                idEvaluacion, idAplicacionPauta, file, duracion, transcripcion, rutGrabador, nombreGrabador
         ));
     }
 
