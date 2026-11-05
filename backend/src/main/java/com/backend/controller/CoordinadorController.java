@@ -123,13 +123,16 @@ public class CoordinadorController {
         return "PEDAGOGICA".equals(nivel) || "PROFESIONAL".equals(nivel);
     }
 
-    /** Ya está asociado si su práctica de esa asignatura tiene profesor colaborador o tutor. */
+    /**
+     * Ya está asociado si su práctica de esa asignatura tiene profesor colaborador y tutor. Una asociación
+     * anterior sin tutor sigue pendiente, para que el coordinador pueda completarla.
+     */
     private boolean estaAsociado(Estudiante est, Long idAsignatura) {
         List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
         return practicas != null && practicas.stream()
             .filter(p -> p.getAsignatura() != null && idAsignatura.equals(p.getAsignatura().getIdAsignatura()))
             .anyMatch(p -> p.getTutorPractica() != null
-                || (p.getProfesoresColaboradores() != null && !p.getProfesoresColaboradores().isEmpty()));
+                && p.getProfesoresColaboradores() != null && !p.getProfesoresColaboradores().isEmpty());
     }
 
     /** Las prácticas iniciales son simulaciones en la universidad: no hay colegio ni profesor colaborador. */
@@ -137,9 +140,9 @@ public class CoordinadorController {
         return nivel != null && !"INICIAL".equals(nivel);
     }
 
-    /** Solo en la Práctica Profesional interviene un tutor/supervisor contratado por la universidad. */
+    /** Desde 8.° semestre (Práctica Pedagógica y Profesional) interviene un tutor/supervisor de la universidad. */
     private boolean requiereTutor(String nivel) {
-        return "PROFESIONAL".equals(nivel);
+        return esPracticaFinal(nivel);
     }
 
     private static int semestreNum(Asignatura a) {
@@ -174,7 +177,7 @@ public class CoordinadorController {
 
     /**
      * Retorna las asignaturas de práctica que asocia el coordinador, de 8.° y 9.° semestre (ordenadas por semestre),
-     * indicando qué participantes requiere cada una: profesor colaborador / centro y tutor (solo Práctica Profesional).
+     * indicando qué participantes requiere cada una: profesor colaborador, centro y tutor.
      */
     @GetMapping("/asignaturas-practica")
     public ResponseEntity<List<Map<String, Object>>> obtenerAsignaturasPractica() {
@@ -396,8 +399,8 @@ public class CoordinadorController {
     /**
      * Asocia Estudiante + Asignatura de práctica (+ Profesor Colaborador, Tutor y Centro según el ciclo):
      * - Iniciales (Aproximación al Sistema Escolar, Ambientes de Aprendizaje): solo estudiante y asignatura.
-     * - Intermedias y Práctica Pedagógica: además profesor colaborador y centro (obligatorio, sin valor por defecto).
-     * - Práctica Profesional: además tutor universitario.
+     * - Intermedias: además profesor colaborador y centro (obligatorio, sin valor por defecto).
+     * - Práctica Pedagógica (8.°) y Práctica Profesional (9.°): además tutor universitario.
      *
      * Protecciones:
      * - Exige el permiso PRACTICAS_ASOCIAR.
@@ -484,7 +487,7 @@ public class CoordinadorController {
             ));
         }
 
-        // 3. Tutor (solo Práctica Profesional)
+        // 3. Tutor (desde 8.° semestre)
         TutorPractica tutor = null;
         if (requiereTutor(nivel)) {
             tutor = tutorPracticaRepository.findById(idTutor).orElse(null);
@@ -547,13 +550,18 @@ public class CoordinadorController {
             || !Objects.equals(tutorActualId, tutorNuevoId);
         boolean cambiaAsignatura = existente != null && existente.getAsignatura() != null
             && !idAsignatura.equals(existente.getAsignatura().getIdAsignatura());
+        // Completar una asociación que no tenía tutor (mismo colaborador) no reemplaza a nadie: no pide
+        // confirmación y se permite aunque ya haya pautas, porque las evaluaciones existentes no cambian.
+        boolean soloAgregaTutor = tutorActualId == null && tutorNuevoId != null
+            && colaboradoresActualesIds.equals(colaboradoresNuevosIds) && !cambiaAsignatura;
+        boolean reemplazaEvaluadores = teniaAsociacion && cambiaEvaluadores && !soloAgregaTutor;
 
-        if (existente != null && tienePautas && ((teniaAsociacion && cambiaEvaluadores) || cambiaAsignatura)) {
+        if (existente != null && tienePautas && (reemplazaEvaluadores || cambiaAsignatura)) {
             return conflicto("PAUTAS_APLICADAS",
                 "No se puede reemplazar la asociación: la práctica de este estudiante ya tiene pautas de evaluación aplicadas. " +
                 "Cambiar a sus evaluadores dejaría esas evaluaciones sin respaldo.");
         }
-        if (teniaAsociacion && cambiaEvaluadores && !reemplazar) {
+        if (reemplazaEvaluadores && !reemplazar) {
             String actual = colaboradoresPrevios.isEmpty() ? "sin colaborador"
                 : "colaborador " + colaboradoresPrevios.stream()
                     .map(c -> nombreCompleto(c.getUsuario()))
