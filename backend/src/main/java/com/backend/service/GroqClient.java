@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.logging.Logger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
@@ -32,7 +33,7 @@ import org.springframework.web.client.RestClientResponseException;
 @Service
 public class GroqClient {
 
-    private static final Logger logger = Logger.getLogger(GroqClient.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(GroqClient.class);
 
     private static final Pattern CODIGO_ERROR = Pattern.compile("\"code\"\\s*:\\s*\"([A-Za-z0-9_.-]{1,64})\"");
 
@@ -73,9 +74,9 @@ public class GroqClient {
                 .build();
 
         if (this.apiKey.isEmpty()) {
-            logger.warning("[GroqClient] GROQ_API_KEY no está configurada: el chatbot de IA responderá que el servicio no está disponible.");
+            logger.warn("[GroqClient] GROQ_API_KEY no está configurada: el chatbot de IA responderá que el servicio no está disponible.");
         } else {
-            logger.info("[GroqClient] Chatbot de IA configurado con el modelo " + this.model + ".");
+            logger.info("[GroqClient] Chatbot de IA configurado con el modelo {}.", this.model);
         }
     }
 
@@ -109,15 +110,15 @@ public class GroqClient {
             throw traducirErrorHttp(e);
         } catch (ResourceAccessException e) {
             if (esTimeout(e)) {
-                logger.warning("[GroqClient] Tiempo de espera agotado al consultar Groq.");
+                logger.warn("[GroqClient] Tiempo de espera agotado al consultar Groq.");
                 throw new ChatException(HttpStatus.GATEWAY_TIMEOUT, "IA_TIEMPO_AGOTADO",
                         "El asistente de IA tardó demasiado en responder. Inténtalo nuevamente.");
             }
-            logger.warning("[GroqClient] No se pudo conectar con Groq: " + e.getClass().getSimpleName());
+            logger.warn("[GroqClient] No se pudo conectar con Groq: {}", e.getClass().getSimpleName());
             throw new ChatException(HttpStatus.SERVICE_UNAVAILABLE, "IA_NO_DISPONIBLE",
                     "No se pudo conectar con el servicio de IA. Inténtalo más tarde.");
         } catch (RestClientException e) {
-            logger.warning("[GroqClient] Respuesta ilegible de Groq: " + e.getClass().getSimpleName());
+            logger.warn("[GroqClient] Respuesta ilegible de Groq: {}", e.getClass().getSimpleName());
             throw respuestaInvalida();
         }
 
@@ -135,8 +136,8 @@ public class GroqClient {
         Object content = ((Map<String, Object>) message).get("content");
         if (!(content instanceof String texto) || texto.isBlank()) {
             // Ocurre, por ejemplo, si el razonamiento del modelo consumió todos los tokens (finish_reason=length)
-            logger.warning("[GroqClient] Groq devolvió una respuesta sin contenido (finish_reason="
-                    + ((Map<String, Object>) choice).get("finish_reason") + ").");
+            logger.warn("[GroqClient] Groq devolvió una respuesta sin contenido (finish_reason={}).",
+                    ((Map<String, Object>) choice).get("finish_reason"));
             throw respuestaInvalida();
         }
         return texto.trim();
@@ -149,7 +150,7 @@ public class GroqClient {
 
     private ChatException traducirErrorHttp(RestClientResponseException e) {
         int status = e.getStatusCode().value();
-        logger.warning("[GroqClient] Groq respondió HTTP " + status + " (código: " + codigoErrorGroq(e) + ").");
+        logger.warn("[GroqClient] Groq respondió HTTP {} (código: {}).", status, codigoErrorGroq(e));
 
         if (status == 401 || status == 403) {
             return new ChatException(HttpStatus.BAD_GATEWAY, "IA_AUTENTICACION",
@@ -208,7 +209,7 @@ public class GroqClient {
      */
     public String transcribirAudio(byte[] audioBytes, String nombreArchivo) {
         if (!estaConfigurado() || audioBytes == null || audioBytes.length == 0) {
-            logger.warning("[GroqClient] No se puede transcribir audio: Groq no está configurado (GROQ_API_KEY vacía).");
+            logger.warn("[GroqClient] No se puede transcribir audio: Groq no está configurado (GROQ_API_KEY vacía).");
             return null;
         }
 
@@ -228,7 +229,7 @@ public class GroqClient {
         body.add("response_format", "json");
 
         try {
-            logger.info("[GroqClient] Enviando audio a Groq Whisper (" + this.whisperModel + ") para transcripción...");
+            logger.info("[GroqClient] Enviando audio a Groq Whisper ({}) para transcripción...", this.whisperModel);
             Map<?, ?> respuesta = RestClient.builder()
                     .baseUrl(this.whisperUrl)
                     .requestFactory(new BufferingClientHttpRequestFactory(new JdkClientHttpRequestFactory()))
@@ -242,13 +243,13 @@ public class GroqClient {
 
             if (respuesta != null && respuesta.get("text") != null) {
                 String transcripcion = respuesta.get("text").toString().trim();
-                logger.info("[GroqClient] Transcripción completada con éxito (" + transcripcion.length() + " caracteres).");
+                logger.info("[GroqClient] Transcripción completada con éxito ({} caracteres).", transcripcion.length());
                 return transcripcion;
             }
         } catch (RestClientResponseException e) {
-            logger.warning("[GroqClient] Groq Whisper respondió error HTTP " + e.getStatusCode() + ": " + e.getResponseBodyAsString());
+            logger.warn("[GroqClient] Groq Whisper respondió HTTP {} (código: {}).", e.getStatusCode().value(), codigoErrorGroq(e));
         } catch (Exception e) {
-            logger.warning("[GroqClient] Error al conectar con Groq Whisper: " + e.getMessage());
+            logger.warn("[GroqClient] Error al conectar con Groq Whisper: {}", e.getClass().getSimpleName());
         }
         return null;
     }
