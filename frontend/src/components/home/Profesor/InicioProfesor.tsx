@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { UserSession } from "@/types/auth";
-import type { ProfesorMenuKey } from "./types";
+import type { EstudianteEvidenciaRow, ProfesorMenuKey } from "./types";
+import { EstadoEntregaBadge, EstadoRevisionBadge } from "./TableBadges";
 import {
+  ArrowLeft,
   ArrowRight,
   BookOpen,
   CalendarDays,
@@ -15,11 +17,14 @@ import {
   MessageSquareText,
   Plus,
   RefreshCw,
+  Search,
   Users,
 } from "lucide-react";
 
-// Paleta del inicio docente: tinta, gris perla, azul (al día) y rojo (pendiente)
-const TINTA = "#10141A";
+// Paleta del inicio docente: texto pizarra, gris perla, azul (al día) y rojo (pendiente)
+const TINTA = "#1e293b";
+// Acento celeste de la plataforma (sidebar y cabecera usan la misma familia sky)
+const ACENTO = "#0284c7";
 const AZUL = "#83A2DB";
 const ROJO = "#CE6969";
 
@@ -27,6 +32,7 @@ interface SeguimientoDto {
   idEstudiante: number;
   nombre: string;
   rut: string;
+  correo?: string | null;
   actividadTitulo: string;
   estadoEntrega: string;
   estadoRevision: string;
@@ -173,11 +179,156 @@ function Anillo({ valor, total, color, etiqueta }: { valor: number; total: numbe
   );
 }
 
+/** Página con todos los estudiantes de la asignatura y los datos de su última entrega. */
+function ListaEstudiantes({
+  estudiantes,
+  asignatura,
+  onVolver,
+  onEvaluar,
+}: {
+  estudiantes: SeguimientoDto[];
+  asignatura?: string;
+  onVolver: () => void;
+  onEvaluar: () => void;
+}) {
+  const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<Etapa | "todos">("todos");
+
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return estudiantes
+      .filter((s) => filtro === "todos" || etapaDe(s) === filtro)
+      .filter(
+        (s) =>
+          !q ||
+          s.nombre.toLowerCase().includes(q) ||
+          s.rut?.toLowerCase().includes(q) ||
+          s.correo?.toLowerCase().includes(q)
+      )
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [estudiantes, busqueda, filtro]);
+
+  const filtros: { valor: Etapa | "todos"; texto: string }[] = [
+    { valor: "todos", texto: "Todos" },
+    { valor: "sin-entrega", texto: "Sin entrega" },
+    { valor: "por-revisar", texto: "Por revisar" },
+    { valor: "revisado", texto: "Revisados" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[28px] bg-white border border-slate-200/70 p-4 sm:p-6 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <AccionCircular titulo="Volver al inicio" onClick={onVolver}>
+              <ArrowLeft className="size-4" />
+            </AccionCircular>
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight" style={{ color: TINTA }}>
+                Estudiantes
+              </h2>
+              <p className="text-xs text-slate-500">
+                {asignatura ? `${asignatura} · ` : ""}
+                {estudiantes.length} {estudiantes.length === 1 ? "estudiante activo" : "estudiantes activos"}
+              </p>
+            </div>
+          </div>
+          <label className="relative w-full sm:w-72">
+            <Search className="size-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, RUT o correo"
+              className="w-full rounded-full border border-slate-200 bg-slate-50 pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            />
+          </label>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {filtros.map((f) => (
+            <button
+              key={f.valor}
+              type="button"
+              onClick={() => setFiltro(f.valor)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-colors cursor-pointer ${
+                filtro === f.valor
+                  ? "bg-sky-600 border-sky-600 text-white"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {f.texto}
+            </button>
+          ))}
+        </div>
+
+        {filtrados.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 py-12 text-center text-xs text-slate-500">
+            No hay estudiantes que coincidan con la búsqueda.
+          </div>
+        ) : (
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-left text-[13px]">
+              <thead>
+                <tr className="text-[11px] text-slate-400">
+                  <th className="font-medium px-2 pb-2">Estudiante</th>
+                  <th className="font-medium px-2 pb-2">RUT</th>
+                  <th className="font-medium px-2 pb-2 hidden md:table-cell">Correo</th>
+                  <th className="font-medium px-2 pb-2 hidden lg:table-cell">Última actividad</th>
+                  <th className="font-medium px-2 pb-2">Entrega</th>
+                  <th className="font-medium px-2 pb-2">Revisión</th>
+                  <th className="font-medium px-2 pb-2 hidden sm:table-cell">Fecha de entrega</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map((s) => (
+                  <tr
+                    key={s.idEstudiante}
+                    onClick={onEvaluar}
+                    className="border-t border-slate-100 hover:bg-slate-50/80 cursor-pointer"
+                  >
+                    <td className="px-2 py-3">
+                      <span className="flex items-center gap-3">
+                        <Avatar nombre={s.nombre} id={s.idEstudiante} size="sm" />
+                        <span className="font-medium" style={{ color: TINTA }}>
+                          {s.nombre}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-2 py-3 text-slate-600 whitespace-nowrap">{s.rut || "—"}</td>
+                    <td className="px-2 py-3 text-slate-500 hidden md:table-cell">{s.correo || "—"}</td>
+                    <td className="px-2 py-3 text-slate-500 hidden lg:table-cell">
+                      {s.estadoEntrega === "ENTREGADO" ? s.actividadTitulo : "—"}
+                    </td>
+                    <td className="px-2 py-3">
+                      <EstadoEntregaBadge estado={s.estadoEntrega as EstudianteEvidenciaRow["estadoEntrega"]} />
+                    </td>
+                    <td className="px-2 py-3">
+                      <EstadoRevisionBadge
+                        estado={s.estadoRevision as EstudianteEvidenciaRow["estadoRevision"]}
+                        calificacion={s.calificacion}
+                      />
+                    </td>
+                    <td className="px-2 py-3 text-slate-500 hidden sm:table-cell whitespace-nowrap">
+                      {fechaCorta(s.fechaSubida)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, onNavigate }: InicioProfesorProps) {
   const [seguimiento, setSeguimiento] = useState<SeguimientoDto[]>([]);
   const [actividades, setActividades] = useState<ActividadDto[]>([]);
   const [asignatura, setAsignatura] = useState<AsignaturaDto | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [verEstudiantes, setVerEstudiantes] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!user?.rut) {
@@ -271,26 +422,37 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
     );
   }
 
+  if (verEstudiantes) {
+    return (
+      <ListaEstudiantes
+        estudiantes={seguimiento}
+        asignatura={asignatura?.nombre}
+        onVolver={() => setVerEstudiantes(false)}
+        onEvaluar={irAEvaluar}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* ── Encabezado ── */}
       <section
-        className="rounded-[28px] p-6 sm:p-8 text-white relative overflow-hidden"
-        style={{ background: `radial-gradient(120% 140% at 85% 0%, #3a3f47 0%, ${TINTA} 55%)` }}
+        className="rounded-[28px] p-6 sm:p-8 relative overflow-hidden border border-sky-100"
+        style={{ background: "linear-gradient(120deg, #dbeefc 0%, #eef6fd 50%, #ffffff 100%)", color: TINTA }}
       >
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 relative">
           <div className="space-y-3">
-            <span className="text-xs text-white/60">Panel del profesor de asignatura</span>
+            <span className="text-xs font-medium text-sky-700">Panel del profesor de asignatura</span>
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
               Hola, {user.nombre || "profesor"}
             </h1>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 border border-white/15">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-sky-900">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 border border-sky-100">
                 <BookOpen className="size-3.5" />
                 {asignatura?.nombre ?? "Sin asignatura asignada"}
               </span>
               {asignatura?.semestre && (
-                <span className="rounded-full bg-white/10 px-3 py-1.5 border border-white/15">
+                <span className="rounded-full bg-white/80 px-3 py-1.5 border border-sky-100">
                   Semestre {asignatura.semestre}
                 </span>
               )}
@@ -299,17 +461,27 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
 
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {[
-              { valor: total, etiqueta: "Estudiantes", icono: <Users className="size-4" /> },
-              { valor: activas, etiqueta: "Actividades activas", icono: <CalendarDays className="size-4" /> },
-              { valor: etapas["por-revisar"].length, etiqueta: "Por revisar", icono: <ClipboardCheck className="size-4" /> },
+              {
+                valor: total,
+                etiqueta: "Estudiantes",
+                icono: <Users className="size-4" />,
+                onClick: () => setVerEstudiantes(true),
+              },
+              { valor: activas, etiqueta: "Actividades activas", icono: <CalendarDays className="size-4" />, onClick: () => onNavigate("actividades") },
+              { valor: etapas["por-revisar"].length, etiqueta: "Por revisar", icono: <ClipboardCheck className="size-4" />, onClick: irAEvaluar },
             ].map((m) => (
-              <div key={m.etiqueta} className="rounded-2xl bg-white/[0.07] border border-white/10 px-3 sm:px-4 py-3 min-w-0 break-words">
-                <div className="flex items-start gap-1.5 text-white/60 text-[11px] leading-tight">
-                  <span className="shrink-0">{m.icono}</span>
+              <button
+                key={m.etiqueta}
+                type="button"
+                onClick={m.onClick}
+                className="rounded-2xl bg-white/80 border border-sky-100 px-3 sm:px-4 py-3 min-w-0 break-words text-left hover:bg-white hover:shadow-sm transition cursor-pointer"
+              >
+                <div className="flex items-start gap-1.5 text-slate-500 text-[11px] leading-tight">
+                  <span className="shrink-0 text-sky-600">{m.icono}</span>
                   <span>{m.etiqueta}</span>
                 </div>
                 <div className="text-2xl font-semibold mt-1">{m.valor}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -326,11 +498,16 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
           </div>
 
           {total > 0 && (
-            <div className="hidden md:flex items-center rounded-full bg-white/70 border border-white px-3 py-2 -space-x-2">
+            <button
+              type="button"
+              onClick={() => setVerEstudiantes(true)}
+              title="Ver la lista de estudiantes"
+              className="hidden md:flex items-center rounded-full bg-white/70 border border-white px-3 py-2 -space-x-2 hover:bg-white hover:shadow-sm transition cursor-pointer"
+            >
               {seguimiento.slice(0, 8).map((s) => {
                 const etapa = etapaDe(s);
                 return (
-                  <span key={s.idEstudiante} className="relative" title={s.nombre}>
+                  <span key={s.idEstudiante} className="relative">
                     <Avatar nombre={s.nombre} id={s.idEstudiante} />
                     <span
                       className="absolute -bottom-1 left-1/2 -translate-x-1/2 size-3 rounded-full ring-2 ring-white"
@@ -344,7 +521,7 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
                   +{total - 8}
                 </span>
               )}
-            </div>
+            </button>
           )}
 
           <div className="flex items-center gap-2">
@@ -365,12 +542,12 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
             const lista = etapas[etapa];
             return (
               <div key={etapa} className="flex flex-col gap-3">
-                <div className="rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(16,20,26,0.04)] flex-1 min-h-[220px]">
+                <div className="rounded-3xl bg-white p-2 shadow-[0_1px_2px_rgba(16,20,26,0.04)] h-[340px] flex flex-col">
                   {lista.length === 0 ? (
-                    <p className="h-full grid place-items-center text-center text-xs text-slate-400 px-4">{vacio}</p>
+                    <p className="flex-1 grid place-items-center text-center text-xs text-slate-400 px-6">{vacio}</p>
                   ) : (
-                    <ul className="space-y-1">
-                      {lista.slice(0, 5).map((s) => (
+                    <ul className="flex-1 space-y-1 overflow-y-auto overscroll-contain p-2 [scrollbar-width:thin]">
+                      {lista.map((s) => (
                         <li key={s.idEstudiante}>
                           <button
                             type="button"
@@ -400,9 +577,6 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
                           </button>
                         </li>
                       ))}
-                      {lista.length > 5 && (
-                        <li className="pt-1 pl-2 text-[11px] font-medium text-slate-500">+{lista.length - 5} más</li>
-                      )}
                     </ul>
                   )}
                 </div>
@@ -420,11 +594,11 @@ export function InicioProfesor({ user, esProfesorOctavoONoveno, puedeEvaluar, on
                 type="button"
                 onClick={irAEvaluar}
                 className="col-span-2 rounded-2xl p-4 text-left text-white flex items-center justify-between gap-2 cursor-pointer hover:opacity-90 transition-opacity"
-                style={{ background: TINTA }}
+                style={{ background: ACENTO }}
               >
                 <span>
                   <span className="block text-sm font-semibold">Revisar entregas</span>
-                  <span className="block text-[11px] text-white/60">
+                  <span className="block text-[11px] text-white/80">
                     {etapas["por-revisar"].length} esperando tu revisión
                   </span>
                 </span>
