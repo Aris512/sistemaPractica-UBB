@@ -47,7 +47,12 @@ public class ChatService {
             Apoyas a estudiantes de pedagogía en el diseño de actividades didácticas, planificaciones, instrumentos de \
             evaluación y la orientación en el aula de matemáticas. Responde siempre en español, de forma clara y ordenada. \
             No inventes información institucional (fechas, notas, normativas o datos de personas): si no la conoces, dilo \
-            y sugiere consultarla con el coordinador o el profesor correspondiente. No solicites datos personales.""";
+            y sugiere consultarla con el coordinador o el profesor correspondiente. No solicites datos personales. \
+            Si el estudiante comparte una planificación o una idea de clase con elementos poco claros o incompletos \
+            (objetivo, habilidad, actividades, evaluación, recursos, tiempos o apoyos DUA), no los completes ni los supongas: \
+            cita el elemento y formula preguntas de reflexión que lo ayuden a precisarlo por sí mismo. \
+            Cada conversación admite pocas preguntas del estudiante, así que responde de forma completa y agrupa tus \
+            preguntas en un solo mensaje.""";
 
     private final ChatConversacionRepository conversacionRepository;
     private final ChatMensajeRepository mensajeRepository;
@@ -64,6 +69,7 @@ public class ChatService {
     private final int maxMensajesPorConversacion;
     private final int maxConversaciones;
     private final int maxRespuestasPorDia;
+    private final int maxPreguntas;
 
     public ChatService(ChatConversacionRepository conversacionRepository,
                        ChatMensajeRepository mensajeRepository,
@@ -78,7 +84,8 @@ public class ChatService {
                        @Value("${chat.max-caracteres-contexto:24000}") int maxCaracteresContexto,
                        @Value("${chat.max-mensajes-por-conversacion:200}") int maxMensajesPorConversacion,
                        @Value("${chat.max-conversaciones:100}") int maxConversaciones,
-                       @Value("${chat.limite-mensajes-por-dia:200}") int maxRespuestasPorDia) {
+                       @Value("${chat.limite-mensajes-por-dia:200}") int maxRespuestasPorDia,
+                       @Value("${chat.max-preguntas-por-conversacion:5}") int maxPreguntas) {
         this.conversacionRepository = conversacionRepository;
         this.mensajeRepository = mensajeRepository;
         this.usuarioRepository = usuarioRepository;
@@ -93,6 +100,7 @@ public class ChatService {
         this.maxMensajesPorConversacion = maxMensajesPorConversacion;
         this.maxConversaciones = maxConversaciones;
         this.maxRespuestasPorDia = maxRespuestasPorDia;
+        this.maxPreguntas = Math.max(1, maxPreguntas);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -135,7 +143,7 @@ public class ChatService {
 
     public List<ConversacionDTO> listarConversaciones(String rut) {
         return conversacionRepository.findByUsuarioRutOrderByFechaActualizacionDesc(rut).stream()
-                .map(ConversacionDTO::de)
+                .map(this::aDto)
                 .toList();
     }
 
@@ -147,7 +155,7 @@ public class ChatService {
             }
             String tituloFinal = (titulo == null || titulo.isBlank()) ? TITULO_POR_DEFECTO : validarTitulo(titulo);
             Usuario usuario = usuarioRepository.getReferenceById(rut);
-            return ConversacionDTO.de(conversacionRepository.save(new ChatConversacion(usuario, tituloFinal)));
+            return aDto(conversacionRepository.save(new ChatConversacion(usuario, tituloFinal)));
         });
     }
 
@@ -156,7 +164,7 @@ public class ChatService {
         return transaccion.execute(status -> {
             ChatConversacion conversacion = obtenerPropia(rut, idConversacion);
             conversacion.setTitulo(tituloFinal);
-            return ConversacionDTO.de(conversacion);
+            return aDto(conversacion);
         });
     }
 
@@ -183,9 +191,22 @@ public class ChatService {
     /**
      * Envía un mensaje a Groq con el historial reciente y guarda la pregunta y la respuesta juntas.
      * La llamada a Groq se hace fuera de cualquier transacción; si falla, no se guarda nada y el
-     * historial queda exactamente como estaba.
+     * historial queda exactamente como estaba. Cada conversación admite como máximo
+     * chat.max-preguntas-por-conversacion mensajes del alumno; después queda cerrada.
      */
     public IntercambioDTO enviarMensaje(String rut, Long idConversacion, String contenido) {
+        return enviarMensaje(rut, idConversacion, contenido, false);
+    }
+
+    /**
+     * Mensaje que la plataforma escribe en nombre del alumno (al abrir una revisión o subir una versión corregida):
+     * no cuenta como pregunta ni se bloquea por el máximo, para que la IA siempre pueda revisar el archivo nuevo.
+     */
+    public IntercambioDTO enviarMensajeAutomatico(String rut, Long idConversacion, String contenido) {
+        return enviarMensaje(rut, idConversacion, contenido, true);
+    }
+
+    private IntercambioDTO enviarMensaje(String rut, Long idConversacion, String contenido, boolean automatico) {
         String texto = contenido == null ? "" : contenido.strip();
         if (texto.isEmpty()) {
             throw new ChatException(HttpStatus.BAD_REQUEST, "CHAT_MENSAJE_VACIO", "El mensaje no puede estar vacío.");
@@ -200,6 +221,10 @@ public class ChatService {
         if (historial.size() + 2 > maxMensajesPorConversacion) {
             throw new ChatException(HttpStatus.CONFLICT, "CHAT_CONVERSACION_LLENA",
                     "Esta conversación alcanzó el máximo de mensajes. Inicia una nueva conversación.");
+        }
+        int preguntasUsadas = preguntasUsadas(idConversacion);
+        if (!automatico) {
+            validarQuedanPreguntas(idConversacion, preguntasUsadas);
         }
         long respuestasHoy = mensajeRepository.countByConversacionUsuarioRutAndRolAndFechaAfter(
                 rut, ChatRolMensaje.ASSISTANT, LocalDate.now().atStartOfDay());
@@ -218,10 +243,11 @@ public class ChatService {
             String conArchivo = revisionPlanificacion.conArchivoAdjunto(retro, texto);
             // El archivo no descuenta del presupuesto del historial: ya tiene su propio máximo de caracteres
             int presupuesto = revisionPlanificacion.maxCaracteresHistorial() + conArchivo.length() - texto.length();
-            contexto = construirContexto(revisionPlanificacion.promptSistema(), presupuesto,
-                    revisionPlanificacion.historialVigente(retro, historial), conArchivo);
+            contexto = construirContexto(revisionPlanificacion.promptSistema() + avisoPreguntas(preguntasUsadas, automatico),
+                    presupuesto, revisionPlanificacion.historialVigente(retro, historial), conArchivo);
         } else {
-            contexto = construirContexto(PROMPT_SISTEMA, maxCaracteresContexto, historial, texto);
+            contexto = construirContexto(PROMPT_SISTEMA + avisoPreguntas(preguntasUsadas, automatico),
+                    maxCaracteresContexto, historial, texto);
         }
 
         String respuesta;
@@ -236,11 +262,15 @@ public class ChatService {
             ChatConversacion conversacion = conversacionRepository.findByIdConversacionAndUsuarioRut(idConversacion, rut)
                     .orElseThrow(() -> new ChatException(HttpStatus.NOT_FOUND, "CHAT_CONVERSACION_NO_ENCONTRADA",
                             "La conversación fue eliminada mientras se generaba la respuesta."));
+            // Otro envío pudo completar el máximo mientras se generaba esta respuesta
+            if (!automatico) {
+                validarQuedanPreguntas(idConversacion, preguntasUsadas(idConversacion));
+            }
             int orden = mensajeRepository.findMaxOrden(idConversacion);
             LocalDateTime ahora = LocalDateTime.now();
 
             ChatMensaje mensajeUsuario = mensajeRepository.save(
-                    new ChatMensaje(conversacion, ChatRolMensaje.USER, texto, orden + 1, ahora));
+                    new ChatMensaje(conversacion, ChatRolMensaje.USER, texto, orden + 1, ahora, automatico));
             ChatMensaje mensajeAsistente = mensajeRepository.save(
                     new ChatMensaje(conversacion, ChatRolMensaje.ASSISTANT, respuesta, orden + 2, LocalDateTime.now()));
 
@@ -251,9 +281,46 @@ public class ChatService {
             revisionPlanificacion.deConversacion(idConversacion)
                     .ifPresent(retro -> revisionPlanificacion.registrarRespuesta(retro, respuesta));
 
-            return new IntercambioDTO(ConversacionDTO.de(conversacion),
+            return new IntercambioDTO(aDto(conversacion),
                     MensajeDTO.de(mensajeUsuario), MensajeDTO.de(mensajeAsistente));
         });
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Máximo de preguntas por conversación
+    // ---------------------------------------------------------------------------------------------
+
+    /** Preguntas que el alumno ya hizo; en las conversaciones de revisión, solo las del archivo vigente. */
+    private int preguntasUsadas(Long idConversacion) {
+        int desde = revisionPlanificacion.ordenInicioPreguntas(idConversacion);
+        return (int) mensajeRepository.contarPreguntas(idConversacion, desde);
+    }
+
+    private void validarQuedanPreguntas(Long idConversacion, int preguntasUsadas) {
+        if (preguntasUsadas < maxPreguntas) return;
+        boolean esRevision = revisionPlanificacion.deConversacion(idConversacion).isPresent();
+        throw new ChatException(HttpStatus.CONFLICT, "CHAT_LIMITE_PREGUNTAS", esRevision
+                ? "Ya hiciste las " + maxPreguntas + " preguntas de esta revisión y el chat quedó cerrado. "
+                        + "Corrige tu planificación y súbela con el botón + para seguir conversando."
+                : "Ya hiciste las " + maxPreguntas + " preguntas de esta conversación y el chat quedó cerrado. "
+                        + "Inicia una conversación nueva para seguir.");
+    }
+
+    /** Le dice a la IA cuántas preguntas le quedan al alumno, para que en la última entregue una respuesta de cierre. */
+    private String avisoPreguntas(int preguntasUsadas, boolean automatico) {
+        int restantes = automatico ? maxPreguntas - preguntasUsadas : maxPreguntas - preguntasUsadas - 1;
+        if (restantes > 0) {
+            return "\n\n[Plataforma] Después de este mensaje, el estudiante puede escribir " + restantes + " mensaje"
+                    + (restantes == 1 ? "" : "s") + " más en esta conversación (máximo " + maxPreguntas + ").";
+        }
+        return "\n\n[Plataforma] Este es el último mensaje que el estudiante puede escribir en esta conversación: "
+                + "no podrá responderte. Entrega una respuesta completa y de cierre, sin dejar preguntas pendientes "
+                + "que necesiten su respuesta; si corresponde, termina con preguntas de reflexión para que las piense "
+                + "por su cuenta al corregir.";
+    }
+
+    private ConversacionDTO aDto(ChatConversacion conversacion) {
+        return ConversacionDTO.de(conversacion, preguntasUsadas(conversacion.getIdConversacion()), maxPreguntas);
     }
 
     /** Prompt de sistema + los mensajes más recientes que quepan en el presupuesto de caracteres + el nuevo mensaje. */

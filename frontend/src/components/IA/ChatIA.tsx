@@ -14,7 +14,7 @@ import {
   obtenerMensajes,
   renombrarConversacion,
 } from "@/services/chatApi";
-import type { ChatConversacion, ChatMensaje } from "@/types/chat";
+import { CHAT_MAX_PREGUNTAS, type ChatConversacion, type ChatMensaje } from "@/types/chat";
 import type { InicioRevision } from "@/types/retroalimentacion";
 import { EntradaMensaje, type EntradaMensajeHandle } from "./EntradaMensaje";
 import { ListaConversaciones } from "./ListaConversaciones";
@@ -79,7 +79,7 @@ interface ChatIAProps {
   revision?: RevisionChat;
 }
 
-const AYUDA_ADJUNTAR = "Usa + para adjuntar tu planificación corregida (.docx o .pdf); puedes escribir un mensaje y luego enviar.";
+const AYUDA_ADJUNTAR = "Usa + para adjuntar tu planificación corregida desde este PC o tu portafolio (.docx o .pdf).";
 
 export function ChatIA({ rut, revision }: ChatIAProps) {
   const claveActiva = `ubb_chat_activa_${rut}`;
@@ -302,6 +302,8 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
       if (error.codigo === "CHAT_CONVERSACION_NO_ENCONTRADA" && conversacionId !== null) {
         setConversaciones((prev) => prev.filter((c) => c.id !== conversacionId));
       }
+      // Se agotaron las preguntas (p. ej. desde otra pestaña): se actualiza el contador para cerrar el chat
+      if (error.codigo === "CHAT_LIMITE_PREGUNTAS") void cargarConversaciones();
     } finally {
       enviandoRef.current = false;
       setEnCurso(null);
@@ -344,6 +346,25 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
   // ---------------------------------------------------------------------------------------------
 
   const enCursoAqui = enCurso !== null && enCurso.conversacionId === activaId;
+
+  // Máximo de preguntas: al agotarlas la conversación se cierra (en las de revisión, hasta subir una versión nueva)
+  const maxPreguntas = activa?.maxPreguntas ?? conversaciones[0]?.maxPreguntas ?? CHAT_MAX_PREGUNTAS;
+  const preguntasUsadas = Math.min(activa?.preguntasUsadas ?? 0, maxPreguntas);
+  const chatCerrado = activa !== null && preguntasUsadas >= maxPreguntas;
+  const cerrado = !chatCerrado
+    ? undefined
+    : puedeAdjuntar
+      ? { mensaje: `Usaste las ${maxPreguntas} preguntas de esta revisión. Para seguir, sube tu planificación corregida con +.` }
+      : {
+          mensaje: `Usaste las ${maxPreguntas} preguntas de esta conversación y el chat se cerró.`,
+          accion: {
+            etiqueta: "Nueva conversación",
+            onClick: () => {
+              seleccionar(null);
+              entradaRef.current?.enfocar();
+            },
+          },
+        };
   const fallidoAqui = fallido !== null && fallido.conversacionId === activaId;
   const sinMensajes = mensajes.length === 0 && !enCursoAqui && !fallidoAqui;
 
@@ -551,6 +572,9 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
           deshabilitado={!enLinea || estadoMensajes === "cargando"}
           motivoDeshabilitado={!enLinea ? "Sin conexión" : undefined}
           onAdjuntar={puedeAdjuntar ? elegirAdjunto : undefined}
+          rut={rut}
+          preguntas={{ usadas: preguntasUsadas, max: maxPreguntas }}
+          cerrado={cerrado}
           adjunto={adjuntoActivo}
           onQuitarAdjunto={() => setAdjunto(null)}
           adjuntando={adjuntando}
