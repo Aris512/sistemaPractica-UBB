@@ -384,6 +384,19 @@ public class RetroalimentacionIAService {
         return aDTOProfesor(retro);
     }
 
+    /**
+     * El profesor elimina por completo la retroalimentación de un alumno de su asignatura: la planificación (y su
+     * registro en la tabla planificacion), los archivos que subió, sus observaciones y el chat que usó con la IA.
+     */
+    @Transactional
+    public void eliminarDelProfesor(String rutCliente, Long idRetroalimentacion) {
+        Profesor profesor = profesorDe(rutCliente);
+        Planificacion planificacion = retroDelProfesor(profesor, idRetroalimentacion).getPlanificacion();
+        logger.info("El profesor {} eliminó la retroalimentación {} (planificación {}).",
+                profesor.getUsuario().getRut(), idRetroalimentacion, planificacion.getIdPlanificacion());
+        planificacionService.eliminarPorProfesor(planificacion);
+    }
+
     /** Observación del profesor mientras la revisa (o tras rechazarla); no cambia el estado de la retroalimentación. */
     @Transactional
     public RetroProfesorDetalleDTO observar(String rutCliente, Long idRetroalimentacion, String texto) {

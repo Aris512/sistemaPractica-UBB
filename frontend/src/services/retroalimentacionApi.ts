@@ -51,6 +51,11 @@ export function listarRetroalimentacionesProfesor(rut: string): Promise<RetroPro
   return requestConUsuario(rut, `${BASE_URL}/profesor`);
 }
 
+/** El profesor elimina por completo la retroalimentación del alumno: planificación, archivos y chat con la IA. */
+export function eliminarRetroalimentacionProfesor(rut: string, id: number): Promise<void> {
+  return requestConUsuario(rut, `${BASE_URL}/profesor/${id}`, { method: "DELETE" });
+}
+
 export function detalleRetroalimentacionProfesor(rut: string, id: number): Promise<RetroProfesorDetalle> {
   return requestConUsuario(rut, `${BASE_URL}/profesor/${id}`);
 }
