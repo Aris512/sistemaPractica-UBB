@@ -129,12 +129,13 @@ public class PautaAccesoService {
 
     // ------------------------------------------------------------------ permisos
 
-    /** Quién puede llenar la pauta: el evaluador que le corresponde, vinculado a esa práctica. */
+    /** Quién puede llenar la pauta: alguno de sus evaluadores, vinculado a esa práctica. */
     public boolean puedeEvaluar(Solicitante s, Pauta pauta, Practica practica) {
-        String ev = pauta.getEvaluador();
-        if ("COLABORADOR".equals(ev)) return s.esColaborador() && esColaboradorDe(s, practica);
-        if ("TUTOR".equals(ev)) return s.esTutor() && esTutorDe(s, practica);
-        if ("ACADEMICO".equals(ev)) return s.esProfesorAsignatura() && esProfesorDeAsignatura(s, practica);
+        for (String ev : pauta.evaluadoresLista()) {
+            if ("COLABORADOR".equals(ev) && s.esColaborador() && esColaboradorDe(s, practica)) return true;
+            if ("TUTOR".equals(ev) && s.esTutor() && esTutorDe(s, practica)) return true;
+            if ("ACADEMICO".equals(ev) && s.esProfesorAsignatura() && esProfesorDeAsignatura(s, practica)) return true;
+        }
         return false;
     }
 

@@ -113,6 +113,7 @@ export function PautasResultados({ user, modo, onBack, embebido = false }: Pauta
       <PautaFormulario
         pautaId={abierta.pautaId}
         practicaId={abierta.practicaId}
+        aplicacionId={abierta.aplicacionId}
         estudianteNombre={abierta.estudianteNombre ?? "—"}
         user={user}
         soloLectura

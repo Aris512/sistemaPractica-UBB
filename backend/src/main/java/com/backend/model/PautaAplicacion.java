@@ -23,7 +23,8 @@ import jakarta.persistence.UniqueConstraint;
  */
 @Entity
 @Table(name = "pauta_aplicacion",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"pauta_id", "id_practica"}))
+       // Una aplicación por evaluador: si la pauta la completan varios roles, cada uno tiene la suya.
+       uniqueConstraints = @UniqueConstraint(columnNames = {"pauta_id", "id_practica", "evaluador_rut"}))
 public class PautaAplicacion {
 
     public static final String BORRADOR = "BORRADOR";

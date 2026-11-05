@@ -3,6 +3,7 @@ package com.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -29,12 +30,13 @@ import com.backend.repository.PautaRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.service.PautaAccesoService.Solicitante;
 
-/** "Limpiar" una pauta aplicada: elimina su registro según quién lo pide y en qué estado está. */
+/** "Limpiar" una pauta aplicada: elimina el registro del evaluador según quién lo pide y en qué estado está. */
 @ExtendWith(MockitoExtension.class)
 class PautaServiceLimpiarTest {
 
     private static final long PAUTA_ID = 1L;
     private static final long PRACTICA_ID = 2L;
+    private static final long APLICACION_ID = 3L;
     private static final String RUT_TUTOR = "11111111-1";
 
     @Mock private PautaRepository pautaRepository;
@@ -49,10 +51,15 @@ class PautaServiceLimpiarTest {
 
     @BeforeEach
     void preparar() {
+        pauta.setId(PAUTA_ID);
+        practica.setIdPractica(PRACTICA_ID);
         when(pautaRepository.findById(PAUTA_ID)).thenReturn(Optional.of(pauta));
         when(practicaRepository.findById(PRACTICA_ID)).thenReturn(Optional.of(practica));
+        aplicacion.setPauta(pauta);
+        aplicacion.setPractica(practica);
         aplicacion.setEvaluadorRut(RUT_TUTOR);
         aplicacion.setEstado(PautaAplicacion.BORRADOR);
+        lenient().when(aplicacionRepository.findById(APLICACION_ID)).thenReturn(Optional.of(aplicacion));
     }
 
     private Solicitante solicitante(String rut, String rol) {
@@ -63,8 +70,8 @@ class PautaServiceLimpiarTest {
         return s;
     }
 
-    private void conAplicacionGuardada() {
-        when(aplicacionRepository.findByPautaIdAndPracticaIdPractica(PAUTA_ID, PRACTICA_ID))
+    private void conAplicacionPropiaDelTutor() {
+        when(aplicacionRepository.findByPautaIdAndPracticaIdPracticaAndEvaluadorRut(PAUTA_ID, PRACTICA_ID, RUT_TUTOR))
             .thenReturn(Optional.of(aplicacion));
     }
 
@@ -72,10 +79,10 @@ class PautaServiceLimpiarTest {
     @DisplayName("el tutor que completa la pauta en borrador la elimina")
     void evaluadorLimpiaSuBorrador() {
         Solicitante tutor = solicitante(RUT_TUTOR, "TUTOR_PRACTICA");
-        conAplicacionGuardada();
+        conAplicacionPropiaDelTutor();
         when(acceso.puedeEvaluar(tutor, pauta, practica)).thenReturn(true);
 
-        service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID);
+        service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null);
 
         verify(aplicacionRepository).delete(aplicacion);
     }
@@ -84,26 +91,25 @@ class PautaServiceLimpiarTest {
     @DisplayName("una pauta finalizada no la limpia el evaluador: debe reabrirla el coordinador")
     void finalizadaNoSeLimpiaSinReabrir() {
         Solicitante tutor = solicitante(RUT_TUTOR, "TUTOR_PRACTICA");
-        conAplicacionGuardada();
+        conAplicacionPropiaDelTutor();
         when(acceso.puedeEvaluar(tutor, pauta, practica)).thenReturn(true);
         aplicacion.setEstado(PautaAplicacion.FINALIZADA);
 
         ResponseStatusException error = catchThrowableOfType(ResponseStatusException.class,
-            () -> service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID));
+            () -> service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null));
 
         assertThat(error.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         verify(aplicacionRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("otro evaluador no puede limpiar la pauta que completó un colega")
+    @DisplayName("otro evaluador no puede limpiar la aplicación que completó un colega")
     void otroEvaluadorNoLimpia() {
-        Solicitante otro = solicitante("22222222-2", "TUTOR_PRACTICA");
-        conAplicacionGuardada();
+        Solicitante otro = solicitante("22222222-2", "PROFESOR_COLABORADOR");
         when(acceso.puedeEvaluar(otro, pauta, practica)).thenReturn(true);
 
         ResponseStatusException error = catchThrowableOfType(ResponseStatusException.class,
-            () -> service.limpiarAplicacion("22222222-2", PAUTA_ID, PRACTICA_ID));
+            () -> service.limpiarAplicacion("22222222-2", PAUTA_ID, PRACTICA_ID, APLICACION_ID));
 
         assertThat(error.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         verify(aplicacionRepository, never()).delete(any());
@@ -113,36 +119,34 @@ class PautaServiceLimpiarTest {
     @DisplayName("quien no evalúa esa pauta en la práctica no puede limpiarla")
     void sinAccesoNoLimpia() {
         Solicitante ajeno = solicitante("33333333-3", "PROFESOR_COLABORADOR");
-        conAplicacionGuardada();
         when(acceso.puedeEvaluar(ajeno, pauta, practica)).thenReturn(false);
 
         ResponseStatusException error = catchThrowableOfType(ResponseStatusException.class,
-            () -> service.limpiarAplicacion("33333333-3", PAUTA_ID, PRACTICA_ID));
+            () -> service.limpiarAplicacion("33333333-3", PAUTA_ID, PRACTICA_ID, APLICACION_ID));
 
         assertThat(error.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         verify(aplicacionRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("el coordinador puede limpiar incluso una pauta finalizada")
+    @DisplayName("el coordinador puede limpiar la aplicación de un evaluador, aunque esté finalizada")
     void coordinadorLimpiaFinalizada() {
         solicitante("44444444-4", "COORDINADOR");
-        conAplicacionGuardada();
         aplicacion.setEstado(PautaAplicacion.FINALIZADA);
 
-        service.limpiarAplicacion("44444444-4", PAUTA_ID, PRACTICA_ID);
+        service.limpiarAplicacion("44444444-4", PAUTA_ID, PRACTICA_ID, APLICACION_ID);
 
         verify(aplicacionRepository).delete(aplicacion);
     }
 
     @Test
-    @DisplayName("si no hay registro guardado no hace nada")
+    @DisplayName("si el evaluador no tiene registro guardado no hace nada")
     void sinRegistroNoHaceNada() {
         solicitante(RUT_TUTOR, "TUTOR_PRACTICA");
-        when(aplicacionRepository.findByPautaIdAndPracticaIdPractica(PAUTA_ID, PRACTICA_ID))
+        when(aplicacionRepository.findByPautaIdAndPracticaIdPracticaAndEvaluadorRut(PAUTA_ID, PRACTICA_ID, RUT_TUTOR))
             .thenReturn(Optional.empty());
 
-        service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID);
+        service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null);
 
         verify(aplicacionRepository, never()).delete(any());
     }
