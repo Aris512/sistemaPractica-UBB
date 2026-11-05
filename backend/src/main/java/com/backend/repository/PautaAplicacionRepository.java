@@ -14,6 +14,7 @@ public interface PautaAplicacionRepository extends JpaRepository<PautaAplicacion
     List<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
     Optional<PautaAplicacion> findByPautaIdAndPracticaIdPracticaAndEvaluadorRut(Long pautaId, Long idPractica, String evaluadorRut);
     boolean existsByPautaId(Long pautaId);
+    Optional<PautaAplicacion> findByNotaIdNota(Long idNota);
     boolean existsByPracticaIdPractica(Long idPractica);
 
     /** Ids de las prácticas que ya tienen al menos una pauta aplicada (para marcarlas sin una consulta por práctica). */

@@ -28,11 +28,15 @@ import com.backend.dto.PautaDTOs.PautaRequest;
 import com.backend.dto.PautaDTOs.PautaResumenDTO;
 import com.backend.dto.PautaDTOs.RespuestaDTO;
 import com.backend.dto.PautaDTOs.ResultadoDTO;
+import com.backend.model.Nota;
+import com.backend.model.NotaDeVoz;
 import com.backend.model.Pauta;
 import com.backend.model.PautaAplicacion;
 import com.backend.model.PautaCriterio;
 import com.backend.model.PautaRespuesta;
 import com.backend.model.Practica;
+import com.backend.repository.NotaDeVozRepository;
+import com.backend.repository.NotaRepository;
 import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PautaRepository;
 import com.backend.repository.PracticaRepository;
@@ -55,15 +59,24 @@ public class PautaService {
     private final PautaAplicacionRepository aplicacionRepository;
     private final PracticaRepository practicaRepository;
     private final PautaAccesoService acceso;
+    private final NotaRepository notaRepository;
+    private final NotaDeVozRepository notaDeVozRepository;
+    private final FileStorageService fileStorageService;
 
     public PautaService(PautaRepository pautaRepository,
                         PautaAplicacionRepository aplicacionRepository,
                         PracticaRepository practicaRepository,
-                        PautaAccesoService acceso) {
+                        PautaAccesoService acceso,
+                        NotaRepository notaRepository,
+                        NotaDeVozRepository notaDeVozRepository,
+                        FileStorageService fileStorageService) {
         this.pautaRepository = pautaRepository;
         this.aplicacionRepository = aplicacionRepository;
         this.practicaRepository = practicaRepository;
         this.acceso = acceso;
+        this.notaRepository = notaRepository;
+        this.notaDeVozRepository = notaDeVozRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     // ---------------------------------------------------------- Catálogo de pautas (HU-21)
@@ -225,7 +238,7 @@ public class PautaService {
         }
         if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "La pauta ya fue finalizada. Solo el coordinador puede reabrirla.");
+                "La pauta ya fue finalizada. Use «Modificar» para reabrirla y corregirla.");
         }
 
         Map<Long, PautaCriterio> criteriosPorId = pauta.getCriterios().stream()
@@ -275,14 +288,15 @@ public class PautaService {
         }
 
         recalcular(app, pauta);
+        if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) registrarNota(app, pauta);
         return aplicacionDTO(aplicacionRepository.save(app), pauta);
     }
 
     /**
-     * "Limpiar": elimina la aplicación de la pauta (y sus respuestas) para que no quede registro en
-     * pauta_aplicacion, lo que permite al coordinador desvincular la práctica o eliminar la pauta.
-     * La puede limpiar el evaluador que la está completando mientras siga en borrador; una finalizada
-     * debe reabrirla antes el coordinador, que también puede limpiarla directamente.
+     * "Limpiar" / "Eliminar": borra la aplicación de la pauta con sus respuestas, sus audios y la nota que
+     * dejó al estudiante, para que no quede registro y el coordinador pueda desvincular la práctica o
+     * eliminar la pauta. La puede borrar el evaluador que la completó (también si ya está finalizada) y el
+     * coordinador.
      */
     @Transactional
     public void limpiarAplicacion(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
@@ -303,21 +317,33 @@ public class PautaService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Solo quien completó esta pauta puede limpiarla.");
             }
-            if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "La pauta ya fue finalizada. Solicite al coordinador que la reabra para poder limpiarla.");
-            }
         }
-        aplicacionRepository.delete(app);
+        eliminarAplicacion(app);
     }
 
-    /** Solo el coordinador: devuelve una pauta finalizada a borrador para que el evaluador la corrija. */
+    /**
+     * "Modificar": devuelve una pauta finalizada a borrador para corregirla. La nota se retira del registro del
+     * estudiante hasta que se finalice de nuevo. Lo puede hacer el evaluador que la completó o el coordinador.
+     */
     @Transactional
     public AplicacionDTO reabrir(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
-        acceso.exigirGestion(acceso.identificar(rut));
+        Solicitante s = acceso.identificar(rut);
         Pauta pauta = obtenerPauta(pautaId);
         PautaAplicacion app;
-        if (aplicacionId != null) {
+        if (!s.puedeGestionar()) {
+            Practica practica = obtenerPractica(practicaId);
+            if (!acceso.puedeEvaluar(s, pauta, practica)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Esta pauta no le corresponde: debe ser el evaluador asignado a esta práctica.");
+            }
+            app = aplicacionId != null
+                ? aplicacionPorId(aplicacionId, pautaId, practicaId)
+                : aplicacionDe(pautaId, practicaId, s.rut())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada."));
+            if (!esPropia(app, s.rut())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo quien completó esta pauta puede modificarla.");
+            }
+        } else if (aplicacionId != null) {
             app = aplicacionPorId(aplicacionId, pautaId, practicaId);
         } else {
             List<PautaAplicacion> apps = aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId);
@@ -332,7 +358,7 @@ public class PautaService {
         app.setFechaFinalizacion(null);
         app.setFechaActualizacion(LocalDateTime.now());
         recalcular(app, pauta);
-        app.setNota(null);
+        quitarNota(app);
         return aplicacionDTO(aplicacionRepository.save(app), pauta);
     }
 
@@ -362,8 +388,53 @@ public class PautaService {
         double maximo = (double) pauta.getCriterios().size() * escalaMax;
         app.setPuntajeObtenido(puntaje);
         app.setPuntajeMaximo(maximo);
+    }
+
+    /** Nota que resulta de las respuestas, o null si faltan indicadores por responder. */
+    private Double notaCalculada(PautaAplicacion app, Pauta pauta) {
         boolean completa = app.getRespuestas().size() == pauta.getCriterios().size() && !pauta.getCriterios().isEmpty();
-        app.setNota(completa ? calcularNota(pauta, puntaje, app.getRespuestas().size(), maximo) : null);
+        if (!completa || app.getPuntajeObtenido() == null || app.getPuntajeMaximo() == null) return null;
+        return calcularNota(pauta, app.getPuntajeObtenido(), app.getRespuestas().size(), app.getPuntajeMaximo());
+    }
+
+    /** Nota a mostrar: la registrada al finalizar o, en un borrador completo, la que resultaría. */
+    private Double notaDe(PautaAplicacion app, Pauta pauta) {
+        if (app.getNota() != null) return app.getNota().getPuntajeObtenido();
+        return notaCalculada(app, pauta);
+    }
+
+    /** Al finalizar, la nota queda en la tabla nota del estudiante, emitida por el evaluador de la pauta. */
+    private void registrarNota(PautaAplicacion app, Pauta pauta) {
+        Nota nota = app.getNota() != null ? app.getNota() : new Nota();
+        nota.setEvaluacion(null);
+        nota.setEstudiante(app.getPractica().getEstudiante());
+        nota.setPuntajeObtenido(notaCalculada(app, pauta));
+        nota.setRutEvaluador(app.getEvaluadorRut());
+        app.setNota(notaRepository.save(nota));
+    }
+
+    /** Retira la nota de la pauta del registro del estudiante. */
+    private void quitarNota(PautaAplicacion app) {
+        Nota nota = app.getNota();
+        if (nota == null) return;
+        app.setNota(null);
+        aplicacionRepository.saveAndFlush(app);
+        notaRepository.delete(nota);
+    }
+
+    /** Borra la aplicación, sus respuestas (en cascada), sus audios y la nota que dejó al estudiante. */
+    private void eliminarAplicacion(PautaAplicacion app) {
+        Nota nota = app.getNota();
+        List<String> archivos = new ArrayList<>();
+        if (app.getId() != null) {
+            List<NotaDeVoz> audios = notaDeVozRepository.findByAplicacionPautaIdOrderByFechaGrabacionDesc(app.getId());
+            audios.forEach(a -> archivos.add(a.getUbicacionArchivo()));
+            notaDeVozRepository.deleteAll(audios);
+        }
+        aplicacionRepository.delete(app);
+        aplicacionRepository.flush();
+        if (nota != null) notaRepository.delete(nota);
+        archivos.stream().filter(Objects::nonNull).forEach(fileStorageService::deleteFile);
     }
 
     /**
@@ -553,7 +624,7 @@ public class PautaService {
         return new PautaResumenDTO(p.getId(), p.getCodigo(), p.getTitulo(), p.getAsignatura(), p.getTipo(),
             p.getEspecialidad(), p.getMomento(), p.getEvaluador(), n, n * escalaMax, p.getPonderacion(),
             p.getVersion(), p.getActiva(),
-            app != null ? app.getId() : null, app != null ? app.getEstado() : null, app != null ? app.getNota() : null);
+            app != null ? app.getId() : null, app != null ? app.getEstado() : null, app != null ? notaDe(app, p) : null);
     }
 
     private PautaDetalleDTO detalle(Pauta p) {
@@ -576,7 +647,7 @@ public class PautaService {
         return new AplicacionDTO(a.getId(), pauta.getId(), a.getPractica().getIdPractica(), a.getEstado(),
             a.getEvaluadorRut(), a.getEvaluadorNombre(), a.getObservaciones(), respuestas,
             respuestas.size(), pauta.getCriterios().size(), a.getPuntajeObtenido(), a.getPuntajeMaximo(),
-            a.getNota(), a.getFechaActualizacion(), a.getFechaFinalizacion());
+            notaDe(a, pauta), a.getFechaActualizacion(), a.getFechaFinalizacion());
     }
 
     /** Rol con que se completó la aplicación: si la pauta tiene varios evaluadores, el de quien la llenó. */
@@ -610,7 +681,7 @@ public class PautaService {
         }
         return new ResultadoDTO(a.getId(), p.getId(), p.getCodigo(), p.getTitulo(), p.getAsignatura(),
             rolDelEvaluador(a), a.getEvaluadorNombre(), pr.getIdPractica(), estNombre, estRut,
-            a.getEstado(), a.getPuntajeObtenido(), a.getPuntajeMaximo(), a.getNota(),
+            a.getEstado(), a.getPuntajeObtenido(), a.getPuntajeMaximo(), notaDe(a, p),
             p.getModoCalculo(), p.getPonderacion(), a.getFechaActualizacion(), a.getFechaFinalizacion());
     }
 }

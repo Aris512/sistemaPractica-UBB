@@ -13,10 +13,12 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.dto.NotaDeVozDTO;
 import com.backend.model.Evaluacion;
 import com.backend.model.NotaDeVoz;
+import com.backend.model.PautaAplicacion;
 import com.backend.model.Usuario;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.NotaDeVozRepository;
 import com.backend.repository.NotaRepository;
+import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.UsuarioRepository;
 
 @Service
@@ -34,13 +36,16 @@ public class NotaDeVozService {
     private final UsuarioRepository usuarioRepository;
     private final FileStorageService fileStorageService;
     private final GroqClient groqClient;
+    private final PautaAplicacionRepository pautaAplicacionRepository;
 
     public NotaDeVozService(NotaDeVozRepository notaDeVozRepository,
                             EvaluacionRepository evaluacionRepository,
                             NotaRepository notaRepository,
                             UsuarioRepository usuarioRepository,
                             FileStorageService fileStorageService,
-                            GroqClient groqClient) {
+                            GroqClient groqClient,
+                            PautaAplicacionRepository pautaAplicacionRepository) {
+        this.pautaAplicacionRepository = pautaAplicacionRepository;
         this.notaDeVozRepository = notaDeVozRepository;
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
@@ -69,6 +74,13 @@ public class NotaDeVozService {
     }
 
     @Transactional(readOnly = true)
+    public List<NotaDeVozDTO> obtenerPorAplicacionPauta(Long idAplicacion) {
+        if (idAplicacion == null) return List.of();
+        return notaDeVozRepository.findByAplicacionPautaIdOrderByFechaGrabacionDesc(idAplicacion).stream()
+                .map(this::convertirADTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<NotaDeVozDTO> obtenerPorEstudiante(Long idEstudiante) {
         if (idEstudiante == null) return List.of();
         List<NotaDeVoz> notas = notaDeVozRepository.findByEstudianteId(idEstudiante);
@@ -76,11 +88,13 @@ public class NotaDeVozService {
     }
 
     /**
-     * Adjunta una nota de voz a una evaluación ya guardada del propio evaluador. No se crean
-     * evaluaciones implícitas: quedaban sin puntajes ni tipo y duplicaban la evaluación real.
+     * Adjunta una nota de voz a una evaluación ya guardada del propio evaluador, o a las observaciones de
+     * una pauta que ese evaluador está completando (idAplicacionPauta). No se crean evaluaciones implícitas:
+     * quedaban sin puntajes ni tipo y duplicaban la evaluación real.
      */
     @Transactional
     public NotaDeVozDTO guardarNotaDeVoz(Long idEvaluacion,
+                                         Long idAplicacionPauta,
                                          MultipartFile file,
                                          String duracion,
                                          String transcripcion,
@@ -89,17 +103,27 @@ public class NotaDeVozService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("El archivo de audio es requerido.");
         }
-        if (idEvaluacion == null) {
+        if (idEvaluacion == null && idAplicacionPauta == null) {
             throw new IllegalArgumentException("Guarde la evaluación antes de adjuntarle notas de voz.");
         }
         if (rutGrabador == null || rutGrabador.isBlank()) {
             throw new IllegalArgumentException("El RUT de quien graba es requerido.");
         }
 
-        Evaluacion evaluacion = evaluacionRepository.findById(idEvaluacion)
-                .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
-        if (!esEvaluadorDe(evaluacion, rutGrabador)) {
-            throw new SecurityException("Solo el evaluador de esta evaluación puede adjuntarle notas de voz.");
+        Evaluacion evaluacion = null;
+        PautaAplicacion aplicacion = null;
+        if (idAplicacionPauta != null) {
+            aplicacion = pautaAplicacionRepository.findById(idAplicacionPauta)
+                    .orElseThrow(() -> new IllegalArgumentException("Pauta no encontrada con ID: " + idAplicacionPauta));
+            if (aplicacion.getEvaluadorRut() == null || !aplicacion.getEvaluadorRut().equalsIgnoreCase(rutGrabador.trim())) {
+                throw new SecurityException("Solo quien completa esta pauta puede adjuntarle notas de voz.");
+            }
+        } else {
+            evaluacion = evaluacionRepository.findById(idEvaluacion)
+                    .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
+            if (!esEvaluadorDe(evaluacion, rutGrabador)) {
+                throw new SecurityException("Solo el evaluador de esta evaluación puede adjuntarle notas de voz.");
+            }
         }
 
         // Determinar nombre del grabador si no viene explícito
@@ -110,8 +134,8 @@ public class NotaDeVozService {
                 nombreFinal = (u.getNombre() + " " + (u.getApellido() != null ? u.getApellido() : "")).trim();
             }
         }
-        if (nombreFinal == null && evaluacion.getNombreEvaluador() != null) {
-            nombreFinal = evaluacion.getNombreEvaluador();
+        if (nombreFinal == null) {
+            nombreFinal = evaluacion != null ? evaluacion.getNombreEvaluador() : aplicacion.getEvaluadorNombre();
         }
 
         // Almacenar el archivo de audio usando FileStorageService en subdirectorio "notas_de_voz"
@@ -147,9 +171,10 @@ public class NotaDeVozService {
                 rutGrabador,
                 nombreFinal
         );
+        nota.setAplicacionPauta(aplicacion);
         nota = notaDeVozRepository.save(nota);
-        logger.info("Nota de voz guardada con éxito (id: {}, evalId: {}, grabador: {}, archivo: {})",
-                nota.getIdAudio(), evaluacion.getIdEvaluacion(), nombreFinal, stored.relativePath());
+        logger.info("Nota de voz guardada con éxito (id: {}, evalId: {}, pauta aplicada: {}, grabador: {}, archivo: {})",
+                nota.getIdAudio(), idEvaluacion, idAplicacionPauta, nombreFinal, stored.relativePath());
 
         return convertirADTO(nota);
     }

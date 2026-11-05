@@ -13,10 +13,12 @@ import com.backend.dto.EstudianteTutorDTO;
 import com.backend.model.Evaluacion;
 import com.backend.model.Nota;
 import com.backend.model.ObservacionPractica;
+import com.backend.model.PautaAplicacion;
 import com.backend.model.Practica;
 import com.backend.model.Usuario;
 import com.backend.repository.NotaRepository;
 import com.backend.repository.ObservacionPracticaRepository;
+import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PracticaRepository;
 
 import com.backend.repository.ProfesorRepository;
@@ -31,13 +33,16 @@ public class PracticaService {
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
     private final ProfesorRepository profesorRepository;
+    private final PautaAplicacionRepository pautaAplicacionRepository;
 
     public PracticaService(PracticaRepository practicaRepository,
                            NotaRepository notaRepository,
                            ObservacionPracticaRepository observacionPracticaRepository,
                            JdbcTemplate jdbcTemplate,
                            FileStorageService fileStorageService,
-                           ProfesorRepository profesorRepository) {
+                           ProfesorRepository profesorRepository,
+                           PautaAplicacionRepository pautaAplicacionRepository) {
+        this.pautaAplicacionRepository = pautaAplicacionRepository;
         this.practicaRepository = practicaRepository;
         this.notaRepository = notaRepository;
         this.observacionPracticaRepository = observacionPracticaRepository;
@@ -68,8 +73,8 @@ public class PracticaService {
     @Transactional
     public void eliminar(Long id) {
         String evaluacionesDePractica = "SELECT id_evaluacion FROM evaluacion WHERE id_practica = ?";
-        List<String> archivos = jdbcTemplate.queryForList(
-            "SELECT archivo_url FROM evaluacion WHERE id_practica = ? AND archivo_url IS NOT NULL", String.class, id);
+        List<String> archivos = new ArrayList<>(jdbcTemplate.queryForList(
+            "SELECT archivo_url FROM evaluacion WHERE id_practica = ? AND archivo_url IS NOT NULL", String.class, id));
 
         // Una entrega calificada con una de estas notas vuelve a quedar sin nota (como al eliminar una nota)
         jdbcTemplate.update("UPDATE evidencia SET id_nota = NULL, estado = IF(fecha_revision IS NULL, 'PENDIENTE', 'REVISADO') "
@@ -79,10 +84,18 @@ public class PracticaService {
         jdbcTemplate.update("DELETE FROM nota_de_voz WHERE id_evaluacion IN (" + evaluacionesDePractica + ")", id);
         jdbcTemplate.update("DELETE FROM evaluacion WHERE id_practica = ?", id);
 
-        // Pautas aplicadas a la práctica (sus respuestas primero, por la clave foránea a pauta_aplicacion)
-        jdbcTemplate.update("DELETE FROM pauta_respuesta WHERE aplicacion_id IN "
-            + "(SELECT id FROM pauta_aplicacion WHERE id_practica = ?)", id);
+        // Pautas aplicadas a la práctica: sus respuestas y audios primero (clave foránea a pauta_aplicacion),
+        // y después la nota que cada una dejó al estudiante.
+        String aplicacionesDePractica = "SELECT id FROM pauta_aplicacion WHERE id_practica = ?";
+        List<Long> notasDePautas = jdbcTemplate.queryForList(
+            "SELECT id_nota FROM pauta_aplicacion WHERE id_practica = ? AND id_nota IS NOT NULL", Long.class, id);
+        archivos.addAll(jdbcTemplate.queryForList(
+            "SELECT ubicacion_archivo FROM nota_de_voz WHERE ubicacion_archivo IS NOT NULL AND id_pauta_aplicacion IN ("
+                + aplicacionesDePractica + ")", String.class, id));
+        jdbcTemplate.update("DELETE FROM nota_de_voz WHERE id_pauta_aplicacion IN (" + aplicacionesDePractica + ")", id);
+        jdbcTemplate.update("DELETE FROM pauta_respuesta WHERE aplicacion_id IN (" + aplicacionesDePractica + ")", id);
         jdbcTemplate.update("DELETE FROM pauta_aplicacion WHERE id_practica = ?", id);
+        notasDePautas.forEach(idNota -> jdbcTemplate.update("DELETE FROM nota WHERE id_nota = ?", idNota));
 
         jdbcTemplate.update("UPDATE encuesta SET id_practica = NULL WHERE id_practica = ?", id);
         jdbcTemplate.update("UPDATE planificacion SET id_practica = NULL WHERE id_practica = ?", id);
@@ -149,6 +162,7 @@ public class PracticaService {
 
                 // Poblar con la evaluación que este mismo evaluador registró para el estudiante
                 completarDatosEvaluacionYObservacion(dto, p.getEstudiante().getIdEstudiante(), u.getRut(), rut);
+                completarDesdePautas(dto, p.getIdPractica(), rut);
 
                 resultado.add(dto);
             }
@@ -156,6 +170,31 @@ public class PracticaService {
 
         // Filtro estricto: Nunca retornar todos los estudiantes del sistema si el usuario no tiene asignación
         return resultado;
+    }
+
+    /**
+     * El inicio del tutor y del colaborador evalúa con pautas: si el evaluador no tiene una nota del modal de
+     * evaluación, el estado sale de sus pautas en esta práctica. Con pautas finalizadas queda evaluado, con el
+     * promedio de sus notas; con pautas en borrador, en evaluación.
+     */
+    private void completarDesdePautas(EstudianteTutorDTO dto, Long idPractica, String rutEvaluador) {
+        if (dto.getCalificacion() != null || idPractica == null) return;
+        List<PautaAplicacion> propias = pautaAplicacionRepository.findByPracticaIdPractica(idPractica).stream()
+                .filter(a -> rutEvaluador.equalsIgnoreCase(a.getEvaluadorRut()))
+                .toList();
+        if (propias.isEmpty()) return;
+        List<Double> notas = propias.stream()
+                .filter(a -> PautaAplicacion.FINALIZADA.equals(a.getEstado()) && a.getNota() != null)
+                .map(a -> a.getNota().getPuntajeObtenido())
+                .filter(n -> n != null)
+                .toList();
+        if (notas.isEmpty()) {
+            dto.setEstadoEvaluacion("EN_EVALUACION");
+            return;
+        }
+        double promedio = notas.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        dto.setCalificacion(Math.round(promedio * 10) / 10.0);
+        dto.setEstadoEvaluacion("EVALUADO");
     }
 
     private void completarDatosEvaluacionYObservacion(EstudianteTutorDTO dto, Long idEstudiante, String rutEstudiante, String rutEvaluador) {

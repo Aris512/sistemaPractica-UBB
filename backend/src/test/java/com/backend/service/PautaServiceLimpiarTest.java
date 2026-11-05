@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -15,22 +16,34 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.backend.dto.PautaDTOs.GuardarAplicacionRequest;
+import com.backend.dto.PautaDTOs.RespuestaDTO;
+import com.backend.model.Estudiante;
+import com.backend.model.Nota;
 import com.backend.model.Pauta;
 import com.backend.model.PautaAplicacion;
+import com.backend.model.PautaCriterio;
 import com.backend.model.Practica;
 import com.backend.model.Usuario;
+import com.backend.repository.NotaDeVozRepository;
+import com.backend.repository.NotaRepository;
 import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PautaRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.service.PautaAccesoService.Solicitante;
 
-/** "Limpiar" una pauta aplicada: elimina el registro del evaluador según quién lo pide y en qué estado está. */
+/**
+ * Pauta aplicada: limpiarla elimina el registro del evaluador y la nota que dejó al estudiante, y la nota se
+ * registra en la tabla nota al finalizar y se retira al reabrirla.
+ */
 @ExtendWith(MockitoExtension.class)
 class PautaServiceLimpiarTest {
 
@@ -43,6 +56,9 @@ class PautaServiceLimpiarTest {
     @Mock private PautaAplicacionRepository aplicacionRepository;
     @Mock private PracticaRepository practicaRepository;
     @Mock private PautaAccesoService acceso;
+    @Mock private NotaRepository notaRepository;
+    @Mock private NotaDeVozRepository notaDeVozRepository;
+    @Mock private FileStorageService fileStorageService;
     @InjectMocks private PautaService service;
 
     private final Pauta pauta = new Pauta();
@@ -54,7 +70,7 @@ class PautaServiceLimpiarTest {
         pauta.setId(PAUTA_ID);
         practica.setIdPractica(PRACTICA_ID);
         when(pautaRepository.findById(PAUTA_ID)).thenReturn(Optional.of(pauta));
-        when(practicaRepository.findById(PRACTICA_ID)).thenReturn(Optional.of(practica));
+        lenient().when(practicaRepository.findById(PRACTICA_ID)).thenReturn(Optional.of(practica));
         aplicacion.setPauta(pauta);
         aplicacion.setPractica(practica);
         aplicacion.setEvaluadorRut(RUT_TUTOR);
@@ -88,18 +104,19 @@ class PautaServiceLimpiarTest {
     }
 
     @Test
-    @DisplayName("una pauta finalizada no la limpia el evaluador: debe reabrirla el coordinador")
-    void finalizadaNoSeLimpiaSinReabrir() {
+    @DisplayName("el evaluador también elimina su pauta finalizada, junto con la nota que dejó al estudiante")
+    void evaluadorEliminaSuPautaFinalizadaYLaNota() {
         Solicitante tutor = solicitante(RUT_TUTOR, "TUTOR_PRACTICA");
         conAplicacionPropiaDelTutor();
         when(acceso.puedeEvaluar(tutor, pauta, practica)).thenReturn(true);
+        Nota nota = new Nota(null, new Estudiante(), 6.0, RUT_TUTOR);
         aplicacion.setEstado(PautaAplicacion.FINALIZADA);
+        aplicacion.setNota(nota);
 
-        ResponseStatusException error = catchThrowableOfType(ResponseStatusException.class,
-            () -> service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null));
+        service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null);
 
-        assertThat(error.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        verify(aplicacionRepository, never()).delete(any());
+        verify(aplicacionRepository).delete(aplicacion);
+        verify(notaRepository).delete(nota);
     }
 
     @Test
@@ -149,5 +166,51 @@ class PautaServiceLimpiarTest {
         service.limpiarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null);
 
         verify(aplicacionRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("al finalizar, la nota de la pauta queda en la tabla nota, ligada al estudiante")
+    void finalizarRegistraLaNota() {
+        Solicitante tutor = solicitante(RUT_TUTOR, "TUTOR_PRACTICA");
+        conAplicacionPropiaDelTutor();
+        when(acceso.puedeEvaluar(tutor, pauta, practica)).thenReturn(true);
+        Estudiante estudiante = new Estudiante();
+        practica.setEstudiante(estudiante);
+        pauta.setEscalaMax(7);
+        pauta.setModoCalculo("PROMEDIO");
+        PautaCriterio criterio = new PautaCriterio(pauta, 1, null, "1", "Planifica la clase");
+        ReflectionTestUtils.setField(criterio, "id", 10L);
+        pauta.getCriterios().add(criterio);
+        when(notaRepository.save(any(Nota.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(aplicacionRepository.save(aplicacion)).thenReturn(aplicacion);
+
+        service.guardarAplicacion(RUT_TUTOR, PAUTA_ID, PRACTICA_ID,
+            new GuardarAplicacionRequest(null, null, "Buen trabajo", List.of(new RespuestaDTO(10L, 6)), true));
+
+        ArgumentCaptor<Nota> guardada = ArgumentCaptor.forClass(Nota.class);
+        verify(notaRepository).save(guardada.capture());
+        assertThat(guardada.getValue().getEstudiante()).isSameAs(estudiante);
+        assertThat(guardada.getValue().getRutEvaluador()).isEqualTo(RUT_TUTOR);
+        assertThat(guardada.getValue().getPuntajeObtenido()).isEqualTo(6.0);
+        assertThat(guardada.getValue().getEvaluacion()).isNull();
+        assertThat(aplicacion.getNota()).isSameAs(guardada.getValue());
+    }
+
+    @Test
+    @DisplayName("al modificar (reabrir) su pauta, el evaluador retira la nota hasta finalizarla de nuevo")
+    void reabrirRetiraLaNota() {
+        Solicitante tutor = solicitante(RUT_TUTOR, "TUTOR_PRACTICA");
+        conAplicacionPropiaDelTutor();
+        when(acceso.puedeEvaluar(tutor, pauta, practica)).thenReturn(true);
+        Nota nota = new Nota(null, new Estudiante(), 6.0, RUT_TUTOR);
+        aplicacion.setEstado(PautaAplicacion.FINALIZADA);
+        aplicacion.setNota(nota);
+        when(aplicacionRepository.save(aplicacion)).thenReturn(aplicacion);
+
+        service.reabrir(RUT_TUTOR, PAUTA_ID, PRACTICA_ID, null);
+
+        assertThat(aplicacion.getEstado()).isEqualTo(PautaAplicacion.BORRADOR);
+        assertThat(aplicacion.getNota()).isNull();
+        verify(notaRepository).delete(nota);
     }
 }
