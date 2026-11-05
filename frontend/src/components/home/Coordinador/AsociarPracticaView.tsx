@@ -171,7 +171,7 @@ export function AsociarPracticaView({
   };
 
   // Participantes que exige la asignatura elegida: las prácticas iniciales no llevan colaborador ni tutor,
-  // y el tutor universitario solo interviene en la Práctica Profesional.
+  // y el tutor universitario interviene desde 8.° semestre (Práctica Pedagógica y Profesional).
   const asignaturaSel = asignaturas.find((a) => String(a.idAsignatura) === selectedAsignaturaId);
   const requiereColaborador = asignaturaSel?.requiereColaborador ?? true;
   const requiereTutor = asignaturaSel?.requiereTutor ?? true;
@@ -186,8 +186,10 @@ export function AsociarPracticaView({
   const tutorActual = String(asociacionActual?.idTutor ?? "");
   const colaboradorNuevo = requiereColaborador ? selectedColaboradorId : "";
   const tutorNuevo = requiereTutor ? selectedTutorId : "";
+  // Agregar el tutor que faltaba, manteniendo al colaborador, completa la asociación sin reemplazar a nadie
+  const soloAgregaTutor = tutorActual === "" && tutorNuevo !== "" && colaboradorActual === colaboradorNuevo;
   const cambiaEvaluadores =
-    teniaAsociacion && (colaboradorActual !== colaboradorNuevo || tutorActual !== tutorNuevo);
+    teniaAsociacion && !soloAgregaTutor && (colaboradorActual !== colaboradorNuevo || tutorActual !== tutorNuevo);
   const bloqueadoPorPautas = cambiaEvaluadores && !!asociacionActual?.tienePautas;
   const requiereConfirmacion = cambiaEvaluadores && !asociacionActual?.tienePautas;
 
@@ -382,7 +384,7 @@ export function AsociarPracticaView({
           </div>
           <p className="text-sm text-slate-600 mt-1 max-w-3xl leading-relaxed">
             Asocia a cada estudiante con su asignatura de la línea de práctica. Según el ciclo se asigna además su profesor
-            colaborador y centro educativo, y en <strong>Práctica Profesional</strong> también su tutor institucional de supervisión.
+            colaborador y centro educativo, y desde <strong>8.° semestre</strong> también su tutor institucional de supervisión.
           </p>
         </div>
 
@@ -725,10 +727,17 @@ export function AsociarPracticaView({
                   </label>
                 )}
 
-                {!cambiaEvaluadores && (
+                {soloAgregaTutor ? (
                   <p className="leading-relaxed">
-                    Los participantes seleccionados coinciden con la asociación actual.
+                    Esta asociación no tiene tutor. Al confirmar se <strong>agrega el tutor</strong> seleccionado y se
+                    conservan el colaborador y las evaluaciones registradas.
                   </p>
+                ) : (
+                  !cambiaEvaluadores && (
+                    <p className="leading-relaxed">
+                      Los participantes seleccionados coinciden con la asociación actual.
+                    </p>
+                  )
                 )}
               </div>
             )}
