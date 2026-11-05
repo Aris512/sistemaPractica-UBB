@@ -9,9 +9,13 @@ public final class PlanificacionDTOs {
     private PlanificacionDTOs() {
     }
 
-    /** Planificación con sus 5 categorías de archivo; pendientes lista las categorías aún sin archivo. */
+    /**
+     * Planificación con sus 5 categorías de archivo; pendientes lista las categorías aún sin archivo. estadoRevision es
+     * el estado de su retroalimentación (null si nunca se revisó ni se envió al profesor).
+     */
     public record PlanificacionDTO(Long idPlanificacion, LocalDateTime fechaCreacion, String asignatura,
-                                   List<ArchivoPlanificacionDTO> archivos, List<String> pendientes, boolean completa) {
+                                   List<ArchivoPlanificacionDTO> archivos, List<String> pendientes, boolean completa,
+                                   String estadoRevision) {
     }
 
     /** Una categoría de la planificación; idDocumento es null si el archivo está pendiente de subir. */

@@ -103,6 +103,7 @@ public class PlanificacionService {
     public PlanificacionDTO subirArchivos(Long idPlanificacion, List<MultipartFile> archivos, List<String> categorias,
                                          String rutUsuario) {
         Planificacion planificacion = buscarPropia(idPlanificacion, rutUsuario);
+        exigirNoAprobada(planificacion);
         if (archivos == null || archivos.isEmpty() || categorias == null || archivos.size() != categorias.size()) {
             throw new IllegalArgumentException("Cada archivo debe tener una categoría.");
         }
@@ -145,6 +146,7 @@ public class PlanificacionService {
     @Transactional
     public PlanificacionDTO eliminarArchivo(Long idPlanificacion, String categoria, String rutUsuario) {
         Planificacion planificacion = buscarPropia(idPlanificacion, rutUsuario);
+        exigirNoAprobada(planificacion);
         DocumentoPlanificacion slots = planificacion.getDocumentoPlanificacion();
         Documento documento = slots.getArchivo(categoria);
         if (documento != null) {
@@ -158,7 +160,9 @@ public class PlanificacionService {
     /** Elimina la planificación con sus archivos y las retroalimentaciones de IA que tenga. */
     @Transactional
     public void eliminar(Long idPlanificacion, String rutUsuario) {
-        eliminarCompleta(buscarPropia(idPlanificacion, rutUsuario));
+        Planificacion planificacion = buscarPropia(idPlanificacion, rutUsuario);
+        exigirNoAprobada(planificacion);
+        eliminarCompleta(planificacion);
     }
 
     /** Al eliminar a un estudiante se eliminan también todas sus planificaciones, con sus archivos y retroalimentaciones. */
@@ -191,6 +195,8 @@ public class PlanificacionService {
             + "JOIN retroalimentacion_ia r ON r.id_retroalimentacion = pd.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
         jdbcTemplate.update("DELETE pd FROM pregunta_diagnostica pd JOIN retroalimentacion_ia r "
             + "ON r.id_retroalimentacion = pd.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
+        jdbcTemplate.update("DELETE o FROM observacion_retroalimentacion o JOIN retroalimentacion_ia r "
+            + "ON r.id_retroalimentacion = o.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
         jdbcTemplate.update("DELETE FROM retroalimentacion_ia WHERE id_planificacion = ?", idPlanificacion);
         planificacionRepository.delete(planificacion);
         planificacionRepository.flush();
@@ -245,21 +251,45 @@ public class PlanificacionService {
         return planificacion;
     }
 
-    private PlanificacionDTO toDTO(Planificacion p) {
+    /** Las 5 categorías con su archivo, o vacías si están pendientes; también las muestra la revisión del profesor. */
+    public List<ArchivoPlanificacionDTO> archivosDe(Planificacion p) {
         DocumentoPlanificacion slots = p.getDocumentoPlanificacion();
         List<ArchivoPlanificacionDTO> archivos = new ArrayList<>();
-        List<String> pendientes = new ArrayList<>();
         CATEGORIAS.forEach((categoria, etiqueta) -> {
             Documento d = slots != null ? slots.getArchivo(categoria) : null;
-            if (d == null) {
-                pendientes.add(categoria);
-                archivos.add(new ArchivoPlanificacionDTO(categoria, etiqueta, null, null, null, null, null));
-            } else {
-                archivos.add(new ArchivoPlanificacionDTO(categoria, etiqueta, d.getIdDocumento(), d.getNombre(),
+            archivos.add(d == null
+                ? new ArchivoPlanificacionDTO(categoria, etiqueta, null, null, null, null, null)
+                : new ArchivoPlanificacionDTO(categoria, etiqueta, d.getIdDocumento(), d.getNombre(),
                     d.getTamanioBytes(), d.getFechaCarga(), "/api/planificaciones/archivos/" + d.getIdDocumento() + "/descargar"));
-            }
         });
+        return archivos;
+    }
+
+    /** Categorías aún sin archivo, en el orden en que se muestran. */
+    public List<String> categoriasPendientes(Planificacion p) {
+        DocumentoPlanificacion slots = p.getDocumentoPlanificacion();
+        return CATEGORIAS.keySet().stream().filter(c -> slots == null || slots.getArchivo(c) == null).toList();
+    }
+
+    /** Estado de la retroalimentación más reciente de la planificación, o null si nunca se revisó ni se envió. */
+    private String estadoRevision(Long idPlanificacion) {
+        List<String> estados = jdbcTemplate.queryForList(
+            "SELECT estado FROM retroalimentacion_ia WHERE id_planificacion = ? ORDER BY id_retroalimentacion DESC LIMIT 1",
+            String.class, idPlanificacion);
+        return estados.isEmpty() ? null : estados.get(0);
+    }
+
+    /** Aprobada por el profesor, la planificación queda cerrada: el alumno ya no cambia sus archivos ni la elimina. */
+    private void exigirNoAprobada(Planificacion planificacion) {
+        if ("APROBADO".equals(estadoRevision(planificacion.getIdPlanificacion()))) {
+            throw new IllegalArgumentException("Tu profesor ya aprobó esta planificación: ya no se puede modificar.");
+        }
+    }
+
+    private PlanificacionDTO toDTO(Planificacion p) {
+        List<String> pendientes = categoriasPendientes(p);
         String asignatura = p.getAsignatura() != null ? p.getAsignatura().getNombre() : null;
-        return new PlanificacionDTO(p.getIdPlanificacion(), p.getFechaCreacion(), asignatura, archivos, pendientes, pendientes.isEmpty());
+        return new PlanificacionDTO(p.getIdPlanificacion(), p.getFechaCreacion(), asignatura, archivosDe(p), pendientes,
+            pendientes.isEmpty(), estadoRevision(p.getIdPlanificacion()));
     }
 }

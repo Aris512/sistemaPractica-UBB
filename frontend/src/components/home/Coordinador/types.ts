@@ -16,6 +16,8 @@ export interface EstudiantePractica {
   idAsignatura: number;
   asignaturaNombre: string;
   tieneAsociacion: boolean;
+  /** Su profesor de asignatura aprobó al menos una de sus planificaciones: ya se puede asociar. */
+  planificacionAprobada?: boolean;
   idPractica?: number | null;
   tutorNombre?: string;
   centroNombre?: string;
