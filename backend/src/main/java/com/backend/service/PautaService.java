@@ -269,6 +269,37 @@ public class PautaService {
         return aplicacionDTO(aplicacionRepository.save(app), pauta);
     }
 
+    /**
+     * "Limpiar": elimina la aplicación de la pauta (y sus respuestas) para que no quede registro en
+     * pauta_aplicacion, lo que permite al coordinador desvincular la práctica o eliminar la pauta.
+     * La puede limpiar el evaluador que la está completando mientras siga en borrador; una finalizada
+     * debe reabrirla antes el coordinador, que también puede limpiarla directamente.
+     */
+    @Transactional
+    public void limpiarAplicacion(String rut, Long pautaId, Long practicaId) {
+        Solicitante s = acceso.identificar(rut);
+        Pauta pauta = obtenerPauta(pautaId);
+        Practica practica = obtenerPractica(practicaId);
+        PautaAplicacion app = aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId).orElse(null);
+        if (app == null) return;
+
+        if (!s.puedeGestionar()) {
+            if (!acceso.puedeEvaluar(s, pauta, practica)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Esta pauta no le corresponde: debe ser el evaluador asignado a esta práctica.");
+            }
+            if (app.getEvaluadorRut() != null && !app.getEvaluadorRut().equalsIgnoreCase(s.rut())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Solo quien completó esta pauta puede limpiarla.");
+            }
+            if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "La pauta ya fue finalizada. Solicite al coordinador que la reabra para poder limpiarla.");
+            }
+        }
+        aplicacionRepository.delete(app);
+    }
+
     /** Solo el coordinador: devuelve una pauta finalizada a borrador para que el evaluador la corrija. */
     @Transactional
     public AplicacionDTO reabrir(String rut, Long pautaId, Long practicaId) {

@@ -22,6 +22,7 @@ import {
   getAplicacion,
   getPautaDetalle,
   guardarAplicacion,
+  limpiarAplicacion,
   reabrirAplicacion,
   type AplicacionPauta,
   type PautaDetalle,
@@ -143,8 +144,7 @@ export function PautaFormulario({
     };
   }, [pautaId, practicaId, user.rut]);
 
-  // Solo se guarda con "Guardar" o "Finalizar". Se envían todos los indicadores: los vacíos (null) se borran,
-  // así "Limpiar respuestas" también queda guardado.
+  // Solo se guarda con "Guardar" o "Finalizar". Se envían todos los indicadores: los vacíos (null) se borran.
   const guardar = useCallback(
     async (finalizar = false) => {
       if (!pauta) throw new Error("La pauta no está cargada.");
@@ -199,8 +199,34 @@ export function PautaFormulario({
   };
 
   const limpiar = () => {
-    if (Object.keys(respuestas).length === 0 && !observaciones) return;
+    if (Object.keys(respuestas).length === 0 && !observaciones && !aplicacion) return;
     setConfirmar("limpiar");
+  };
+
+  /**
+   * Borra los puntajes y observaciones y, si la pauta ya estaba guardada, elimina su registro: así no queda
+   * una evaluación vacía que impida al coordinador desvincular la práctica o eliminar la pauta.
+   */
+  const confirmarLimpiar = async () => {
+    try {
+      if (aplicacion) await limpiarAplicacion(user.rut, pautaId, practicaId);
+      setAplicacion(null);
+      setRespuestas({});
+      setObservaciones("");
+      setBase({ respuestas: {}, observaciones: "" });
+      setGuardado("idle");
+      sileo.success({
+        title: "Pauta limpiada",
+        description: aplicacion
+          ? "Se eliminó el registro de esta pauta."
+          : "Se borraron los puntajes y observaciones sin guardar.",
+      });
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo limpiar",
+        description: e instanceof Error ? e.message : "Intente nuevamente.",
+      });
+    }
   };
 
   const finalizar = async () => {
@@ -518,8 +544,8 @@ export function PautaFormulario({
               <button
                 type="button"
                 onClick={limpiar}
-                disabled={respondidos === 0 && !observaciones}
-                title="Borrar todos los puntajes y observaciones"
+                disabled={respondidos === 0 && !observaciones && !aplicacion}
+                title="Eliminar los puntajes, las observaciones y el registro de esta pauta"
                 className="inline-flex items-center gap-1.5 h-10 px-2 sm:px-3 shrink-0 rounded-xl text-sm font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600"
               >
                 <Eraser className="size-4" />
@@ -564,12 +590,13 @@ export function PautaFormulario({
       <ConfirmDeleteDialog
         open={confirmar === "limpiar"}
         onOpenChange={(abierto) => !abierto && setConfirmar(null)}
-        onConfirm={() => {
-          setRespuestas({});
-          setObservaciones("");
-        }}
-        title="Limpiar respuestas"
-        description="Se borrarán todos los puntajes y las observaciones de esta pauta. El cambio se aplica al presionar «Guardar»."
+        onConfirm={confirmarLimpiar}
+        title="Limpiar pauta"
+        description={
+          aplicacion
+            ? "Se eliminarán todos los puntajes, las observaciones y el registro guardado de esta pauta. Esta acción no se puede deshacer."
+            : "Se borrarán los puntajes y las observaciones que aún no ha guardado."
+        }
         confirmLabel="Limpiar"
         confirmingLabel="Limpiando..."
       />

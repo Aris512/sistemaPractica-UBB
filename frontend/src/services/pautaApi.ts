@@ -188,6 +188,15 @@ export const guardarAplicacion = async (
   return response.json();
 };
 
+/** Elimina la pauta aplicada (puntajes y observaciones) para que no quede registro guardado. */
+export const limpiarAplicacion = async (rut: string, pautaId: number, practicaId: number): Promise<void> => {
+  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}`, {
+    method: "DELETE",
+    headers: cabeceras(rut),
+  });
+  if (!response.ok) throw await leerError(response, "No se pudo limpiar la pauta");
+};
+
 export const reabrirAplicacion = async (
   rut: string,
   pautaId: number,
