@@ -7,6 +7,7 @@ import { PautaEditor, type ModoEditor } from "./PautaEditor";
 import {
   cambiarActivaPauta,
   eliminarPauta,
+  evaluadoresDe,
   getCatalogo,
   getPautaDetalle,
   type CriterioPauta,
@@ -266,7 +267,9 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
                       <span className="flex flex-wrap gap-1.5">
                         <Etiqueta>{ESPECIALIDAD_LABEL[p.especialidad] ?? p.especialidad}</Etiqueta>
                         <Etiqueta>{MOMENTO_LABEL[p.momento] ?? p.momento}</Etiqueta>
-                        <Etiqueta>{EVALUADOR_LABEL[p.evaluador] ?? p.evaluador}</Etiqueta>
+                        {evaluadoresDe(p.evaluador).map((e) => (
+                          <Etiqueta key={e}>{EVALUADOR_LABEL[e] ?? e}</Etiqueta>
+                        ))}
                         <Etiqueta tenue>
                           {p.criteriosCount} indicadores · {p.puntajeMaximo} pts
                         </Etiqueta>

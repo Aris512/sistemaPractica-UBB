@@ -11,7 +11,8 @@ import com.backend.model.PautaAplicacion;
 
 public interface PautaAplicacionRepository extends JpaRepository<PautaAplicacion, Long> {
     List<PautaAplicacion> findByPracticaIdPractica(Long idPractica);
-    Optional<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
+    List<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
+    Optional<PautaAplicacion> findByPautaIdAndPracticaIdPracticaAndEvaluadorRut(Long pautaId, Long idPractica, String evaluadorRut);
     boolean existsByPautaId(Long pautaId);
     boolean existsByPracticaIdPractica(Long idPractica);
 

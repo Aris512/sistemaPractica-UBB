@@ -105,8 +105,9 @@ public class PautaController {
     public ResponseEntity<AplicacionDTO> obtenerAplicacion(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
             @PathVariable Long pautaId,
-            @PathVariable Long practicaId) {
-        AplicacionDTO dto = pautaService.obtenerAplicacion(rut, pautaId, practicaId);
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        AplicacionDTO dto = pautaService.obtenerAplicacion(rut, pautaId, practicaId, aplicacionId);
         return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
     }
 
@@ -123,8 +124,9 @@ public class PautaController {
     public ResponseEntity<Void> limpiarAplicacion(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
             @PathVariable Long pautaId,
-            @PathVariable Long practicaId) {
-        pautaService.limpiarAplicacion(rut, pautaId, practicaId);
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        pautaService.limpiarAplicacion(rut, pautaId, practicaId, aplicacionId);
         return ResponseEntity.noContent().build();
     }
 
@@ -132,8 +134,9 @@ public class PautaController {
     public ResponseEntity<AplicacionDTO> reabrir(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
             @PathVariable Long pautaId,
-            @PathVariable Long practicaId) {
-        return ResponseEntity.ok(pautaService.reabrir(rut, pautaId, practicaId));
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        return ResponseEntity.ok(pautaService.reabrir(rut, pautaId, practicaId, aplicacionId));
     }
 
     // ---- Resultados para estudiante, profesor de asignatura, coordinador y evaluadores

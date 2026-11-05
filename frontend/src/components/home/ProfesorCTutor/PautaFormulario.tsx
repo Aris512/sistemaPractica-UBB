@@ -24,6 +24,7 @@ import {
   guardarAplicacion,
   limpiarAplicacion,
   reabrirAplicacion,
+  evaluadoresDe,
   type AplicacionPauta,
   type PautaDetalle,
 } from "@/services/pautaApi";
@@ -38,6 +39,8 @@ interface PautaFormularioProps {
   soloLectura?: boolean;
   /** Solo coordinador: permite devolver una pauta finalizada a borrador. */
   puedeReabrir?: boolean;
+  /** Aplicación concreta a mostrar (resultados). Sin ella se abre la del propio evaluador. */
+  aplicacionId?: number | null;
   textoVolver?: string;
 }
 
@@ -88,6 +91,7 @@ export function PautaFormulario({
   onBack,
   soloLectura = false,
   puedeReabrir = false,
+  aplicacionId = null,
   textoVolver = "Volver a las pautas",
 }: PautaFormularioProps) {
   const [pauta, setPauta] = useState<PautaDetalle | null>(null);
@@ -122,7 +126,7 @@ export function PautaFormulario({
       try {
         const [detalle, guardada] = await Promise.all([
           getPautaDetalle(user.rut, pautaId),
-          getAplicacion(user.rut, pautaId, practicaId),
+          getAplicacion(user.rut, pautaId, practicaId, aplicacionId),
         ]);
         if (cancelado) return;
         setPauta(detalle);
@@ -142,7 +146,7 @@ export function PautaFormulario({
     return () => {
       cancelado = true;
     };
-  }, [pautaId, practicaId, user.rut]);
+  }, [pautaId, practicaId, aplicacionId, user.rut]);
 
   // Solo se guarda con "Guardar" o "Finalizar". Se envían todos los indicadores: los vacíos (null) se borran.
   const guardar = useCallback(
@@ -209,7 +213,7 @@ export function PautaFormulario({
    */
   const confirmarLimpiar = async () => {
     try {
-      if (aplicacion) await limpiarAplicacion(user.rut, pautaId, practicaId);
+      if (aplicacion) await limpiarAplicacion(user.rut, pautaId, practicaId, aplicacion.id);
       setAplicacion(null);
       setRespuestas({});
       setObservaciones("");
@@ -259,7 +263,7 @@ export function PautaFormulario({
     if (!ok) return;
     setReabriendo(true);
     try {
-      const res = await reabrirAplicacion(user.rut, pautaId, practicaId);
+      const res = await reabrirAplicacion(user.rut, pautaId, practicaId, aplicacion?.id ?? aplicacionId);
       setAplicacion(res);
       sileo.success({ title: "Pauta reabierta", description: "El evaluador puede corregirla." });
     } catch (e) {
@@ -328,7 +332,9 @@ export function PautaFormulario({
               {MOMENTO_LABEL[pauta.momento] ?? pauta.momento}
             </span>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-              {EVALUADOR_LABEL[pauta.evaluador] ?? pauta.evaluador}
+              {evaluadoresDe(pauta.evaluador)
+                .map((e) => EVALUADOR_LABEL[e] ?? e)
+                .join(" · ")}
             </span>
           </div>
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">{pauta.titulo}</h1>

@@ -1,7 +1,10 @@
 package com.backend.model;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -52,7 +55,7 @@ public class Pauta {
     /** PRIMERA | SEGUNDA | UNICA. */
     private String momento;
 
-    /** COLABORADOR | TUTOR | ACADEMICO: quién completa la pauta. */
+    /** Quién completa la pauta: uno o varios de COLABORADOR, TUTOR, ACADEMICO separados por coma. */
     private String evaluador;
 
     @Column(name = "escala_min")
@@ -116,6 +119,17 @@ public class Pauta {
     public void setMomento(String momento) { this.momento = momento; }
     public String getEvaluador() { return evaluador; }
     public void setEvaluador(String evaluador) { this.evaluador = evaluador; }
+
+    /** Roles que completan la pauta; cada uno registra su propia aplicación. */
+    public Set<String> evaluadoresLista() {
+        Set<String> lista = new LinkedHashSet<>();
+        if (evaluador == null) return lista;
+        for (String parte : evaluador.split(",")) {
+            String e = parte.trim().toUpperCase(Locale.ROOT);
+            if (!e.isEmpty()) lista.add(e);
+        }
+        return lista;
+    }
     public Integer getEscalaMin() { return escalaMin; }
     public void setEscalaMin(Integer escalaMin) { this.escalaMin = escalaMin; }
     public Integer getEscalaMax() { return escalaMax; }
