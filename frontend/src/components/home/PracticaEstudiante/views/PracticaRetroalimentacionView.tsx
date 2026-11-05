@@ -213,7 +213,7 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         {[
           { icono: Bot, texto: "Si quieres, revísala antes con la IA (hasta 2 revisiones)." },
-          { icono: Send, texto: "Envíala a tu profesor: con el visto bueno de la IA o directamente, con sus 5 archivos." },
+          { icono: Send, texto: "Envíala a tu profesor: con el visto bueno de la IA o directamente, aunque falten archivos." },
           { icono: Bell, texto: "Tu profesor te envía observaciones; puedes cambiar tus archivos hasta que la apruebe." },
           { icono: CheckCircle2, texto: "Aprobada, quedas habilitado para que coordinación te asocie a tu práctica." },
         ].map(({ icono: Icono, texto }, i) => (
@@ -492,8 +492,10 @@ function TarjetaPlanificacion({
             revisión con la IA).
           </Aviso>
         )}
-        {p.idDocumento && !p.completa && (!r || (r.estado !== "ESPERANDO_PROFESOR" && r.estado !== "APROBADO")) && (
-          <p className="text-xs text-slate-500">Para enviarla directamente a tu profesor, sube sus 5 archivos en Planificación.</p>
+        {p.idDocumento && !p.completa && (!r || r.estado !== "APROBADO") && (
+          <p className="text-xs text-slate-500">
+            Aún faltan archivos en Planificación: puedes enviarla igual y subirlos hasta que tu profesor la apruebe.
+          </p>
         )}
         {r?.estado === "REVISADO_POR_IA" && r.archivoCambiado && (
           <Aviso>Cambiaste el archivo después de la revisión de la IA. Reinicia la revisión para enviar la nueva versión.</Aviso>

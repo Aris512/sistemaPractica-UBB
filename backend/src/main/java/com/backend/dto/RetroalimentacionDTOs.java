@@ -13,7 +13,8 @@ public final class RetroalimentacionDTOs {
 
     /**
      * Una planificación del alumno con el archivo que revisaría la IA y su retroalimentación (null si no empezó).
-     * completa: tiene sus 5 archivos; puedeEnviarDirecto: puede enviarla al profesor sin pasar por la IA.
+     * completa: tiene sus 5 archivos; puedeEnviarDirecto: puede enviarla al profesor sin pasar por la IA (basta el
+     * archivo «Planificación»).
      */
     public record PlanificacionRetroDTO(Long idPlanificacion, LocalDateTime fechaCreacion, String asignatura,
                                         Long idDocumento, String nombreArchivo, boolean completa, boolean puedeEnviarDirecto,
