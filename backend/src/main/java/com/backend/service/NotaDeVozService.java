@@ -1,5 +1,6 @@
 package com.backend.service;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -112,30 +113,33 @@ public class NotaDeVozService {
 
         Evaluacion evaluacion = null;
         PautaAplicacion aplicacion = null;
+        String nombreEvaluadorPorDefecto;
         if (idAplicacionPauta != null) {
             aplicacion = pautaAplicacionRepository.findById(idAplicacionPauta)
                     .orElseThrow(() -> new IllegalArgumentException("Pauta no encontrada con ID: " + idAplicacionPauta));
             if (aplicacion.getEvaluadorRut() == null || !aplicacion.getEvaluadorRut().equalsIgnoreCase(rutGrabador.trim())) {
                 throw new SecurityException("Solo quien completa esta pauta puede adjuntarle notas de voz.");
             }
+            nombreEvaluadorPorDefecto = aplicacion.getEvaluadorNombre();
         } else {
             evaluacion = evaluacionRepository.findById(idEvaluacion)
                     .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
             if (!esEvaluadorDe(evaluacion, rutGrabador)) {
                 throw new SecurityException("Solo el evaluador de esta evaluación puede adjuntarle notas de voz.");
             }
+            nombreEvaluadorPorDefecto = evaluacion.getNombreEvaluador();
         }
 
-        // Determinar nombre del grabador si no viene explícito
+        // Determinar nombre del grabador si no viene explícito (rutGrabador ya se validó como no vacío)
         String nombreFinal = (nombreGrabador != null && !nombreGrabador.isBlank()) ? nombreGrabador.trim() : null;
-        if (nombreFinal == null && rutGrabador != null && !rutGrabador.isBlank()) {
+        if (nombreFinal == null) {
             Usuario u = usuarioRepository.findByRut(rutGrabador).orElse(null);
             if (u != null) {
                 nombreFinal = (u.getNombre() + " " + (u.getApellido() != null ? u.getApellido() : "")).trim();
             }
         }
         if (nombreFinal == null) {
-            nombreFinal = evaluacion != null ? evaluacion.getNombreEvaluador() : aplicacion.getEvaluadorNombre();
+            nombreFinal = nombreEvaluadorPorDefecto;
         }
 
         // Almacenar el archivo de audio usando FileStorageService en subdirectorio "notas_de_voz"
@@ -157,7 +161,7 @@ public class NotaDeVozService {
                     transcripcionLimpia = textoWhisper.trim();
                     logger.info("Transcripción automática con Groq Whisper generada para nota de voz.");
                 }
-            } catch (Exception e) {
+            } catch (IOException | RuntimeException e) {
                 logger.warn("No se pudo autotranscribir con Groq Whisper: {}", e.getMessage());
             }
         }
@@ -197,13 +201,21 @@ public class NotaDeVozService {
         if (groqClient == null || !groqClient.estaConfigurado()) {
             throw new IllegalStateException("El servicio de transcripción de IA no está configurado (falta GROQ_API_KEY).");
         }
+        byte[] audio;
         try {
-            String resultado = groqClient.transcribirAudio(file.getBytes(), file.getOriginalFilename());
-            return resultado != null ? resultado : "";
-        } catch (Exception e) {
-            logger.warn("Error al procesar audio en transcribirAudio: {}", e.getMessage());
-            throw new RuntimeException("No se pudo transcribir el audio.");
+            audio = file.getBytes();
+        } catch (IOException e) {
+            logger.warn("No se pudo leer el audio en transcribirAudio: {}", e.getMessage());
+            throw new IllegalStateException("No se pudo leer el archivo de audio.", e);
         }
+        String resultado;
+        try {
+            resultado = groqClient.transcribirAudio(audio, file.getOriginalFilename());
+        } catch (RuntimeException e) {
+            logger.warn("Error al procesar audio en transcribirAudio: {}", e.getMessage());
+            throw new IllegalStateException("No se pudo transcribir el audio.", e);
+        }
+        return resultado != null ? resultado : "";
     }
 
     /**

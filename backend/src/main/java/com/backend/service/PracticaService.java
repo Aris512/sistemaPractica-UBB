@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -183,17 +184,17 @@ public class PracticaService {
                 .filter(a -> rutEvaluador.equalsIgnoreCase(a.getEvaluadorRut()))
                 .toList();
         if (propias.isEmpty()) return;
-        List<Double> notas = propias.stream()
+        OptionalDouble promedio = propias.stream()
                 .filter(a -> PautaAplicacion.FINALIZADA.equals(a.getEstado()) && a.getNota() != null)
                 .map(a -> a.getNota().getPuntajeObtenido())
                 .filter(n -> n != null)
-                .toList();
-        if (notas.isEmpty()) {
+                .mapToDouble(n -> n)
+                .average();
+        if (promedio.isEmpty()) {
             dto.setEstadoEvaluacion("EN_EVALUACION");
             return;
         }
-        double promedio = notas.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        dto.setCalificacion(Math.round(promedio * 10) / 10.0);
+        dto.setCalificacion(Math.round(promedio.getAsDouble() * 10) / 10.0);
         dto.setEstadoEvaluacion("EVALUADO");
     }
 
