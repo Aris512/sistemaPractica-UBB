@@ -4,7 +4,6 @@ export { HomeHeader as ProfesorHeader } from "./HomeHeader";
 export { PerfilProfesor } from "./PerfilProfesor";
 export { Portafolio } from "./Portafolio";
 export { CursosPractica } from "./CursosPractica";
-export { Planificacion } from "./Planificacion";
 export { Evaluaciones } from "./Evaluaciones";
 export { ModalEvaluaciones } from "./ModalEvaluaciones";
 export * from "./types";
