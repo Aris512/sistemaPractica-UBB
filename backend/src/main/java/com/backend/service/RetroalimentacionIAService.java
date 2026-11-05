@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +113,7 @@ public class RetroalimentacionIAService {
                             p.getAsignatura() != null ? p.getAsignatura().getNombre() : null,
                             archivo != null ? archivo.getIdDocumento() : null,
                             archivo != null ? archivo.getNombre() : null,
-                            completa, completa && archivo != null && (retro == null || admiteEnvioDirecto(retro)),
+                            completa, archivo != null && (retro == null || admiteEnvioDirecto(retro)),
                             retro != null ? aDTO(retro, archivo) : null);
                 })
                 .toList();
@@ -267,20 +266,19 @@ public class RetroalimentacionIAService {
     }
 
     /**
-     * Botón «Enviar al profesor» de la planificación: la envía sin pasar por la IA y exige sus 5 archivos. Tras un
-     * rechazo empieza un ciclo nuevo; la conversación con la IA, si la hubo, se conserva para que el profesor la lea.
+     * Botón «Enviar al profesor» de la planificación: la envía sin pasar por la IA. Basta el archivo «Planificación»;
+     * el profesor ve como pendientes los que falten. Tras un rechazo empieza un ciclo nuevo; la conversación con la IA,
+     * si la hubo, se conserva para que el profesor la lea.
      */
     @Transactional
     public RetroDTO enviarDirecto(String rutCliente, Long idPlanificacion) {
         String rut = chatService.resolverUsuario(rutCliente);
         Planificacion planificacion = planificacionPropia(rut, idPlanificacion);
-        List<String> pendientes = planificacionService.categoriasPendientes(planificacion);
-        if (!pendientes.isEmpty()) {
-            throw new ChatException(HttpStatus.CONFLICT, "RETRO_INCOMPLETA",
-                    "Sube los 5 archivos de la planificación antes de enviarla. Falta: "
-                    + pendientes.stream().map(PlanificacionService.CATEGORIAS::get).collect(Collectors.joining(", ")) + ".");
-        }
         Documento archivo = archivoPlanificacion(planificacion);
+        if (archivo == null) {
+            throw new ChatException(HttpStatus.CONFLICT, "RETRO_SIN_ARCHIVO",
+                    "Sube al menos el archivo «Planificación» antes de enviarla a tu profesor.");
+        }
         RetroalimentacionIA retro = retroDe(planificacion);
         if (retro == null) {
             retro = new RetroalimentacionIA(planificacion);

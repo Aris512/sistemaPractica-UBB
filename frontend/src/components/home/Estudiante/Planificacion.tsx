@@ -236,7 +236,9 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
       await enviarPlanificacionAlProfesor(rut, plan.idPlanificacion);
       sileo.success({
         title: "Enviada al profesor",
-        description: "Verás sus observaciones en Retroalimentación. Puedes cambiar tus archivos hasta que la apruebe.",
+        description: plan.completa
+          ? "Verás sus observaciones en Retroalimentación. Puedes cambiar tus archivos hasta que la apruebe."
+          : "Tu profesor verá como pendientes los archivos que faltan; puedes subirlos hasta que la apruebe.",
       });
       await cargar();
     } catch (err) {
@@ -323,6 +325,8 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
   const estadoSel = seleccionada?.estadoRevision ?? null;
   const aprobada = estadoSel === "APROBADO";
   const enRevision = estadoSel === "ESPERANDO_PROFESOR";
+  // Se puede enviar aunque falten archivos; basta el documento «Planificación», que es lo que revisa el profesor
+  const tieneArchivoPrincipal = !!seleccionada?.archivos.some((a) => a.categoria === "PLANIFICACION" && a.idDocumento);
 
   return (
     <div className="max-w-6xl mx-auto py-2 space-y-6">
@@ -457,8 +461,14 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                         <button
                           type="button"
                           onClick={() => void enviarAlProfesor(seleccionada)}
-                          disabled={!seleccionada.completa || enviando}
-                          title={seleccionada.completa ? "Enviar a tu profesor de asignatura" : "Sube los 5 archivos para enviarla"}
+                          disabled={!tieneArchivoPrincipal || enviando}
+                          title={
+                            !tieneArchivoPrincipal
+                              ? "Sube al menos el archivo «Planificación» para enviarla"
+                              : seleccionada.completa
+                                ? "Enviar a tu profesor de asignatura"
+                                : "Puedes enviarla aunque falten archivos; tu profesor los verá como pendientes"
+                          }
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {enviando ? <RefreshCw className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
