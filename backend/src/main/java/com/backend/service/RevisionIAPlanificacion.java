@@ -103,7 +103,7 @@ public class RevisionIAPlanificacion {
      * (al subir una versión corregida el alumno vuelve a tener todas sus preguntas); en las demás, desde el inicio.
      */
     public int ordenInicioPreguntas(Long idConversacion) {
-        return deConversacion(idConversacion).map(RetroalimentacionIA::getMensajesPreviosArchivo).orElse(0);
+        return deConversacion(idConversacion).map(retro -> retro.getMensajesPreviosArchivo()).orElse(0);
     }
 
     /** Solo los mensajes posteriores al archivo vigente: los anteriores hablaban de otra versión. */
