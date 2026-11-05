@@ -45,7 +45,8 @@ public class PermisosCatalogo {
         new PermisoDef("OBSERVACIONES_REGISTRAR", "Registrar observaciones", "OBSERVACIONES", "Permite registrar observaciones formativas y pedagógicas"),
         new PermisoDef("OBSERVACIONES_CONSULTAR", "Consultar observaciones", "OBSERVACIONES", "Permite consultar el historial de observaciones formativas"),
         new PermisoDef("ESTUDIANTES_CONSULTAR", "Consultar información de otros estudiantes", "ESTUDIANTES", "Permite visualizar listas y expedientes de otros estudiantes"),
-        new PermisoDef("IA_ACCESO", "Acceso a funcionalidades de IA", "INTELIGENCIA ARTIFICIAL", "Permite acceder a los asistentes inteligentes y recomendaciones pedagógicas con IA")
+        new PermisoDef("IA_ACCESO", "Acceso a funcionalidades de IA", "INTELIGENCIA ARTIFICIAL", "Permite acceder a los asistentes inteligentes y recomendaciones pedagógicas con IA"),
+        new PermisoDef("PRACTICAS_ASOCIAR", "Asociar prácticas", "ESTUDIANTES", "Permite asociar estudiantes con profesores colaboradores, tutores y centros en las 6 asignaturas de práctica")
     );
 
     /** Asignación inicial: nombre de rol -> código de permiso -> configuración. */
@@ -98,7 +99,8 @@ public class PermisosCatalogo {
             "OBSERVACIONES_REGISTRAR", new AsignacionDefecto(true, "ALL"),
             "OBSERVACIONES_CONSULTAR", new AsignacionDefecto(true, "ALL"),
             "ESTUDIANTES_CONSULTAR", new AsignacionDefecto(true, "ALL"),
-            "IA_ACCESO", new AsignacionDefecto(true, "ALL")
+            "IA_ACCESO", new AsignacionDefecto(true, "ALL"),
+            "PRACTICAS_ASOCIAR", new AsignacionDefecto(true, "ALL")
         )
     );
 

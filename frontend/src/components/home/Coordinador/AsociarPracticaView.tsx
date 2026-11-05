@@ -96,11 +96,13 @@ export function AsociarPracticaView({
   }, [initialEstudiante, selectedAsignaturaId]);
 
   // ── 2. Cargar candidatos cuando cambia la asignatura seleccionada ──
-  const fetchCandidatos = useCallback(async (asigId: string) => {
+  // Solo llegan alumnos aún no asociados; incluirEstudianteId mantiene al abierto desde "Ver / Modificar".
+  const fetchCandidatos = useCallback(async (asigId: string, incluirEstudianteId?: number) => {
     if (!asigId) return;
     setLoadingCandidatos(true);
     try {
-      const res = await fetch(`/api/coordinador/candidatos?asignaturaId=${asigId}`);
+      const incluir = incluirEstudianteId ? `&incluirEstudianteId=${incluirEstudianteId}` : "";
+      const res = await fetch(`/api/coordinador/candidatos?asignaturaId=${asigId}${incluir}`);
       if (res.ok) {
         const data: CandidatosResponse = await res.json();
         setCandidatos(data);
@@ -142,9 +144,13 @@ export function AsociarPracticaView({
   // Al cambiar asignatura, recargar candidatos y resetear selecciones dependientes
   useEffect(() => {
     if (selectedAsignaturaId) {
-      fetchCandidatos(selectedAsignaturaId);
-      if (initialEstudiante && String(initialEstudiante.idAsignatura) === selectedAsignaturaId) {
-        setSelectedEstudianteId(String(initialEstudiante.idEstudiante));
+      const preseleccionado =
+        initialEstudiante && String(initialEstudiante.idAsignatura) === selectedAsignaturaId
+          ? initialEstudiante
+          : null;
+      fetchCandidatos(selectedAsignaturaId, preseleccionado?.idEstudiante);
+      if (preseleccionado) {
+        setSelectedEstudianteId(String(preseleccionado.idEstudiante));
       } else {
         setSelectedEstudianteId("");
       }
@@ -398,7 +404,7 @@ export function AsociarPracticaView({
             Seleccionar Asignatura de Práctica
           </CardTitle>
           <CardDescription className="text-xs text-slate-500">
-            Las 6 asignaturas de práctica: Aproximación al Sistema Escolar, Ambientes de Aprendizaje, Trabajo Colaborativo en el Aula, Investigación en el Aula, Práctica Pedagógica y Práctica Profesional.
+            Prácticas de 8.° y 9.° semestre: Práctica Pedagógica y Práctica Profesional. Solo se listan los estudiantes que aún no tienen una asociación.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
@@ -624,7 +630,7 @@ export function AsociarPracticaView({
                   ))
                 ) : (
                   <option value="" disabled>
-                    No hay estudiantes disponibles en esta asignatura
+                    No hay estudiantes pendientes de asociación en esta asignatura
                   </option>
                 )}
               </select>

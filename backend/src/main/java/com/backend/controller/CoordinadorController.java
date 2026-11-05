@@ -118,6 +118,20 @@ public class CoordinadorController {
         return nivelPractica(asig) != null;
     }
 
+    /** El coordinador solo asocia las prácticas de 8.° (Práctica Pedagógica) y 9.° semestre (Práctica Profesional). */
+    private boolean esPracticaFinal(String nivel) {
+        return "PEDAGOGICA".equals(nivel) || "PROFESIONAL".equals(nivel);
+    }
+
+    /** Ya está asociado si su práctica de esa asignatura tiene profesor colaborador o tutor. */
+    private boolean estaAsociado(Estudiante est, Long idAsignatura) {
+        List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
+        return practicas != null && practicas.stream()
+            .filter(p -> p.getAsignatura() != null && idAsignatura.equals(p.getAsignatura().getIdAsignatura()))
+            .anyMatch(p -> p.getTutorPractica() != null
+                || (p.getProfesoresColaboradores() != null && !p.getProfesoresColaboradores().isEmpty()));
+    }
+
     /** Las prácticas iniciales son simulaciones en la universidad: no hay colegio ni profesor colaborador. */
     private boolean requiereColaborador(String nivel) {
         return nivel != null && !"INICIAL".equals(nivel);
@@ -159,14 +173,14 @@ public class CoordinadorController {
     }
 
     /**
-     * Retorna las 6 asignaturas de la línea de práctica (ordenadas por semestre), indicando qué participantes
-     * requiere cada una: profesor colaborador / centro (todas salvo las iniciales) y tutor (solo Práctica Profesional).
+     * Retorna las asignaturas de práctica que asocia el coordinador, de 8.° y 9.° semestre (ordenadas por semestre),
+     * indicando qué participantes requiere cada una: profesor colaborador / centro y tutor (solo Práctica Profesional).
      */
     @GetMapping("/asignaturas-practica")
     public ResponseEntity<List<Map<String, Object>>> obtenerAsignaturasPractica() {
         List<Asignatura> todas = asignaturaRepository.findAll();
         List<Map<String, Object>> resultado = todas.stream()
-            .filter(this::esAsignaturaPractica)
+            .filter(a -> esPracticaFinal(nivelPractica(a)))
             .sorted((x, y) -> Integer.compare(semestreNum(x), semestreNum(y)))
             .map(a -> {
                 Map<String, Object> map = new HashMap<>();
@@ -196,8 +210,7 @@ public class CoordinadorController {
 
         for (Estudiante est : todos) {
             // El inicio del coordinador solo lista a los alumnos de 8.° y 9.° semestre
-            String nivel = nivelPractica(est.getAsignatura());
-            if (!"PEDAGOGICA".equals(nivel) && !"PROFESIONAL".equals(nivel)) {
+            if (!esPracticaFinal(nivelPractica(est.getAsignatura()))) {
                 continue;
             }
 
@@ -243,14 +256,16 @@ public class CoordinadorController {
     }
 
     /**
-     * Retorna candidatos elegibles para una asignatura específica:
-     * - Estudiantes de esa asignatura
+     * Retorna candidatos elegibles para una asignatura de 8.° o 9.° semestre:
+     * - Estudiantes de esa asignatura que aún no están asociados (salvo {@code incluirEstudianteId}, el alumno
+     *   abierto desde "Ver / Modificar" en el inicio, para poder revisar o reemplazar su asociación)
      * - Profesores colaboradores disponibles
      * - Tutores de práctica disponibles
      * - Centros de práctica
      */
     @GetMapping("/candidatos")
-    public ResponseEntity<?> obtenerCandidatos(@RequestParam(required = false) Long asignaturaId) {
+    public ResponseEntity<?> obtenerCandidatos(@RequestParam(required = false) Long asignaturaId,
+                                               @RequestParam(required = false) Long incluirEstudianteId) {
         if (asignaturaId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "El parámetro 'asignaturaId' es obligatorio."));
         }
@@ -261,17 +276,18 @@ public class CoordinadorController {
         }
 
         Asignatura asignatura = asigOpt.get();
-        if (!esAsignaturaPractica(asignatura)) {
+        if (!esPracticaFinal(nivelPractica(asignatura))) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La asignatura seleccionada no es una de las 6 asignaturas de la línea de práctica."
+                "error", "La asignatura seleccionada no es una práctica de 8.° o 9.° semestre."
             ));
         }
 
-        // 1. Estudiantes de esa asignatura
+        // 1. Estudiantes de esa asignatura que aún no están asociados
         List<Estudiante> estudiantesAsig = estudianteRepository.findByAsignaturaIdAsignatura(asignaturaId);
         List<Map<String, Object>> estudiantesList = estudiantesAsig.stream()
             .filter(e -> e.getUsuario() == null || (e.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(e.getUsuario().getEstado())))
             .filter(e -> !"INACTIVO".equalsIgnoreCase(e.getEstado()))
+            .filter(e -> e.getIdEstudiante().equals(incluirEstudianteId) || !estaAsociado(e, asignaturaId))
             .map(e -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idEstudiante", e.getIdEstudiante());
@@ -432,9 +448,9 @@ public class CoordinadorController {
         }
         Asignatura asignatura = asigOpt.get();
         String nivel = nivelPractica(asignatura);
-        if (nivel == null) {
+        if (!esPracticaFinal(nivel)) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La asignatura '" + asignatura.getNombre() + "' no es una de las 6 asignaturas de la línea de práctica."
+                "error", "La asignatura '" + asignatura.getNombre() + "' no es una práctica de 8.° o 9.° semestre."
             ));
         }
         if (requiereColaborador(nivel) && idColaborador == null) {
