@@ -10,6 +10,7 @@ import { Evaluaciones } from "./Evaluaciones";
 import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
+import { InicioProfesor } from "./InicioProfesor";
 import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
@@ -149,7 +150,14 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         return <PautasResultados user={user} modo="profesor" onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
-        return null;
+        return (
+          <InicioProfesor
+            user={user}
+            esProfesorOctavoONoveno={!cargandoProfesor && esProfesorOctavoONoveno}
+            puedeEvaluar={hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")}
+            onNavigate={setActiveMenu}
+          />
+        );
     }
   };
 
