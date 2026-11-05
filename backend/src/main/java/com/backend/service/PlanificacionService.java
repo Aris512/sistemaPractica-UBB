@@ -23,9 +23,11 @@ import com.backend.model.Documento;
 import com.backend.model.DocumentoPlanificacion;
 import com.backend.model.Estudiante;
 import com.backend.model.Planificacion;
+import com.backend.model.RetroalimentacionIA;
 import com.backend.repository.DocumentoRepository;
 import com.backend.repository.EstudianteRepository;
 import com.backend.repository.PlanificacionRepository;
+import com.backend.repository.RetroalimentacionIARepository;
 import com.backend.util.RutUtils;
 
 @Service
@@ -57,13 +59,16 @@ public class PlanificacionService {
     private final RubricaPracticaService rubricaPracticaService;
     private final FileStorageService fileStorageService;
     private final JdbcTemplate jdbcTemplate;
+    private final RetroalimentacionIARepository retroalimentacionRepository;
 
     public PlanificacionService(PlanificacionRepository planificacionRepository,
                                 DocumentoRepository documentoRepository,
                                 EstudianteRepository estudianteRepository,
                                 RubricaPracticaService rubricaPracticaService,
                                 FileStorageService fileStorageService,
-                                JdbcTemplate jdbcTemplate) {
+                                JdbcTemplate jdbcTemplate,
+                                RetroalimentacionIARepository retroalimentacionRepository) {
+        this.retroalimentacionRepository = retroalimentacionRepository;
         this.planificacionRepository = planificacionRepository;
         this.documentoRepository = documentoRepository;
         this.estudianteRepository = estudianteRepository;
@@ -157,7 +162,7 @@ public class PlanificacionService {
         return toDTO(planificacion);
     }
 
-    /** Elimina la planificación con sus archivos y las retroalimentaciones de IA que tenga. */
+    /** Elimina la planificación con sus archivos, las retroalimentaciones de IA que tenga y su chat de revisión. */
     @Transactional
     public void eliminar(Long idPlanificacion, String rutUsuario) {
         Planificacion planificacion = buscarPropia(idPlanificacion, rutUsuario);
@@ -171,6 +176,16 @@ public class PlanificacionService {
         List<Planificacion> planificaciones = planificacionRepository.findByEstudianteIdEstudiante(idEstudiante);
         planificaciones.forEach(this::eliminarCompleta);
         return planificaciones.size();
+    }
+
+    /**
+     * El profesor elimina por completo la retroalimentación de un alumno: la planificación con sus archivos, sus
+     * retroalimentaciones y el chat de revisión con la IA. Quien llama ya verificó que la planificación es de su
+     * asignatura; a diferencia del alumno, el profesor también puede eliminar una planificación aprobada.
+     */
+    @Transactional
+    public void eliminarPorProfesor(Planificacion planificacion) {
+        eliminarCompleta(planificacion);
     }
 
     /**
@@ -190,6 +205,10 @@ public class PlanificacionService {
             .map(c -> planificacion.getDocumentoPlanificacion().getArchivo(c))
             .filter(Objects::nonNull)
             .toList();
+        // Chats de revisión con la IA de estas retroalimentaciones: se borran después de ellas, que los referencian
+        List<Long> conversaciones = jdbcTemplate.queryForList(
+            "SELECT id_conversacion FROM retroalimentacion_ia WHERE id_planificacion = ? AND id_conversacion IS NOT NULL",
+            Long.class, idPlanificacion);
         // Hijas de la retroalimentación primero, para no romper sus FK
         jdbcTemplate.update("DELETE rp FROM respuesta_pregunta rp JOIN pregunta_diagnostica pd ON pd.id_pregunta = rp.id_pregunta "
             + "JOIN retroalimentacion_ia r ON r.id_retroalimentacion = pd.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
@@ -197,7 +216,15 @@ public class PlanificacionService {
             + "ON r.id_retroalimentacion = pd.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
         jdbcTemplate.update("DELETE o FROM observacion_retroalimentacion o JOIN retroalimentacion_ia r "
             + "ON r.id_retroalimentacion = o.id_retroalimentacion WHERE r.id_planificacion = ?", idPlanificacion);
-        jdbcTemplate.update("DELETE FROM retroalimentacion_ia WHERE id_planificacion = ?", idPlanificacion);
+        // Las retroalimentaciones se borran con JPA: si alguna está cargada (p. ej. la que abrió el profesor), un
+        // borrado por SQL la dejaría apuntando a la planificación eliminada y Hibernate rechazaría el flush.
+        List<RetroalimentacionIA> retros = retroalimentacionRepository.findByPlanificacionIdPlanificacion(idPlanificacion);
+        retroalimentacionRepository.deleteAll(retros);
+        retroalimentacionRepository.flush();
+        for (Long idConversacion : conversaciones) {
+            jdbcTemplate.update("DELETE FROM chat_mensaje WHERE id_conversacion = ?", idConversacion);
+            jdbcTemplate.update("DELETE FROM chat_conversacion WHERE id_conversacion = ?", idConversacion);
+        }
         planificacionRepository.delete(planificacion);
         planificacionRepository.flush();
         eliminarDocumentos(documentos);

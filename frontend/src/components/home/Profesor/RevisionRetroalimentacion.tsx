@@ -14,15 +14,18 @@ import {
   Inbox,
   MessageSquare,
   Send,
+  Trash2,
   User,
 } from "lucide-react";
 import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
 import { Button } from "@/components/ui/button";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { MarkdownTexto } from "@/components/IA/MarkdownTexto";
 import { ChatApiError } from "@/services/chatApi";
 import {
   detalleRetroalimentacionProfesor,
+  eliminarRetroalimentacionProfesor,
   enviarObservacion,
   listarRetroalimentacionesProfesor,
   responderRetroalimentacion,
@@ -69,6 +72,7 @@ export function RevisionRetroalimentacion({ user, onBack }: RevisionRetroaliment
   const [error, setError] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("PENDIENTES");
   const [abierta, setAbierta] = useState<number | null>(null);
+  const [aEliminar, setAEliminar] = useState<RetroProfesor | null>(null);
 
   const aplicar = (datos: RetroProfesor[]) => {
     setItems(datos);
@@ -106,6 +110,24 @@ export function RevisionRetroalimentacion({ user, onBack }: RevisionRetroaliment
   const recargar = () => {
     setCargando(true);
     void cargar();
+  };
+
+  /** Elimina la retroalimentación completa del alumno: planificación, archivos y chat con la IA. */
+  const eliminar = async () => {
+    if (!aEliminar) return;
+    try {
+      await eliminarRetroalimentacionProfesor(rut, aEliminar.id);
+      setItems((prev) => prev.filter((r) => r.id !== aEliminar.id));
+      if (abierta === aEliminar.id) setAbierta(null);
+      sileo.success({
+        title: "Retroalimentación eliminada",
+        description: `Se eliminaron la planificación, los archivos y el chat de ${aEliminar.nombreEstudiante ?? "el estudiante"}.`,
+      });
+    } catch (e) {
+      sileo.error({ title: "No se pudo eliminar", description: e instanceof ChatApiError ? e.message : "Inténtalo de nuevo." });
+    } finally {
+      setAEliminar(null);
+    }
   };
 
   const visibles = useMemo(() => items.filter((r) => coincide(r, filtro)), [items, filtro]);
@@ -216,14 +238,25 @@ export function RevisionRetroalimentacion({ user, onBack }: RevisionRetroaliment
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
-                      <Button
-                        size="sm"
-                        variant={r.estado === "ESPERANDO_PROFESOR" ? "default" : "outline"}
-                        onClick={() => setAbierta(r.id)}
-                        className={`cursor-pointer ${r.estado === "ESPERANDO_PROFESOR" ? "bg-sky-700 hover:bg-sky-800 text-white" : ""}`}
-                      >
-                        {r.estado === "ESPERANDO_PROFESOR" ? "Revisar" : "Ver"}
-                      </Button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant={r.estado === "ESPERANDO_PROFESOR" ? "default" : "outline"}
+                          onClick={() => setAbierta(r.id)}
+                          className={`cursor-pointer ${r.estado === "ESPERANDO_PROFESOR" ? "bg-sky-700 hover:bg-sky-800 text-white" : ""}`}
+                        >
+                          {r.estado === "ESPERANDO_PROFESOR" ? "Revisar" : "Ver"}
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => setAEliminar(r)}
+                          className="size-8 grid place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                          aria-label={`Eliminar la retroalimentación de ${r.nombreEstudiante ?? "el estudiante"}`}
+                          title="Eliminar retroalimentación completa"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -239,6 +272,7 @@ export function RevisionRetroalimentacion({ user, onBack }: RevisionRetroaliment
           rut={rut}
           id={abierta}
           onClose={() => setAbierta(null)}
+          onEliminar={(r) => setAEliminar(r)}
           onActualizada={(actualizada) => setItems((prev) => prev.map((r) => (r.id === actualizada.id ? actualizada : r)))}
           onRespondida={(actualizada) => {
             setItems((prev) => prev.map((r) => (r.id === actualizada.id ? actualizada : r)));
@@ -246,6 +280,14 @@ export function RevisionRetroalimentacion({ user, onBack }: RevisionRetroaliment
           }}
         />
       )}
+
+      <ConfirmDeleteDialog
+        open={!!aEliminar}
+        onOpenChange={(abierto) => !abierto && setAEliminar(null)}
+        onConfirm={eliminar}
+        title="Eliminar retroalimentación"
+        description={`Se eliminará por completo la retroalimentación de ${aEliminar?.nombreEstudiante ?? "el estudiante"}: su planificación (con los archivos que subió), las observaciones y el chat que usó con la IA. Esta acción no se puede deshacer.`}
+      />
     </div>
   );
 }
@@ -256,12 +298,14 @@ function ModalRevision({
   rut,
   id,
   onClose,
+  onEliminar,
   onActualizada,
   onRespondida,
 }: {
   rut: string;
   id: number;
   onClose: () => void;
+  onEliminar: (r: RetroProfesor) => void;
   onActualizada: (r: RetroProfesor) => void;
   onRespondida: (r: RetroProfesor) => void;
 }) {
@@ -350,15 +394,30 @@ function ModalRevision({
               {r ? `${r.asignatura ?? ""} · Ciclo ${r.ciclo} · Enviada ${formatoFecha(r.fechaEnvioProfesor)}` : "Cargando…"}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={!!guardando}
-            className="size-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white flex items-center justify-center cursor-pointer"
-            title="Cerrar"
-          >
-            <X className="size-4.5" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {r && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEliminar(r)}
+                disabled={!!guardando}
+                className="gap-1.5 text-rose-700 border-rose-200 hover:bg-rose-50 cursor-pointer"
+                title="Eliminar la retroalimentación completa del estudiante"
+              >
+                <Trash2 className="size-3.5" />
+                <span className="hidden sm:inline">Eliminar</span>
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={!!guardando}
+              className="size-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white flex items-center justify-center cursor-pointer"
+              title="Cerrar"
+            >
+              <X className="size-4.5" />
+            </button>
+          </div>
         </div>
 
         {detalle && (

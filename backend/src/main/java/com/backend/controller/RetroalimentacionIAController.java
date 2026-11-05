@@ -2,6 +2,8 @@ package com.backend.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -95,6 +97,14 @@ public class RetroalimentacionIAController {
     public RetroProfesorDTO responder(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
                                       @PathVariable Long id, @RequestBody RespuestaProfesorRequest request) {
         return service.responder(rut, id, request.aprobado(), request.comentario());
+    }
+
+    /** El profesor elimina por completo la retroalimentación del alumno: planificación, archivos y chat con la IA. */
+    @DeleteMapping("/profesor/{id}")
+    public ResponseEntity<Void> eliminar(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
+                                         @PathVariable Long id) {
+        service.eliminarDelProfesor(rut, id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/profesor/{id}/observaciones")
