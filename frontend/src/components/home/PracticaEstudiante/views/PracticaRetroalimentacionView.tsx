@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { ChatApiError } from "@/services/chatApi";
 import {
   enviarAlProfesor,
+  enviarPlanificacionAlProfesor,
   iniciarRevisionIa,
   listarRetroalimentacionesEstudiante,
   reiniciarRetroalimentacion,
@@ -28,6 +29,7 @@ import {
 } from "@/services/retroalimentacionApi";
 import {
   ESTADOS_RETRO,
+  TIPOS_OBSERVACION,
   type EstadoRetroalimentacion,
   type PlanificacionRetro,
   type Retroalimentacion,
@@ -42,8 +44,8 @@ interface PracticaRetroalimentacionViewProps {
 
 /** Pasos de la línea de tiempo; el último muestra Aprobado o Rechazado según la respuesta. */
 const PASOS: { estado: EstadoRetroalimentacion; titulo: string }[] = [
-  { estado: "NO_REVISADO", titulo: "Revisión con IA" },
-  { estado: "REVISADO_POR_IA", titulo: "Aprobada por la IA" },
+  { estado: "NO_REVISADO", titulo: "Revisión con IA (opcional)" },
+  { estado: "REVISADO_POR_IA", titulo: "Lista para enviar" },
   { estado: "ESPERANDO_PROFESOR", titulo: "En manos del profesor" },
   { estado: "APROBADO", titulo: "Respuesta del profesor" },
 ];
@@ -84,13 +86,14 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
       setError(null);
       setCargando(false);
 
-      // Aviso de respuestas nuevas del profesor; se marcan como vistas al mostrarlas
+      // Aviso de observaciones o respuestas nuevas del profesor; se marcan como vistas al mostrarlas
       const vistas = leerVistas(claveVistas);
       const recientes = new Set<number>();
       datos.forEach(({ retroalimentacion: r }) => {
-        if (r?.fechaRespuestaProfesor && vistas[r.id] !== r.fechaRespuestaProfesor) {
+        const marca = r?.observaciones.at(-1)?.fecha ?? r?.fechaRespuestaProfesor;
+        if (r && marca && vistas[r.id] !== marca) {
           recientes.add(r.id);
-          vistas[r.id] = r.fechaRespuestaProfesor;
+          vistas[r.id] = marca;
         }
       });
       setNuevas(recientes);
@@ -101,8 +104,8 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
       }
       if (recientes.size > 0) {
         sileo.info({
-          title: "Tu profesor respondió",
-          description: `Tienes ${recientes.size} ${recientes.size === 1 ? "respuesta nueva" : "respuestas nuevas"} en tus planificaciones.`,
+          title: "Novedades de tu profesor",
+          description: `Tienes ${recientes.size} ${recientes.size === 1 ? "planificación" : "planificaciones"} con observaciones o respuestas nuevas.`,
         });
       }
     },
@@ -167,6 +170,16 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
       await cargar();
     });
 
+  const enviarDirecto = (p: PlanificacionRetro) =>
+    ejecutar(`directo-${p.idPlanificacion}`, async () => {
+      await enviarPlanificacionAlProfesor(rut, p.idPlanificacion);
+      sileo.success({
+        title: "Enviada al profesor",
+        description: "Aquí verás sus observaciones. Puedes cambiar tus archivos hasta que la apruebe.",
+      });
+      await cargar();
+    });
+
   const reiniciar = (p: PlanificacionRetro, r: Retroalimentacion) =>
     ejecutar(`reiniciar-${r.id}`, async () => {
       await reiniciarRetroalimentacion(rut, r.id);
@@ -186,7 +199,7 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
           <div>
             <h1 className="text-xl font-bold text-slate-900">Retroalimentación</h1>
             <p className="text-sm text-slate-500">
-              La IA revisa tu planificación; cuando la aprueba, la envías a tu profesor de asignatura.
+              Envía tu planificación a tu profesor de asignatura, directamente o tras revisarla con la IA, y recibe sus observaciones.
             </p>
           </div>
         </div>
@@ -199,10 +212,10 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
       {/* Cómo funciona */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         {[
-          { icono: Bot, texto: "Revisa tu planificación con la IA (hasta 2 revisiones)." },
-          { icono: CheckCircle2, texto: "Cuando la IA la marca como apta, se habilita el envío." },
-          { icono: Send, texto: "Envíala a tu profesor de asignatura." },
-          { icono: Bell, texto: "Aquí verás si la aprobó o qué debes corregir." },
+          { icono: Bot, texto: "Si quieres, revísala antes con la IA (hasta 2 revisiones)." },
+          { icono: Send, texto: "Envíala a tu profesor: con el visto bueno de la IA o directamente, con sus 5 archivos." },
+          { icono: Bell, texto: "Tu profesor te envía observaciones; puedes cambiar tus archivos hasta que la apruebe." },
+          { icono: CheckCircle2, texto: "Aprobada, quedas habilitado para que coordinación te asocie a tu práctica." },
         ].map(({ icono: Icono, texto }, i) => (
           <div key={i} className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">
             <span className="size-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 font-bold">{i + 1}</span>
@@ -217,7 +230,7 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
       {nuevas.size > 0 && (
         <div className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <Bell className="size-4 text-sky-600 shrink-0" />
-          Tu profesor respondió {nuevas.size === 1 ? "una planificación" : `${nuevas.size} planificaciones`}. Las verás marcadas como «Nuevo».
+          Tu profesor escribió sobre {nuevas.size === 1 ? "una planificación" : `${nuevas.size} planificaciones`}. Las verás marcadas como «Nuevo».
         </div>
       )}
 
@@ -255,6 +268,7 @@ export function PracticaRetroalimentacionView({ user, onAbrirChat, onIrAPlanific
               accionEnCurso={accionEnCurso}
               onRevisar={() => void revisarConIa(p)}
               onEnviar={(r) => void enviar(r)}
+              onEnviarDirecto={() => void enviarDirecto(p)}
               onReiniciar={(r) => void reiniciar(p, r)}
               onVerConversacion={onAbrirChat}
               onIrAPlanificacion={onIrAPlanificacion}
@@ -272,6 +286,7 @@ function TarjetaPlanificacion({
   accionEnCurso,
   onRevisar,
   onEnviar,
+  onEnviarDirecto,
   onReiniciar,
   onVerConversacion,
   onIrAPlanificacion,
@@ -281,6 +296,7 @@ function TarjetaPlanificacion({
   accionEnCurso: string | null;
   onRevisar: () => void;
   onEnviar: (r: Retroalimentacion) => void;
+  onEnviarDirecto: () => void;
   onReiniciar: (r: Retroalimentacion) => void;
   onVerConversacion: (idConversacion: number) => void;
   onIrAPlanificacion: () => void;
@@ -381,8 +397,43 @@ function TarjetaPlanificacion({
           )}
         </div>
 
-        {/* Respuesta del profesor */}
-        {r?.comentarioProfesor && (r.estado === "APROBADO" || r.estado === "RECHAZADO" || r.ciclo > 1) && (
+        {/* Observaciones y respuestas del profesor */}
+        {r && r.observaciones.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <MessageSquareCheck className="size-3.5 text-sky-600" />
+              Observaciones de tu profesor
+            </p>
+            <ol className="space-y-2">
+              {r.observaciones.map((o) => (
+                <li key={o.id} className={`rounded-xl border p-3.5 text-sm ${TIPOS_OBSERVACION[o.tipo].clases}`}>
+                  <p className="text-xs font-bold mb-1 flex flex-wrap items-center gap-x-1.5">
+                    {o.tipo === "APROBACION" ? (
+                      <CheckCircle2 className="size-3.5" />
+                    ) : o.tipo === "RECHAZO" ? (
+                      <XCircle className="size-3.5" />
+                    ) : (
+                      <MessageSquareCheck className="size-3.5" />
+                    )}
+                    {TIPOS_OBSERVACION[o.tipo].etiqueta} · {o.profesor ?? "tu profesor"}
+                    <span className="font-normal opacity-80">
+                      · {formatoFecha(o.fecha)}
+                      {o.ciclo !== r.ciclo && ` · ciclo ${o.ciclo}`}
+                    </span>
+                  </p>
+                  {o.texto ? (
+                    <p className="whitespace-pre-line">{o.texto}</p>
+                  ) : (
+                    <p className="opacity-80">Sin comentario.</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {/* Respuesta del profesor anterior al historial de observaciones */}
+        {r && r.observaciones.length === 0 && r.comentarioProfesor && (r.estado === "APROBADO" || r.estado === "RECHAZADO" || r.ciclo > 1) && (
           <div
             className={`rounded-xl border p-3.5 text-sm ${
               r.estado === "APROBADO"
@@ -407,7 +458,7 @@ function TarjetaPlanificacion({
             <p className="whitespace-pre-line">{r.comentarioProfesor}</p>
           </div>
         )}
-        {r?.estado === "APROBADO" && !r.comentarioProfesor && (
+        {r?.estado === "APROBADO" && !r.comentarioProfesor && r.observaciones.length === 0 && (
           <p className="text-sm text-emerald-700 flex items-center gap-1.5">
             <CheckCircle2 className="size-4" />
             Tu profesor aprobó esta planificación.
@@ -415,6 +466,20 @@ function TarjetaPlanificacion({
         )}
 
         {/* Avisos */}
+        {r?.estado === "ESPERANDO_PROFESOR" && (
+          <p className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-xs text-sky-900">
+            <Clock className="size-3.5 mt-0.5 shrink-0" />
+            <span>
+              Tu profesor la está revisando. Puedes seguir cambiando tus archivos en Planificación hasta que la apruebe.
+            </span>
+          </p>
+        )}
+        {r?.estado === "APROBADO" && (
+          <p className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs text-emerald-900">
+            <CheckCircle2 className="size-3.5 mt-0.5 shrink-0" />
+            <span>Planificación cerrada: quedas habilitado para que coordinación te asocie a tu práctica.</span>
+          </p>
+        )}
         {revisionesAgotadas && (
           <Aviso>
             Ya usaste las {r?.maxRevisionesIa} revisiones de la IA. Corrige tu planificación, súbela de nuevo en Planificación y
@@ -422,7 +487,13 @@ function TarjetaPlanificacion({
           </Aviso>
         )}
         {r?.estado === "RECHAZADO" && !r.puedeReiniciar && (
-          <Aviso>Corrige tu planificación según el comentario, súbela de nuevo en Planificación y reinicia la revisión.</Aviso>
+          <Aviso>
+            Corrige tu planificación según las observaciones en Planificación y vuelve a enviarla a tu profesor (o reinicia la
+            revisión con la IA).
+          </Aviso>
+        )}
+        {p.idDocumento && !p.completa && (!r || (r.estado !== "ESPERANDO_PROFESOR" && r.estado !== "APROBADO")) && (
+          <p className="text-xs text-slate-500">Para enviarla directamente a tu profesor, sube sus 5 archivos en Planificación.</p>
         )}
         {r?.estado === "REVISADO_POR_IA" && r.archivoCambiado && (
           <Aviso>Cambiaste el archivo después de la revisión de la IA. Reinicia la revisión para enviar la nueva versión.</Aviso>
@@ -460,6 +531,18 @@ function TarjetaPlanificacion({
             >
               {ocupado(`enviar-${r.id}`) ? <RefreshCw className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
               Enviar al profesor
+            </Button>
+          )}
+          {p.puedeEnviarDirecto && !r?.puedeEnviar && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onEnviarDirecto}
+              disabled={!!accionEnCurso}
+              className="gap-1.5 text-emerald-800 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+            >
+              {ocupado(`directo-${p.idPlanificacion}`) ? <RefreshCw className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+              {r?.estado === "RECHAZADO" ? "Volver a enviar al profesor" : "Enviar directo al profesor"}
             </Button>
           )}
           {r?.puedeReiniciar && (

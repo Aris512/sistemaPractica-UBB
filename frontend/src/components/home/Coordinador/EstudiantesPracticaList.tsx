@@ -291,10 +291,15 @@ export function EstudiantesPracticaList({
                             </span>
                           )}
                         </div>
-                      ) : (
+                      ) : est.planificacionAprobada ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
                           <span className="size-2 rounded-full bg-amber-500 animate-pulse" />
                           Pendiente de Asociación
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                          <span className="size-2 rounded-full bg-slate-300" />
+                          Planificación sin aprobar
                         </span>
                       )}
                     </UnifiedTableCell>
@@ -305,7 +310,13 @@ export function EstudiantesPracticaList({
                         size="sm"
                         variant={est.tieneAsociacion ? "outline" : "default"}
                         onClick={() => onGoToAsociar?.(est)}
-                        className={`cursor-pointer text-xs font-semibold ${
+                        disabled={!est.tieneAsociacion && !est.planificacionAprobada}
+                        title={
+                          !est.tieneAsociacion && !est.planificacionAprobada
+                            ? "Se habilita cuando su profesor apruebe una de sus planificaciones"
+                            : undefined
+                        }
+                        className={`cursor-pointer text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed ${
                           est.tieneAsociacion
                             ? "border-slate-300 text-slate-700 hover:bg-slate-100"
                             : "bg-sky-600 hover:bg-sky-700 text-white shadow-2xs"

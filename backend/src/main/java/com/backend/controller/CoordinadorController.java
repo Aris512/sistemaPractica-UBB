@@ -31,6 +31,7 @@ import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Practica;
 import com.backend.model.ProfesorColaborador;
+import com.backend.model.RetroalimentacionIA;
 import com.backend.model.TutorPractica;
 import com.backend.model.Usuario;
 import com.backend.repository.AsignaturaRepository;
@@ -39,6 +40,7 @@ import com.backend.repository.EstudianteRepository;
 import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
+import com.backend.repository.RetroalimentacionIARepository;
 import com.backend.repository.TutorPracticaRepository;
 import com.backend.service.PermisoService;
 import com.backend.service.PracticaService;
@@ -57,6 +59,7 @@ public class CoordinadorController {
     private final PracticaService practicaService;
     private final PermisoService permisoService;
     private final PautaAplicacionRepository pautaAplicacionRepository;
+    private final RetroalimentacionIARepository retroalimentacionRepository;
 
     public CoordinadorController(EstudianteRepository estudianteRepository,
                                  AsignaturaRepository asignaturaRepository,
@@ -66,7 +69,8 @@ public class CoordinadorController {
                                  PracticaRepository practicaRepository,
                                  PracticaService practicaService,
                                  PermisoService permisoService,
-                                 PautaAplicacionRepository pautaAplicacionRepository) {
+                                 PautaAplicacionRepository pautaAplicacionRepository,
+                                 RetroalimentacionIARepository retroalimentacionRepository) {
         this.estudianteRepository = estudianteRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
@@ -76,6 +80,7 @@ public class CoordinadorController {
         this.practicaService = practicaService;
         this.permisoService = permisoService;
         this.pautaAplicacionRepository = pautaAplicacionRepository;
+        this.retroalimentacionRepository = retroalimentacionRepository;
     }
 
     /** Permiso que habilita asociar / desvincular prácticas (se administra en el panel de permisos). */
@@ -133,6 +138,12 @@ public class CoordinadorController {
             .filter(p -> p.getAsignatura() != null && idAsignatura.equals(p.getAsignatura().getIdAsignatura()))
             .anyMatch(p -> p.getTutorPractica() != null
                 && p.getProfesoresColaboradores() != null && !p.getProfesoresColaboradores().isEmpty());
+    }
+
+    /** Queda habilitado para asociarse cuando su profesor de asignatura aprobó al menos una de sus planificaciones. */
+    private boolean planificacionAprobada(Estudiante est) {
+        return retroalimentacionRepository.existsByPlanificacionEstudianteIdEstudianteAndEstado(
+            est.getIdEstudiante(), RetroalimentacionIA.Estado.APROBADO);
     }
 
     /** Las prácticas iniciales son simulaciones en la universidad: no hay colegio ni profesor colaborador. */
@@ -238,6 +249,7 @@ public class CoordinadorController {
             dto.put("idAsignatura", est.getAsignatura().getIdAsignatura());
             dto.put("asignaturaNombre", est.getAsignatura().getNombre());
             dto.put("tieneAsociacion", practicaActiva != null);
+            dto.put("planificacionAprobada", planificacionAprobada(est));
             dto.put("idPractica", practicaActiva != null ? practicaActiva.getIdPractica() : null);
 
             if (practicaActiva != null) {
@@ -260,7 +272,7 @@ public class CoordinadorController {
 
     /**
      * Retorna candidatos elegibles para una asignatura de 8.° o 9.° semestre:
-     * - Estudiantes de esa asignatura que aún no están asociados (salvo {@code incluirEstudianteId}, el alumno
+     * - Estudiantes de esa asignatura con una planificación aprobada y aún no asociados (salvo {@code incluirEstudianteId}, el alumno
      *   abierto desde "Ver / Modificar" en el inicio, para poder revisar o reemplazar su asociación)
      * - Profesores colaboradores disponibles
      * - Tutores de práctica disponibles
@@ -285,12 +297,13 @@ public class CoordinadorController {
             ));
         }
 
-        // 1. Estudiantes de esa asignatura que aún no están asociados
+        // 1. Estudiantes de esa asignatura habilitados (planificación aprobada) y aún no asociados
         List<Estudiante> estudiantesAsig = estudianteRepository.findByAsignaturaIdAsignatura(asignaturaId);
         List<Map<String, Object>> estudiantesList = estudiantesAsig.stream()
             .filter(e -> e.getUsuario() == null || (e.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(e.getUsuario().getEstado())))
             .filter(e -> !"INACTIVO".equalsIgnoreCase(e.getEstado()))
-            .filter(e -> e.getIdEstudiante().equals(incluirEstudianteId) || !estaAsociado(e, asignaturaId))
+            .filter(e -> e.getIdEstudiante().equals(incluirEstudianteId)
+                || (!estaAsociado(e, asignaturaId) && planificacionAprobada(e)))
             .map(e -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idEstudiante", e.getIdEstudiante());
@@ -485,6 +498,12 @@ public class CoordinadorController {
                 "error", "No se puede realizar la asociación. El estudiante debe pertenecer a la asignatura seleccionada. " +
                          "El estudiante está matriculado en '" + asigEstudiante + "' y la asignatura seleccionada es '" + asignatura.getNombre() + "'."
             ));
+        }
+
+        // Solo se asocia a quien tiene una planificación aprobada; una asociación vigente se puede seguir revisando
+        if (!estaAsociado(estudiante, idAsignatura) && !planificacionAprobada(estudiante)) {
+            return conflicto("PLANIFICACION_NO_APROBADA",
+                "El estudiante aún no tiene una planificación aprobada por su profesor de asignatura.");
         }
 
         // 3. Tutor (desde 8.° semestre)
