@@ -119,6 +119,15 @@ public class PautaController {
         return ResponseEntity.ok(pautaService.guardarAplicacion(rut, pautaId, practicaId, request));
     }
 
+    @DeleteMapping("/{pautaId}/practica/{practicaId}")
+    public ResponseEntity<Void> limpiarAplicacion(
+            @RequestHeader(value = HEADER_RUT, required = false) String rut,
+            @PathVariable Long pautaId,
+            @PathVariable Long practicaId) {
+        pautaService.limpiarAplicacion(rut, pautaId, practicaId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{pautaId}/practica/{practicaId}/reabrir")
     public ResponseEntity<AplicacionDTO> reabrir(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
