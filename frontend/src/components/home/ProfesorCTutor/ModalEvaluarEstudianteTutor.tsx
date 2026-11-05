@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
   guardarEvaluacionProfesor,
   descargarArchivoEvaluacion,
@@ -155,8 +156,39 @@ function FormularioEvaluacionTutor({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [campoAEliminar, setCampoAEliminar] = useState<"nota" | "observacion" | "archivo" | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Igual que el profesor: quitar un dato lo vacía en el formulario y se persiste al guardar
+  const handleQuitarNota = () => {
+    setCalificacion("");
+    sileo.info({
+      title: "Nota eliminada del formulario",
+      description: "Presiona 'Guardar Evaluación' para guardar los cambios.",
+    });
+  };
+
+  const handleQuitarObservacion = () => {
+    setObservacion("");
+    sileo.info({
+      title: "Observación eliminada del formulario",
+      description: "Presiona 'Guardar Evaluación' para guardar los cambios.",
+    });
+  };
+
+  const handleQuitarArchivo = () => {
+    if (archivo) {
+      setArchivo(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } else if (student.tieneArchivo) {
+      setEliminarArchivoActual(true);
+      sileo.info({
+        title: "Archivo marcado para eliminar",
+        description: "El documento adjunto se eliminará al presionar 'Guardar Evaluación'.",
+      });
+    }
+  };
 
   const handleNotaChange = (val: string) => {
     const cleaned = val.replace(",", ".");
@@ -225,6 +257,22 @@ function FormularioEvaluacionTutor({
         return;
       }
       califNumerica = parsed;
+    }
+
+    // Sin evaluación previa no hay nada que guardar ni eliminar
+    if (
+      califNumerica === null &&
+      !observacion.trim() &&
+      !archivo &&
+      !student.tieneArchivo &&
+      student.calificacion == null &&
+      !student.observacionTexto
+    ) {
+      sileo.warning({
+        title: "Formulario vacío",
+        description: "Ingresa una calificación, una observación o adjunta un documento.",
+      });
+      return;
     }
 
     setIsSaving(true);
@@ -394,18 +442,31 @@ function FormularioEvaluacionTutor({
             {/* Calificación y Estado */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs space-y-2">
-                <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center justify-between gap-2">
                   <span>Calificación Final (1.0 - 7.0)</span>
-                  {calificacion && !isNaN(notaNum) && (
-                    <span
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${esAprobado
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-rose-100 text-rose-800"
-                        }`}
-                    >
-                      {esAprobado ? "Aprobado" : "Reprobado"}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5">
+                    {calificacion && !isNaN(notaNum) && (
+                      <span
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${esAprobado
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-rose-100 text-rose-800"
+                          }`}
+                      >
+                        {esAprobado ? "Aprobado" : "Reprobado"}
+                      </span>
+                    )}
+                    {calificacion && (
+                      <button
+                        type="button"
+                        onClick={() => setCampoAEliminar("nota")}
+                        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
+                        title="Eliminar la nota de esta evaluación"
+                      >
+                        <Trash2 className="size-3" />
+                        Eliminar nota
+                      </button>
+                    )}
+                  </span>
                 </label>
                 <div className="flex items-center gap-2">
                   <Input
@@ -449,13 +510,43 @@ function FormularioEvaluacionTutor({
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEliminarArchivoActual(true)}
-                        className="p-1 text-rose-600 hover:text-rose-800 rounded"
+                        onClick={() => setCampoAEliminar("archivo")}
+                        className="p-1 text-rose-600 hover:text-rose-800 rounded cursor-pointer"
                         title="Eliminar archivo"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
+                  </div>
+                ) : eliminarArchivoActual && !archivo ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-rose-50/70 p-2 border border-rose-100 text-xs">
+                    <span className="flex items-center gap-1.5 font-medium text-rose-800 min-w-0">
+                      <Trash2 className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+                      <span className="truncate">Se eliminará al guardar</span>
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEliminarArchivoActual(false)}
+                        className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-white cursor-pointer"
+                      >
+                        Deshacer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-sky-700 hover:bg-white cursor-pointer"
+                      >
+                        Reemplazar
+                      </button>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
                   </div>
                 ) : (
                   <div>
@@ -478,9 +569,19 @@ function FormularioEvaluacionTutor({
                         {archivo ? "Cambiar archivo" : "Adjuntar Pauta PDF"}
                       </Button>
                       {archivo && (
-                        <span className="text-xs text-slate-600 font-medium truncate max-w-[160px]">
-                          {archivo.name}
-                        </span>
+                        <>
+                          <span className="text-xs text-slate-600 font-medium truncate max-w-[160px]">
+                            {archivo.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleQuitarArchivo}
+                            className="p-1 text-rose-600 hover:text-rose-800 rounded cursor-pointer"
+                            title="Quitar el archivo seleccionado"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -495,8 +596,21 @@ function FormularioEvaluacionTutor({
                   <FileText className="h-4 w-4 text-sky-600" />
                   Observaciones Pedagógicas y Retroalimentación
                 </label>
-                <span className="text-[11px] text-slate-400">
-                  {observacion.length} caracteres
+                <span className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400">
+                    {observacion.length} caracteres
+                  </span>
+                  {observacion.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setCampoAEliminar("observacion")}
+                      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
+                      title="Eliminar la observación de esta evaluación"
+                    >
+                      <Trash2 className="size-3" />
+                      Eliminar observación
+                    </button>
+                  )}
                 </span>
               </div>
               <textarea
@@ -578,6 +692,30 @@ function FormularioEvaluacionTutor({
           </div>
         </div>
       </div>
+
+      {/* Confirmación para eliminar nota, observación o archivo */}
+      <ConfirmDeleteDialog
+        open={!!campoAEliminar}
+        onOpenChange={(open) => !open && setCampoAEliminar(null)}
+        onConfirm={() => {
+          if (campoAEliminar === "nota") handleQuitarNota();
+          if (campoAEliminar === "observacion") handleQuitarObservacion();
+          if (campoAEliminar === "archivo") handleQuitarArchivo();
+          setCampoAEliminar(null);
+        }}
+        title={
+          campoAEliminar === "nota"
+            ? "Eliminar nota"
+            : campoAEliminar === "observacion"
+              ? "Eliminar observación"
+              : "Eliminar archivo"
+        }
+        description={
+          campoAEliminar === "archivo"
+            ? "El documento adjunto de tu evaluación se eliminará al guardar. Esta acción no se puede deshacer."
+            : `Se quitará la ${campoAEliminar === "nota" ? "nota" : "observación"} de tu evaluación al guardar. Esta acción no se puede deshacer.`
+        }
+      />
     </div>
   );
 }

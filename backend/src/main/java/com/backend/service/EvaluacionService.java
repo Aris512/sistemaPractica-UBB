@@ -372,9 +372,14 @@ public class EvaluacionService {
                 ? req.getObservacion().trim()
                 : null;
 
+        // Sin indicación explícita, un archivo ya adjunto mantiene viva la evaluación: quitar la nota y la
+        // observación no debe borrar también el documento que el evaluador no pidió eliminar.
+        boolean conservarPorArchivo = req.getConservarEvaluacionPorArchivo() != null
+                ? req.getConservarEvaluacionPorArchivo()
+                : evaluacion != null && evaluacion.getArchivoUrl() != null;
+
         // CASO A: Se eliminaron tanto la nota como la observación (ambos null)
-        if (req.getPuntajeObtenido() == null && obsLimpia == null
-                && !Boolean.TRUE.equals(req.getConservarEvaluacionPorArchivo())) {
+        if (req.getPuntajeObtenido() == null && obsLimpia == null && !conservarPorArchivo) {
             if (notaExistente != null) {
                 eliminarNota(notaExistente);
             }
@@ -986,7 +991,12 @@ public class EvaluacionService {
         req.setTipoEvaluacion(tipoEvaluacion);
         req.setPuntajeObtenido(puntajeObtenido);
         req.setObservacion(observacion);
-        req.setConservarEvaluacionPorArchivo(file != null && !file.isEmpty());
+        // Archivo nuevo: se conserva. Archivo a eliminar: no. Sin cambios de archivo: lo decide el que ya existe.
+        if (file != null && !file.isEmpty()) {
+            req.setConservarEvaluacionPorArchivo(true);
+        } else if (Boolean.TRUE.equals(eliminarArchivo)) {
+            req.setConservarEvaluacionPorArchivo(false);
+        }
 
         EstudianteEvaluacionDTO dto = guardarEvaluacionProfesor(req);
 
