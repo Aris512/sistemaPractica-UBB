@@ -136,7 +136,7 @@ public class RetroalimentacionIAService {
         String aviso = inicio.aviso();
         if (inicio.mensajeAutomatico() != null) {
             try {
-                chatService.enviarMensaje(rut, inicio.idConversacion(), inicio.mensajeAutomatico());
+                chatService.enviarMensajeAutomatico(rut, inicio.idConversacion(), inicio.mensajeAutomatico());
             } catch (ChatException e) {
                 logger.warn("No se pudo enviar el primer mensaje de revisión (conversación {}): {}", inicio.idConversacion(), e.getCodigo());
                 aviso = "La IA no pudo responder todavía (" + e.getMessage() + "). Escríbele en la conversación para reintentar.";

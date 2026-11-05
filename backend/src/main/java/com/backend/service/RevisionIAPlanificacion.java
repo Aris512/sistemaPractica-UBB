@@ -98,6 +98,14 @@ public class RevisionIAPlanificacion {
         return promptRetroPlani;
     }
 
+    /**
+     * Orden desde el que se cuentan las preguntas de la conversación: en las de revisión, el del archivo vigente
+     * (al subir una versión corregida el alumno vuelve a tener todas sus preguntas); en las demás, desde el inicio.
+     */
+    public int ordenInicioPreguntas(Long idConversacion) {
+        return deConversacion(idConversacion).map(RetroalimentacionIA::getMensajesPreviosArchivo).orElse(0);
+    }
+
     /** Solo los mensajes posteriores al archivo vigente: los anteriores hablaban de otra versión. */
     public List<ChatMensaje> historialVigente(RetroalimentacionIA retro, List<ChatMensaje> historial) {
         int previos = retro.getMensajesPreviosArchivo();
