@@ -63,14 +63,6 @@ export function HomeSidebar({
   onLogout,
 }: HomeSidebarProps) {
   const { hasPermission } = usePermissions(user);
-  const handleSelectMockup = (menu: ProfesorCTutorMenuKey, modulo: string) => {
-    onSelectMenu(menu);
-    sileo.warning({
-      title: "Módulo en desarrollo",
-      description: `${modulo} se encuentra actualmente en desarrollo`,
-    });
-  };
-
   const handleLogout = () => {
     sileo.info({
       title: "Cerrando Sesión",
@@ -115,7 +107,7 @@ export function HomeSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "pautas"}
-                    onClick={() => handleSelectMockup("pautas", "Pautas y Rúbricas")}
+                    onClick={() => onSelectMenu("pautas")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "pautas"
                         ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
@@ -135,7 +127,7 @@ export function HomeSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "portafolio"}
-                    onClick={() => handleSelectMockup("portafolio", "Portafolio")}
+                    onClick={() => onSelectMenu("portafolio")}
                     className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
                       activeMenu === "portafolio"
                         ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
