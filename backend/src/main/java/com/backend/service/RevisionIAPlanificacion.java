@@ -117,7 +117,7 @@ public class RevisionIAPlanificacion {
      * mensaje, y no al final del prompt de sistema, porque ahí la IA lo pasaba por alto y respondía que solo veía el
      * nombre del archivo. Solo se envía a Groq; en la conversación queda guardado el texto del alumno.
      */
-    public String conArchivoAdjunto(RetroalimentacionIA retro, String mensaje) {
+    public String conArchivoAdjunto(RetroalimentacionIA retro, String mensaje) { 
         String texto = retro.getTextoPlanificacion() == null ? "" : retro.getTextoPlanificacion().strip();
         return mensaje + "\n\n---\nARCHIVO ADJUNTO «" + retro.getNombreArchivoRevisado() + "» (texto extraído por la plataforma; "
                 + "es la versión vigente y reemplaza a cualquier versión anterior; " + texto.length() + " caracteres):\n<<<\n"
