@@ -213,6 +213,64 @@ public class PautaService {
         return aplicacionDTO(app, pauta);
     }
 
+    /** PDF de una pauta aplicada. */
+    public record PdfPauta(String nombreArchivo, byte[] contenido) {}
+
+    /** PDF de una pauta aplicada a una práctica del estudiante, con la asignatura de esa práctica. */
+    public record PdfPautaEstudiante(com.backend.model.Asignatura asignatura, String nombreArchivo, byte[] contenido) {}
+
+    /**
+     * PDF de todas las pautas aplicadas en las prácticas del estudiante (finalizadas y en borrador), para el
+     * expediente que descarga el coordinador. El control de acceso lo hace quien arma el expediente.
+     */
+    @Transactional(readOnly = true)
+    public List<PdfPautaEstudiante> pdfsDeEstudiante(Long idEstudiante) {
+        List<PdfPautaEstudiante> resultado = new ArrayList<>();
+        if (idEstudiante == null) return resultado;
+        for (Practica practica : practicaRepository.findByEstudianteIdEstudiante(idEstudiante)) {
+            for (PautaAplicacion app : aplicacionRepository.findByPracticaIdPractica(practica.getIdPractica())) {
+                Pauta pauta = app.getPauta();
+                ResultadoDTO r = resultadoDTO(app);
+                byte[] pdf = PautaPdfGenerator.generar(pauta, app,
+                    new PautaPdfGenerator.Contexto(r.estudianteNombre(), r.estudianteRut(), r.evaluadorRol(), r.nota()));
+                String rol = r.evaluadorRol() != null ? r.evaluadorRol().toUpperCase(Locale.ROOT) : "EVALUADOR";
+                String nombre = ("Pauta_" + Objects.requireNonNullElse(pauta.getCodigo(), String.valueOf(pauta.getId())) + "_" + rol
+                        + ("FINALIZADA".equalsIgnoreCase(app.getEstado()) ? "" : "_BORRADOR"))
+                    .replaceAll("[^A-Za-z0-9_-]", "") + ".pdf";
+                resultado.add(new PdfPautaEstudiante(practica.getAsignatura(), nombre, pdf));
+            }
+        }
+        return resultado;
+    }
+
+    /**
+     * Exporta a PDF una pauta aplicada (criterios con su puntaje, nota y observaciones). Mismas reglas de
+     * acceso que para verla en pantalla.
+     */
+    @Transactional(readOnly = true)
+    public PdfPauta exportarPdf(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
+        Solicitante s = acceso.identificar(rut);
+        Pauta pauta = obtenerPauta(pautaId);
+        Practica practica = obtenerPractica(practicaId);
+        if (!acceso.puedeVerPractica(s, practica)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta práctica.");
+        }
+        PautaAplicacion app = aplicacionId != null
+            ? aplicacionPorId(aplicacionId, pautaId, practicaId)
+            : aplicacionDe(pautaId, practicaId, s.rut())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada."));
+        if (!acceso.puedeVerAplicacion(s, app)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta pauta.");
+        }
+        ResultadoDTO r = resultadoDTO(app);
+        byte[] pdf = PautaPdfGenerator.generar(pauta, app,
+            new PautaPdfGenerator.Contexto(r.estudianteNombre(), r.estudianteRut(), r.evaluadorRol(), r.nota()));
+        String base = (Objects.requireNonNullElse(pauta.getCodigo(), "pauta") + "_"
+                + Objects.requireNonNullElse(r.estudianteRut(), "estudiante"))
+            .replaceAll("[^A-Za-z0-9_-]", "");
+        return new PdfPauta("Pauta_" + base + ".pdf", pdf);
+    }
+
     @Transactional
     public AplicacionDTO guardarAplicacion(String rut, Long pautaId, Long practicaId, GuardarAplicacionRequest req) {
         Solicitante s = acceso.identificar(rut);

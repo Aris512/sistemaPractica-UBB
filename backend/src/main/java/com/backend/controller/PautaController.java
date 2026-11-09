@@ -111,6 +111,21 @@ public class PautaController {
         return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
     }
 
+    /** Exporta la pauta aplicada a PDF, con su nota y observaciones. */
+    @GetMapping("/{pautaId}/practica/{practicaId}/pdf")
+    public ResponseEntity<byte[]> exportarPdf(
+            @RequestHeader(value = HEADER_RUT, required = false) String rut,
+            @PathVariable Long pautaId,
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        PautaService.PdfPauta pdf = pautaService.exportarPdf(rut, pautaId, practicaId, aplicacionId);
+        return ResponseEntity.ok()
+            .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + pdf.nombreArchivo() + "\"")
+            .body(pdf.contenido());
+    }
+
     @PutMapping("/{pautaId}/practica/{practicaId}")
     public ResponseEntity<AplicacionDTO> guardarAplicacion(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
