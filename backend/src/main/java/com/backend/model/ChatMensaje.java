@@ -58,6 +58,10 @@ public class ChatMensaje {
     @Column(name = "automatico")
     private Boolean automatico;
 
+    /** Servicio de IA que generó la respuesta (GROQ o GEMINI). Nulo en los mensajes del alumno y en los anteriores a esta columna. */
+    @Column(name = "proveedor", length = 20)
+    private String proveedor;
+
     public ChatMensaje() {
     }
 
@@ -77,6 +81,14 @@ public class ChatMensaje {
 
     public boolean isAutomatico() {
         return Boolean.TRUE.equals(automatico);
+    }
+
+    public String getProveedor() {
+        return proveedor;
+    }
+
+    public void setProveedor(String proveedor) {
+        this.proveedor = proveedor;
     }
 
     public Long getIdMensaje() {

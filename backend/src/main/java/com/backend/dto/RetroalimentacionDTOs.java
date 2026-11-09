@@ -48,7 +48,7 @@ public final class RetroalimentacionDTOs {
     }
 
     /** Mensaje de la conversación de revisión del alumno con la IA (rol USER o ASSISTANT). */
-    public record MensajeChatDTO(String rol, String contenido, LocalDateTime fecha) {
+    public record MensajeChatDTO(String rol, String contenido, LocalDateTime fecha, String proveedor) {
     }
 
     /**

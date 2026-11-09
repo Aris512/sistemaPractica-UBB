@@ -522,6 +522,7 @@ function ModalRevision({
                         {m.fecha && (
                           <p className={`text-[10px] mt-1 ${m.rol === "USER" ? "text-sky-100" : "text-slate-400"}`}>
                             {formatoFecha(m.fecha)}
+                            {m.rol === "ASSISTANT" && m.proveedor === "GEMINI" && " · Gemini (respaldo)"}
                           </p>
                         )}
                       </div>

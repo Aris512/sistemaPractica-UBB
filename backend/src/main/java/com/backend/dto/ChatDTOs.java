@@ -23,11 +23,15 @@ public final class ChatDTOs {
         }
     }
 
-    /** automatico: mensaje que la plataforma escribió en nombre del alumno (no cuenta como pregunta). */
-    public record MensajeDTO(Long id, String rol, String contenido, LocalDateTime fecha, Integer orden, boolean automatico) {
+    /**
+     * automatico: mensaje que la plataforma escribió en nombre del alumno (no cuenta como pregunta).
+     * proveedor: servicio de IA que generó la respuesta (GROQ o GEMINI); nulo en los mensajes del alumno.
+     */
+    public record MensajeDTO(Long id, String rol, String contenido, LocalDateTime fecha, Integer orden, boolean automatico,
+                             String proveedor) {
         public static MensajeDTO de(ChatMensaje m) {
             return new MensajeDTO(m.getIdMensaje(), m.getRol().name(), m.getContenido(), m.getFecha(), m.getOrden(),
-                    m.isAutomatico());
+                    m.isAutomatico(), m.getProveedor());
         }
     }
 

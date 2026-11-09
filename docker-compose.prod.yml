@@ -53,6 +53,8 @@ services:
       SEED_ADMIN_CORREO: ${SEED_ADMIN_CORREO:-admin@sistema.local}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
     volumes:
       # Archivos subidos (documentos, evidencias, portafolios): persisten entre reinicios.
       - uploads_data:/app/uploads
