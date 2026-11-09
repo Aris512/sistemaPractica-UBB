@@ -231,6 +231,29 @@ export const reabrirAplicacion = async (
   return response.json();
 };
 
+/** Descarga el PDF de una pauta aplicada: criterios con su puntaje, nota y observaciones del evaluador. */
+export const descargarPdfAplicacion = async (
+  rut: string,
+  pautaId: number,
+  practicaId: number,
+  aplicacionId?: number | null
+): Promise<void> => {
+  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}/pdf${conAplicacion(aplicacionId)}`, {
+    headers: cabeceras(rut),
+  });
+  if (!response.ok) throw await leerError(response, "No se pudo exportar la pauta a PDF");
+  const blob = await response.blob();
+  const nombre = /filename="?([^";]+)"?/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "pauta.pdf";
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  URL.revokeObjectURL(url);
+};
+
 export const getResultados = async (rut: string): Promise<ResultadoPauta[]> => {
   const response = await fetch(`${API_URL}/resultados`, { headers: cabeceras(rut) });
   if (!response.ok) throw await leerError(response, "No se pudieron cargar las evaluaciones");

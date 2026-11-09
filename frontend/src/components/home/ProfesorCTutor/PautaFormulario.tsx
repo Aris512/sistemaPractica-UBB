@@ -7,6 +7,7 @@ import {
   CloudOff,
   Eraser,
   Eye,
+  FileDown,
   Loader2,
   Lock,
   PencilLine,
@@ -20,6 +21,7 @@ import type { UserSession } from "@/types/auth";
 import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
 import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
+  descargarPdfAplicacion,
   getAplicacion,
   getPautaDetalle,
   guardarAplicacion,
@@ -104,6 +106,7 @@ export function PautaFormulario({
   const [guardado, setGuardado] = useState<EstadoGuardado>("idle");
   const [finalizando, setFinalizando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [confirmar, setConfirmar] = useState<"limpiar" | "cancelar" | null>(null);
   // Lo último guardado en el servidor: "Cancelar" vuelve a esto y sirve para saber si hay cambios sin guardar.
   const [base, setBase] = useState<{ respuestas: Record<number, number>; observaciones: string }>({
@@ -319,14 +322,41 @@ export function PautaFormulario({
     );
   }
 
+  const exportarPdf = async () => {
+    if (!aplicacion || exportando) return;
+    setExportando(true);
+    try {
+      await descargarPdfAplicacion(user.rut, pautaId, practicaId, aplicacion.id);
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo exportar",
+        description: e instanceof Error ? e.message : "Inténtalo nuevamente.",
+      });
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const niveles: number[] = [];
   for (let n = pauta.escalaMin; n <= pauta.escalaMax; n++) niveles.push(n);
   const usaNiveles = pauta.escalaMin === 2 && pauta.escalaMax === 7;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div className="pt-2">
+      <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
         <BotonVolver onClick={cancelar} texto={textoVolver} />
+        {aplicacion && (
+          <button
+            type="button"
+            onClick={exportarPdf}
+            disabled={exportando || hayCambios}
+            title={hayCambios ? "Guarda los cambios para exportar la pauta" : "Descargar la pauta con su nota y observaciones"}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {exportando ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+            <span>Exportar PDF</span>
+          </button>
+        )}
       </div>
 
       {/* Encabezado: pauta, estudiante y escala */}

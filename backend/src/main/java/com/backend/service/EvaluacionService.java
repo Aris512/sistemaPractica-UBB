@@ -213,7 +213,7 @@ public class EvaluacionService {
 
                 // Nota existente: solo la emitida por este profesor, para no mostrar la nota
                 // de otra asignatura cuando el estudiante avanza en el plan.
-                Optional<Nota> notaOpt = notasDelProfesor(estudiante.getIdEstudiante(), profesor).stream().findFirst();
+                Optional<Nota> notaOpt = notaVigente(estudiante.getIdEstudiante(), rutProfesor);
 
                 // Evaluación existente: SOLAMENTE la asociada a la Nota de este estudiante (no de la práctica)
                 Evaluacion evaluacion = null;
@@ -344,10 +344,13 @@ public class EvaluacionService {
 
         Profesor profesor = profesorRepository.findByUsuarioRut(rutEfectivo).orElse(null);
 
-        // 1. Resolver si ya existe una Nota previa de este evaluador para el estudiante
-        List<Nota> notasEstudiante = notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(estudiante.getIdEstudiante(), rutEfectivo);
-        Nota notaExistente = notasEstudiante.isEmpty() ? null : notasEstudiante.get(0);
-        if (notasEstudiante.size() > 1) {
+        // 1. Resolver la Nota que se está editando. Con entregas, cada tarea tiene su propia nota: se edita
+        // la de la entrega más reciente y las notas de las tareas anteriores no se tocan.
+        Optional<Evidencia> entregaVigente = entregaVigente(estudiante.getIdEstudiante(), rutEfectivo);
+        Nota notaExistente = notaVigente(estudiante.getIdEstudiante(), rutEfectivo).orElse(null);
+        if (entregaVigente.isEmpty()) {
+            // Sin entregas (tutor, colaborador o profesor sin tareas) hay una sola nota por evaluador
+            List<Nota> notasEstudiante = notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(estudiante.getIdEstudiante(), rutEfectivo);
             for (int i = 1; i < notasEstudiante.size(); i++) {
                 eliminarNota(notasEstudiante.get(i));
             }
@@ -362,6 +365,8 @@ public class EvaluacionService {
             final String rutDelEvaluador = rutEfectivo;
             evaluacion = evaluacionRepository.findById(req.getIdEvaluacion())
                     .filter(ev -> perteneceAlEvaluador(ev, rutDelEvaluador, notaPrevia))
+                    // La evaluación de una tarea anterior no se reutiliza para la tarea nueva
+                    .filter(ev -> !esDeOtraNota(ev, notaPrevia))
                     .orElse(null);
         }
         if (evaluacion == null && notaExistente != null && notaExistente.getEvaluacion() != null) {
@@ -464,11 +469,38 @@ public class EvaluacionService {
                 && evaluacion.getIdEvaluacion().equals(notaDelEvaluador.getEvaluacion().getIdEvaluacion());
     }
 
-    /** Notas que el profesor emitió para el estudiante, la más reciente primero. */
-    private List<Nota> notasDelProfesor(Long idEstudiante, Profesor profesor) {
-        String rutProfesor = profesor.getUsuario() != null ? profesor.getUsuario().getRut() : null;
-        if (rutProfesor == null) return List.of();
-        return notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutProfesor);
+    /** Entrega más reciente del estudiante en las tareas del evaluador (vacío si no tiene ninguna). */
+    private Optional<Evidencia> entregaVigente(Long idEstudiante, String rutEvaluador) {
+        if (rutEvaluador == null) return Optional.empty();
+        return evidenciaRepository
+                .findFirstByEstudianteIdEstudianteAndActividadProfesorUsuarioRutOrderByFechaEntregaDesc(idEstudiante, rutEvaluador);
+    }
+
+    /**
+     * Nota del evaluador que corresponde mostrar y editar para el estudiante. Un alumno puede tener varias
+     * notas del mismo profesor en la asignatura (una por tarea): la vigente es la de su entrega más reciente.
+     * Si esa entrega aún no tiene nota, solo se retoma una nota del evaluador que no pertenezca a otra entrega
+     * (la que puso antes de que el alumno entregara); sin entregas, es la última nota del evaluador.
+     */
+    private Optional<Nota> notaVigente(Long idEstudiante, String rutEvaluador) {
+        if (rutEvaluador == null) return Optional.empty();
+        List<Nota> notas = notaRepository.findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutEvaluador);
+        Optional<Evidencia> entrega = entregaVigente(idEstudiante, rutEvaluador);
+        if (entrega.isEmpty()) {
+            return notas.stream().findFirst();
+        }
+        if (entrega.get().getNota() != null) {
+            return Optional.of(entrega.get().getNota());
+        }
+        return notas.stream()
+                .filter(n -> evidenciaRepository.findByNotaIdNota(n.getIdNota()).isEmpty())
+                .findFirst();
+    }
+
+    /** true si la evaluación ya respalda una nota distinta de la indicada (p. ej. la de una tarea anterior). */
+    private boolean esDeOtraNota(Evaluacion evaluacion, Nota nota) {
+        return notaRepository.findByEvaluacionIdEvaluacion(evaluacion.getIdEvaluacion()).stream()
+                .anyMatch(n -> nota == null || !n.getIdNota().equals(nota.getIdNota()));
     }
 
     /**
@@ -1055,9 +1087,7 @@ public class EvaluacionService {
             }
 
             Estudiante estudiante = estudianteRepository.findById(idEstudiante).orElse(null);
-            Nota nota = notaRepository
-                    .findByEstudianteIdEstudianteAndRutEvaluadorOrderByIdNotaDesc(idEstudiante, rutProfesor)
-                    .stream().findFirst().orElse(null);
+            Nota nota = notaVigente(idEstudiante, rutProfesor).orElse(null);
             return construirDTO(estudiante, evaluacion, nota, rutProfesor);
         }
 
