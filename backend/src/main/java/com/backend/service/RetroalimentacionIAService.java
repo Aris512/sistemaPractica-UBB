@@ -192,9 +192,11 @@ public class RetroalimentacionIAService {
 
         String mensaje = null;
         if (nueva) {
-            mensaje = "Hola, adjunto mi planificación «" + archivo.getNombre() + "» para que la revises.";
+            mensaje = "Hola, adjunto mi planificación «" + archivo.getNombre() + "» para que la revises y me hagas "
+                    + "preguntas de reflexión sobre lo que esté poco claro o incompleto.";
         } else if (archivoNuevo) {
-            mensaje = "Adjunto una versión actualizada de mi planificación «" + archivo.getNombre() + "». Por favor, revísala.";
+            mensaje = "Adjunto una versión actualizada de mi planificación «" + archivo.getNombre() + "». Por favor, revísala "
+                    + "y hazme preguntas de reflexión sobre lo que siga poco claro o incompleto.";
         }
         if (mensaje != null && comentario != null && !comentario.isBlank()) {
             mensaje += "\n\n" + comentario.strip();
