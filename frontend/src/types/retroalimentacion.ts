@@ -89,6 +89,8 @@ export interface MensajeChatRevision {
   rol: "USER" | "ASSISTANT";
   contenido: string;
   fecha: string | null;
+  /** Servicio de IA que respondió: GROQ, o GEMINI cuando Groq estaba saturado. */
+  proveedor?: string | null;
 }
 
 export interface RetroProfesorDetalle {

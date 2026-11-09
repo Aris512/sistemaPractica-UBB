@@ -27,7 +27,8 @@ import com.backend.repository.UsuarioRepository;
 import com.backend.util.RutUtils;
 
 /**
- * Lógica del chatbot de IA: conversaciones por usuario, historial en MySQL y llamadas a Groq.
+ * Lógica del chatbot de IA: conversaciones por usuario, historial en MySQL y llamadas a la IA
+ * (Groq, con Gemini como respaldo si Groq se satura; ver {@link ClienteIA}).
  *
  * Identificación del usuario: el proyecto no emite tokens ni sesiones en /api/**, por lo que el
  * usuario se identifica por el RUT que envía el frontend (cabecera X-Usuario-Rut). Se verifica que
@@ -58,7 +59,7 @@ public class ChatService {
     private final ChatMensajeRepository mensajeRepository;
     private final UsuarioRepository usuarioRepository;
     private final PermisoService permisoService;
-    private final GroqClient groqClient;
+    private final ClienteIA clienteIA;
     private final ChatUsoLimiter usoLimiter;
     private final RevisionIAPlanificacion revisionPlanificacion;
     private final TransactionTemplate transaccion;
@@ -75,7 +76,7 @@ public class ChatService {
                        ChatMensajeRepository mensajeRepository,
                        UsuarioRepository usuarioRepository,
                        PermisoService permisoService,
-                       GroqClient groqClient,
+                       ClienteIA clienteIA,
                        ChatUsoLimiter usoLimiter,
                        RevisionIAPlanificacion revisionPlanificacion,
                        PlatformTransactionManager transactionManager,
@@ -90,7 +91,7 @@ public class ChatService {
         this.mensajeRepository = mensajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.permisoService = permisoService;
-        this.groqClient = groqClient;
+        this.clienteIA = clienteIA;
         this.usoLimiter = usoLimiter;
         this.revisionPlanificacion = revisionPlanificacion;
         this.transaccion = new TransactionTemplate(transactionManager);
@@ -189,8 +190,8 @@ public class ChatService {
     // ---------------------------------------------------------------------------------------------
 
     /**
-     * Envía un mensaje a Groq con el historial reciente y guarda la pregunta y la respuesta juntas.
-     * La llamada a Groq se hace fuera de cualquier transacción; si falla, no se guarda nada y el
+     * Envía un mensaje a la IA con el historial reciente y guarda la pregunta y la respuesta juntas.
+     * La llamada a la IA se hace fuera de cualquier transacción; si falla, no se guarda nada y el
      * historial queda exactamente como estaba. Cada conversación admite como máximo
      * chat.max-preguntas-por-conversacion mensajes del alumno; después queda cerrada.
      */
@@ -235,7 +236,7 @@ public class ChatService {
 
         // Las conversaciones de revisión de planificación usan el prompt RetroPlani, el archivo vigente junto al
         // mensaje y un historial más corto, para no pasar del límite de tokens por minuto de Groq
-        List<GroqClient.Mensaje> contexto;
+        List<MensajeIA> contexto;
         Optional<RetroalimentacionIA> revision = revisionPlanificacion.deConversacion(idConversacion);
         if (revision.isPresent()) {
             RetroalimentacionIA retro = revision.get();
@@ -250,10 +251,11 @@ public class ChatService {
                     maxCaracteresContexto, historial, texto);
         }
 
-        String respuesta;
+        // Groq responde; si se satura, ClienteIA repite la misma solicitud (mismas reglas) con Gemini
+        ClienteIA.Respuesta generada;
         usoLimiter.adquirir(rut);
         try {
-            respuesta = groqClient.completar(contexto);
+            generada = clienteIA.completar(contexto);
         } finally {
             usoLimiter.liberar(rut);
         }
@@ -271,15 +273,17 @@ public class ChatService {
 
             ChatMensaje mensajeUsuario = mensajeRepository.save(
                     new ChatMensaje(conversacion, ChatRolMensaje.USER, texto, orden + 1, ahora, automatico));
-            ChatMensaje mensajeAsistente = mensajeRepository.save(
-                    new ChatMensaje(conversacion, ChatRolMensaje.ASSISTANT, respuesta, orden + 2, LocalDateTime.now()));
+            ChatMensaje asistente = new ChatMensaje(conversacion, ChatRolMensaje.ASSISTANT, generada.texto(), orden + 2,
+                    LocalDateTime.now());
+            asistente.setProveedor(generada.proveedor());
+            ChatMensaje mensajeAsistente = mensajeRepository.save(asistente);
 
             if (orden == 0 && TITULO_POR_DEFECTO.equals(conversacion.getTitulo())) {
                 conversacion.setTitulo(tituloDesdeMensaje(texto));
             }
             conversacion.setFechaActualizacion(mensajeAsistente.getFecha());
             revisionPlanificacion.deConversacion(idConversacion)
-                    .ifPresent(retro -> revisionPlanificacion.registrarRespuesta(retro, respuesta));
+                    .ifPresent(retro -> revisionPlanificacion.registrarRespuesta(retro, generada.texto()));
 
             return new IntercambioDTO(aDto(conversacion),
                     MensajeDTO.de(mensajeUsuario), MensajeDTO.de(mensajeAsistente));
@@ -324,22 +328,22 @@ public class ChatService {
     }
 
     /** Prompt de sistema + los mensajes más recientes que quepan en el presupuesto de caracteres + el nuevo mensaje. */
-    private List<GroqClient.Mensaje> construirContexto(String promptSistema, int maxCaracteres,
+    private List<MensajeIA> construirContexto(String promptSistema, int maxCaracteres,
                                                        List<ChatMensaje> historial, String nuevoMensaje) {
-        List<GroqClient.Mensaje> recientes = new ArrayList<>();
+        List<MensajeIA> recientes = new ArrayList<>();
         int caracteres = nuevoMensaje.length();
         for (int i = historial.size() - 1; i >= 0 && recientes.size() < maxMensajesContexto; i--) {
             ChatMensaje m = historial.get(i);
             caracteres += m.getContenido().length();
             if (caracteres > maxCaracteres) break;
-            recientes.add(new GroqClient.Mensaje(m.getRol() == ChatRolMensaje.USER ? "user" : "assistant", m.getContenido()));
+            recientes.add(new MensajeIA(m.getRol() == ChatRolMensaje.USER ? "user" : "assistant", m.getContenido()));
         }
         Collections.reverse(recientes);
 
-        List<GroqClient.Mensaje> mensajes = new ArrayList<>();
-        mensajes.add(new GroqClient.Mensaje("system", promptSistema));
+        List<MensajeIA> mensajes = new ArrayList<>();
+        mensajes.add(new MensajeIA("system", promptSistema));
         mensajes.addAll(recientes);
-        mensajes.add(new GroqClient.Mensaje("user", nuevoMensaje));
+        mensajes.add(new MensajeIA("user", nuevoMensaje));
         return mensajes;
     }
 

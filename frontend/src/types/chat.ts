@@ -19,6 +19,8 @@ export interface ChatMensaje {
   orden: number;
   /** Mensaje que la plataforma escribió en nombre del alumno (no cuenta como pregunta). */
   automatico?: boolean;
+  /** Servicio de IA que generó la respuesta: GROQ, o GEMINI cuando Groq estaba saturado. */
+  proveedor?: string | null;
 }
 
 export interface ChatIntercambio {

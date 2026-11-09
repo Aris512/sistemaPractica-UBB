@@ -560,7 +560,7 @@ public class RetroalimentacionIAService {
         List<MensajeChatDTO> conversacion = retro.getConversacion() == null ? List.of()
                 : mensajeRepository.findByConversacionIdConversacionOrderByOrdenAsc(retro.getConversacion().getIdConversacion())
                         .stream()
-                        .map(m -> new MensajeChatDTO(m.getRol().name(), m.getContenido(), m.getFecha()))
+                        .map(m -> new MensajeChatDTO(m.getRol().name(), m.getContenido(), m.getFecha(), m.getProveedor()))
                         .toList();
         return new RetroProfesorDetalleDTO(aDTOProfesor(retro), retro.getUltimaRevisionIa(),
                 planificacionService.archivosDe(retro.getPlanificacion()), conversacion, observacionesDe(retro),

@@ -505,7 +505,7 @@ export function ChatIA({ rut, revision }: ChatIAProps) {
             {estadoMensajes === "listo" && !sinMensajes && (
               <div className="mx-auto max-w-3xl space-y-5">
                 {mensajes.map((m) => (
-                  <MensajeChat key={m.id} rol={m.rol} contenido={m.contenido} />
+                  <MensajeChat key={m.id} rol={m.rol} contenido={m.contenido} proveedor={m.proveedor} />
                 ))}
 
                 {enCursoAqui && enCurso && (
