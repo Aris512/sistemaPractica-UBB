@@ -18,6 +18,7 @@ import { sileo } from "sileo";
 import type { NotaDeVozDTO } from "../../services/profesorEvaluacionApi";
 import {
   getNotasDeVozPorEvaluacion,
+  getNotasDeVozPorAplicacionPauta,
   subirNotaDeVoz,
   eliminarNotaDeVoz,
   actualizarTranscripcionNotaVoz,
@@ -60,6 +61,11 @@ const mensajeDeError = (err: unknown, porDefecto: string) =>
 
 interface VoiceNoteRecorderProps {
   idEvaluacion?: number | null;
+  /**
+   * Pauta aplicada a la que se adjuntan los audios (observaciones de una pauta). Con esta prop el panel trabaja
+   * con la pauta en vez de con una evaluación; vale null mientras la pauta no se ha guardado.
+   */
+  idAplicacionPauta?: number | null;
   rutGrabador?: string;
   nombreGrabador?: string;
   onInsertTranscription?: (text: string) => void;
@@ -72,6 +78,7 @@ interface VoiceNoteRecorderProps {
 
 export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   idEvaluacion,
+  idAplicacionPauta,
   rutGrabador,
   nombreGrabador,
   onInsertTranscription,
@@ -115,6 +122,10 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   const accumulatedFinalRef = useRef<string>("");
   const isRecordingRef = useRef<boolean>(false);
 
+  // Destino de los audios: la pauta aplicada (si se pasó la prop) o la evaluación
+  const paraPauta = idAplicacionPauta !== undefined;
+  const idDestino = paraPauta ? idAplicacionPauta : idEvaluacion;
+  const queGuardar = paraPauta ? "la pauta" : "la evaluación";
 
   // Limpiar timer y tracks al desmontar
   useEffect(() => {
@@ -136,26 +147,28 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   // Solo las notas de la evaluación de quien abre el modal: las de otros evaluadores
   // (tutor, colaborador, profesor) no se mezclan ni se pueden borrar desde aquí.
   const cargarNotasDeVoz = useCallback(async () => {
-    if (!idEvaluacion) {
+    if (!idDestino) {
       setNotasList([]);
       return;
     }
     setLoadingList(true);
     try {
-      const notas = await getNotasDeVozPorEvaluacion(idEvaluacion);
+      const notas = paraPauta
+        ? await getNotasDeVozPorAplicacionPauta(idDestino)
+        : await getNotasDeVozPorEvaluacion(idDestino);
       setNotasList(notas || []);
     } catch (err) {
       console.error("Error al cargar notas de voz:", err);
     } finally {
       setLoadingList(false);
     }
-  }, [idEvaluacion]);
+  }, [idDestino, paraPauta]);
 
   // Carga inicial: el estado se actualiza solo cuando llega la respuesta (y si el panel sigue montado)
   useEffect(() => {
-    if (!idEvaluacion) return;
+    if (!idDestino) return;
     let cancelado = false;
-    getNotasDeVozPorEvaluacion(idEvaluacion)
+    (paraPauta ? getNotasDeVozPorAplicacionPauta(idDestino) : getNotasDeVozPorEvaluacion(idDestino))
       .then((notas) => {
         if (!cancelado) setNotasList(notas || []);
       })
@@ -163,7 +176,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
     return () => {
       cancelado = true;
     };
-  }, [idEvaluacion]);
+  }, [idDestino, paraPauta]);
 
   const puedeModificar = (nota: NotaDeVozDTO) =>
     !readOnly &&
@@ -387,8 +400,8 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       setErrorMsg("No hay ningún audio grabado para guardar.");
       return;
     }
-    if (!idEvaluacion) {
-      setErrorMsg("Guarda la evaluación antes de adjuntar notas de voz. Puedes insertar la transcripción en las observaciones.");
+    if (!idDestino) {
+      setErrorMsg(`Guarda ${queGuardar} antes de adjuntar notas de voz. Puedes insertar la transcripción en las observaciones.`);
       return;
     }
 
@@ -403,7 +416,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
 
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("idEvaluacion", String(idEvaluacion));
+      formData.append(paraPauta ? "idAplicacionPauta" : "idEvaluacion", String(idDestino));
       formData.append("duracion", String(recordingSeconds));
       formData.append("transcripcion", transcription.trim());
       if (rutGrabador) {
@@ -589,8 +602,8 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
                       <button
                         type="button"
                         onClick={handleSaveVoiceNote}
-                        disabled={isUploading || !idEvaluacion}
-                        title={idEvaluacion ? undefined : "Guarda la evaluación antes de adjuntar notas de voz"}
+                        disabled={isUploading || !idDestino}
+                        title={idDestino ? undefined : `Guarda ${queGuardar} antes de adjuntar notas de voz`}
                         className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-2xs hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50"
                       >
                         {isUploading ? (

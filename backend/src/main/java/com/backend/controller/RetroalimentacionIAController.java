@@ -2,6 +2,8 @@ package com.backend.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.dto.RetroalimentacionDTOs.InicioRevisionDTO;
+import com.backend.dto.RetroalimentacionDTOs.ObservacionRequest;
 import com.backend.dto.RetroalimentacionDTOs.PlanificacionRetroDTO;
 import com.backend.dto.RetroalimentacionDTOs.RespuestaProfesorRequest;
 import com.backend.dto.RetroalimentacionDTOs.RetroDTO;
@@ -22,7 +25,7 @@ import com.backend.service.RetroalimentacionIAService;
 
 /**
  * Retroalimentación de planificaciones: el alumno en práctica la revisa con la IA y la envía a su
- * profesor de asignatura, que la aprueba o la rechaza. El usuario se identifica con la cabecera
+ * profesor de asignatura (también directamente, sin la IA), que le envía observaciones y la aprueba o la rechaza. El usuario se identifica con la cabecera
  * X-Usuario-Rut, igual que el chat; los errores salen como { error, codigo } (ChatExceptionHandler).
  */
 @RestController
@@ -58,6 +61,13 @@ public class RetroalimentacionIAController {
         return service.reemplazarArchivo(rut, idPlanificacion, archivo, mensaje);
     }
 
+    /** Botón «Enviar al profesor» de la planificación: la envía sin pasar por la IA. */
+    @PostMapping("/planificacion/{idPlanificacion}/enviar")
+    public RetroDTO enviarDirecto(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
+                                  @PathVariable Long idPlanificacion) {
+        return service.enviarDirecto(rut, idPlanificacion);
+    }
+
     @PostMapping("/{id}/enviar")
     public RetroDTO enviar(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
                            @PathVariable Long id) {
@@ -87,5 +97,19 @@ public class RetroalimentacionIAController {
     public RetroProfesorDTO responder(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
                                       @PathVariable Long id, @RequestBody RespuestaProfesorRequest request) {
         return service.responder(rut, id, request.aprobado(), request.comentario());
+    }
+
+    /** El profesor elimina por completo la retroalimentación del alumno: planificación, archivos y chat con la IA. */
+    @DeleteMapping("/profesor/{id}")
+    public ResponseEntity<Void> eliminar(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
+                                         @PathVariable Long id) {
+        service.eliminarDelProfesor(rut, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/profesor/{id}/observaciones")
+    public RetroProfesorDetalleDTO observar(@RequestHeader(value = ChatController.CABECERA_USUARIO, required = false) String rut,
+                                            @PathVariable Long id, @RequestBody ObservacionRequest request) {
+        return service.observar(rut, id, request.texto());
     }
 }

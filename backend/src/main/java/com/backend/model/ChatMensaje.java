@@ -51,15 +51,44 @@ public class ChatMensaje {
     @Column(name = "orden", nullable = false)
     private Integer orden;
 
+    /**
+     * Mensaje que escribió la plataforma en nombre del alumno (p. ej. «adjunto mi planificación…»).
+     * No cuenta para el máximo de preguntas por conversación. Nulo en los mensajes anteriores a esta columna.
+     */
+    @Column(name = "automatico")
+    private Boolean automatico;
+
+    /** Servicio de IA que generó la respuesta (GROQ o GEMINI). Nulo en los mensajes del alumno y en los anteriores a esta columna. */
+    @Column(name = "proveedor", length = 20)
+    private String proveedor;
+
     public ChatMensaje() {
     }
 
     public ChatMensaje(ChatConversacion conversacion, ChatRolMensaje rol, String contenido, int orden, LocalDateTime fecha) {
+        this(conversacion, rol, contenido, orden, fecha, false);
+    }
+
+    public ChatMensaje(ChatConversacion conversacion, ChatRolMensaje rol, String contenido, int orden, LocalDateTime fecha,
+                       boolean automatico) {
         this.conversacion = conversacion;
         this.rol = rol;
         this.contenido = contenido;
         this.orden = orden;
         this.fecha = fecha;
+        this.automatico = automatico;
+    }
+
+    public boolean isAutomatico() {
+        return Boolean.TRUE.equals(automatico);
+    }
+
+    public String getProveedor() {
+        return proveedor;
+    }
+
+    public void setProveedor(String proveedor) {
+        this.proveedor = proveedor;
     }
 
     public Long getIdMensaje() {

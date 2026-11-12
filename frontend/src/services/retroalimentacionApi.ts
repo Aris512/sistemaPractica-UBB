@@ -34,6 +34,11 @@ export function reemplazarArchivoPlanificacion(
   return requestConUsuario(rut, `${BASE_URL}/planificacion/${idPlanificacion}/archivo`, { method: "POST", body: datos });
 }
 
+/** Botón «Enviar al profesor» de la planificación: la envía sin pasar por la IA (exige sus 5 archivos). */
+export function enviarPlanificacionAlProfesor(rut: string, idPlanificacion: number): Promise<Retroalimentacion> {
+  return requestConUsuario(rut, `${BASE_URL}/planificacion/${idPlanificacion}/enviar`, { method: "POST" });
+}
+
 export function enviarAlProfesor(rut: string, id: number): Promise<Retroalimentacion> {
   return requestConUsuario(rut, `${BASE_URL}/${id}/enviar`, { method: "POST" });
 }
@@ -44,6 +49,11 @@ export function reiniciarRetroalimentacion(rut: string, id: number): Promise<Ret
 
 export function listarRetroalimentacionesProfesor(rut: string): Promise<RetroProfesor[]> {
   return requestConUsuario(rut, `${BASE_URL}/profesor`);
+}
+
+/** El profesor elimina por completo la retroalimentación del alumno: planificación, archivos y chat con la IA. */
+export function eliminarRetroalimentacionProfesor(rut: string, id: number): Promise<void> {
+  return requestConUsuario(rut, `${BASE_URL}/profesor/${id}`, { method: "DELETE" });
 }
 
 export function detalleRetroalimentacionProfesor(rut: string, id: number): Promise<RetroProfesorDetalle> {
@@ -59,6 +69,14 @@ export function responderRetroalimentacion(
   return requestConUsuario(rut, `${BASE_URL}/profesor/${id}/responder`, {
     method: "POST",
     body: JSON.stringify({ aprobado, comentario }),
+  });
+}
+
+/** Observación del profesor al estudiante; devuelve el detalle actualizado. */
+export function enviarObservacion(rut: string, id: number, texto: string): Promise<RetroProfesorDetalle> {
+  return requestConUsuario(rut, `${BASE_URL}/profesor/${id}/observaciones`, {
+    method: "POST",
+    body: JSON.stringify({ texto }),
   });
 }
 

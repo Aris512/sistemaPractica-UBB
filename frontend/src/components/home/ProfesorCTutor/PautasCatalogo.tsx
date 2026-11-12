@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, Copy, Loader2, Pencil, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
+import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import { PautaEditor, type ModoEditor } from "./PautaEditor";
 import {
   cambiarActivaPauta,
+  eliminarPauta,
+  evaluadoresDe,
   getCatalogo,
   getPautaDetalle,
   type CriterioPauta,
@@ -72,6 +75,7 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
   const [expandida, setExpandida] = useState<number | null>(null);
   const [criterios, setCriterios] = useState<Record<number, CriterioPauta[]>>({});
   const [editor, setEditor] = useState<ModoEditor | null>(null);
+  const [aEliminar, setAEliminar] = useState<PautaResumen | null>(null);
 
   const cargar = async () => {
     try {
@@ -148,6 +152,23 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
       });
     } finally {
       setCambiando(null);
+    }
+  };
+
+  /** Elimina la pauta desde el listado. El backend la rechaza si tiene evaluaciones registradas. */
+  const confirmarEliminar = async () => {
+    if (!aEliminar) return;
+    try {
+      await eliminarPauta(user.rut, aEliminar.id);
+      sileo.success({ title: "Pauta eliminada", description: `Se eliminó «${aEliminar.titulo}».` });
+      await alTerminarEdicion(aEliminar.id);
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo eliminar",
+        description: e instanceof Error ? e.message : "Intente nuevamente.",
+      });
+    } finally {
+      setAEliminar(null);
     }
   };
 
@@ -246,7 +267,9 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
                       <span className="flex flex-wrap gap-1.5">
                         <Etiqueta>{ESPECIALIDAD_LABEL[p.especialidad] ?? p.especialidad}</Etiqueta>
                         <Etiqueta>{MOMENTO_LABEL[p.momento] ?? p.momento}</Etiqueta>
-                        <Etiqueta>{EVALUADOR_LABEL[p.evaluador] ?? p.evaluador}</Etiqueta>
+                        {evaluadoresDe(p.evaluador).map((e) => (
+                          <Etiqueta key={e}>{EVALUADOR_LABEL[e] ?? e}</Etiqueta>
+                        ))}
                         <Etiqueta tenue>
                           {p.criteriosCount} indicadores · {p.puntajeMaximo} pts
                         </Etiqueta>
@@ -273,6 +296,15 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
                       title="Crear nueva versión"
                     >
                       <Copy className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAEliminar(p)}
+                      className="size-8 grid place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+                      aria-label={`Eliminar ${p.titulo}`}
+                      title="Eliminar pauta"
+                    >
+                      <Trash2 className="size-4" />
                     </button>
                     <button
                       type="button"
@@ -323,6 +355,13 @@ export function PautasCatalogo({ user }: PautasCatalogoProps) {
         onGuardada={(pauta) => alTerminarEdicion(pauta.id)}
         onEliminada={(id) => alTerminarEdicion(id)}
         onNuevaVersion={(id) => setEditor({ tipo: "duplicar", id })}
+      />
+      <ConfirmDeleteDialog
+        open={!!aEliminar}
+        onOpenChange={(abierto) => !abierto && setAEliminar(null)}
+        onConfirm={confirmarEliminar}
+        title="Eliminar pauta"
+        description={`Se eliminará «${aEliminar?.titulo ?? ""}» del catálogo junto con sus indicadores. Si un tutor o colaborador ya la completó, primero debe limpiarla. Esta acción no se puede deshacer.`}
       />
     </div>
   );

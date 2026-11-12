@@ -5,11 +5,11 @@ import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "./Portafolio";
-import { Planificacion } from "./Planificacion";
 import { Evaluaciones } from "./Evaluaciones";
 import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
+import { InicioProfesor } from "./InicioProfesor";
 import { DocumentosPracticaView } from "@/components/home/DocumentosPractica/DocumentosPracticaView";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
@@ -132,11 +132,6 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return null;
-      case "planificacion":
-        if (cargandoProfesor || !esProfesorOctavoONoveno) {
-          return null;
-        }
-        return <Planificacion onBack={() => setActiveMenu("inicio")} />;
       case "evaluaciones":
         if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
           return null;
@@ -149,7 +144,14 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         return <PautasResultados user={user} modo="profesor" onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
-        return null;
+        return (
+          <InicioProfesor
+            user={user}
+            esProfesorOctavoONoveno={!cargandoProfesor && esProfesorOctavoONoveno}
+            puedeEvaluar={hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")}
+            onNavigate={setActiveMenu}
+          />
+        );
     }
   };
 

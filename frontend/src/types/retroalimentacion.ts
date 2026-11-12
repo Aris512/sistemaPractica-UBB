@@ -25,6 +25,19 @@ export interface Retroalimentacion {
   puedeRevisarIa: boolean;
   puedeEnviar: boolean;
   puedeReiniciar: boolean;
+  /** Lo que escribió el profesor, del más antiguo al más reciente. */
+  observaciones: Observacion[];
+}
+
+export type TipoObservacion = "OBSERVACION" | "APROBACION" | "RECHAZO";
+
+export interface Observacion {
+  id: number;
+  tipo: TipoObservacion;
+  texto: string | null;
+  profesor: string | null;
+  ciclo: number;
+  fecha: string;
 }
 
 export interface PlanificacionRetro {
@@ -33,6 +46,10 @@ export interface PlanificacionRetro {
   asignatura: string | null;
   idDocumento: number | null;
   nombreArchivo: string | null;
+  /** Tiene sus 5 archivos. */
+  completa: boolean;
+  /** Se puede enviar al profesor sin pasar por la IA. */
+  puedeEnviarDirecto: boolean;
   retroalimentacion: Retroalimentacion | null;
 }
 
@@ -58,10 +75,41 @@ export interface RetroProfesor {
   fechaRespuestaProfesor: string | null;
 }
 
+export interface ArchivoRevision {
+  categoria: string;
+  etiqueta: string;
+  idDocumento: number | null;
+  nombre: string | null;
+  tamanioBytes: number | null;
+  fechaCarga: string | null;
+  urlDescarga: string | null;
+}
+
+export interface MensajeChatRevision {
+  rol: "USER" | "ASSISTANT";
+  contenido: string;
+  fecha: string | null;
+  /** Servicio de IA que respondió: GROQ, o GEMINI cuando Groq estaba saturado. */
+  proveedor?: string | null;
+}
+
 export interface RetroProfesorDetalle {
   retroalimentacion: RetroProfesor;
   ultimaRevisionIa: string | null;
+  /** Las 5 categorías de la planificación, con su archivo o pendientes. */
+  archivos: ArchivoRevision[];
+  /** Conversación del alumno con la IA en este ciclo (vacía si la envió sin revisarla con la IA). */
+  conversacion: MensajeChatRevision[];
+  observaciones: Observacion[];
+  puedeObservar: boolean;
 }
+
+/** Etiqueta y colores de cada entrada del historial de observaciones. */
+export const TIPOS_OBSERVACION: Record<TipoObservacion, { etiqueta: string; clases: string }> = {
+  OBSERVACION: { etiqueta: "Observación", clases: "border-sky-200 bg-sky-50/60 text-sky-950" },
+  APROBACION: { etiqueta: "Aprobada", clases: "border-emerald-200 bg-emerald-50 text-emerald-900" },
+  RECHAZO: { etiqueta: "Rechazada", clases: "border-rose-200 bg-rose-50 text-rose-900" },
+};
 
 /** Texto y colores de cada estado, compartidos por la vista del alumno y la del profesor. */
 export const ESTADOS_RETRO: Record<EstadoRetroalimentacion, { etiqueta: string; clases: string }> = {

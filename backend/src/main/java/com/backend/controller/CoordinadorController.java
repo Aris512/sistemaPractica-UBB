@@ -31,6 +31,7 @@ import com.backend.model.CentroPractica;
 import com.backend.model.Estudiante;
 import com.backend.model.Practica;
 import com.backend.model.ProfesorColaborador;
+import com.backend.model.RetroalimentacionIA;
 import com.backend.model.TutorPractica;
 import com.backend.model.Usuario;
 import com.backend.repository.AsignaturaRepository;
@@ -39,6 +40,7 @@ import com.backend.repository.EstudianteRepository;
 import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PracticaRepository;
 import com.backend.repository.ProfesorColaboradorRepository;
+import com.backend.repository.RetroalimentacionIARepository;
 import com.backend.repository.TutorPracticaRepository;
 import com.backend.service.PermisoService;
 import com.backend.service.PracticaService;
@@ -57,6 +59,7 @@ public class CoordinadorController {
     private final PracticaService practicaService;
     private final PermisoService permisoService;
     private final PautaAplicacionRepository pautaAplicacionRepository;
+    private final RetroalimentacionIARepository retroalimentacionRepository;
 
     public CoordinadorController(EstudianteRepository estudianteRepository,
                                  AsignaturaRepository asignaturaRepository,
@@ -66,7 +69,8 @@ public class CoordinadorController {
                                  PracticaRepository practicaRepository,
                                  PracticaService practicaService,
                                  PermisoService permisoService,
-                                 PautaAplicacionRepository pautaAplicacionRepository) {
+                                 PautaAplicacionRepository pautaAplicacionRepository,
+                                 RetroalimentacionIARepository retroalimentacionRepository) {
         this.estudianteRepository = estudianteRepository;
         this.asignaturaRepository = asignaturaRepository;
         this.centroPracticaRepository = centroPracticaRepository;
@@ -76,6 +80,7 @@ public class CoordinadorController {
         this.practicaService = practicaService;
         this.permisoService = permisoService;
         this.pautaAplicacionRepository = pautaAplicacionRepository;
+        this.retroalimentacionRepository = retroalimentacionRepository;
     }
 
     /** Permiso que habilita asociar / desvincular prácticas (se administra en el panel de permisos). */
@@ -118,14 +123,37 @@ public class CoordinadorController {
         return nivelPractica(asig) != null;
     }
 
+    /** El coordinador solo asocia las prácticas de 8.° (Práctica Pedagógica) y 9.° semestre (Práctica Profesional). */
+    private boolean esPracticaFinal(String nivel) {
+        return "PEDAGOGICA".equals(nivel) || "PROFESIONAL".equals(nivel);
+    }
+
+    /**
+     * Ya está asociado si su práctica de esa asignatura tiene profesor colaborador y tutor. Una asociación
+     * anterior sin tutor sigue pendiente, para que el coordinador pueda completarla.
+     */
+    private boolean estaAsociado(Estudiante est, Long idAsignatura) {
+        List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(est.getIdEstudiante());
+        return practicas != null && practicas.stream()
+            .filter(p -> p.getAsignatura() != null && idAsignatura.equals(p.getAsignatura().getIdAsignatura()))
+            .anyMatch(p -> p.getTutorPractica() != null
+                && p.getProfesoresColaboradores() != null && !p.getProfesoresColaboradores().isEmpty());
+    }
+
+    /** Queda habilitado para asociarse cuando su profesor de asignatura aprobó al menos una de sus planificaciones. */
+    private boolean planificacionAprobada(Estudiante est) {
+        return retroalimentacionRepository.existsByPlanificacionEstudianteIdEstudianteAndEstado(
+            est.getIdEstudiante(), RetroalimentacionIA.Estado.APROBADO);
+    }
+
     /** Las prácticas iniciales son simulaciones en la universidad: no hay colegio ni profesor colaborador. */
     private boolean requiereColaborador(String nivel) {
         return nivel != null && !"INICIAL".equals(nivel);
     }
 
-    /** Solo en la Práctica Profesional interviene un tutor/supervisor contratado por la universidad. */
+    /** Desde 8.° semestre (Práctica Pedagógica y Profesional) interviene un tutor/supervisor de la universidad. */
     private boolean requiereTutor(String nivel) {
-        return "PROFESIONAL".equals(nivel);
+        return esPracticaFinal(nivel);
     }
 
     private static int semestreNum(Asignatura a) {
@@ -159,14 +187,14 @@ public class CoordinadorController {
     }
 
     /**
-     * Retorna las 6 asignaturas de la línea de práctica (ordenadas por semestre), indicando qué participantes
-     * requiere cada una: profesor colaborador / centro (todas salvo las iniciales) y tutor (solo Práctica Profesional).
+     * Retorna las asignaturas de práctica que asocia el coordinador, de 8.° y 9.° semestre (ordenadas por semestre),
+     * indicando qué participantes requiere cada una: profesor colaborador, centro y tutor.
      */
     @GetMapping("/asignaturas-practica")
     public ResponseEntity<List<Map<String, Object>>> obtenerAsignaturasPractica() {
         List<Asignatura> todas = asignaturaRepository.findAll();
         List<Map<String, Object>> resultado = todas.stream()
-            .filter(this::esAsignaturaPractica)
+            .filter(a -> esPracticaFinal(nivelPractica(a)))
             .sorted((x, y) -> Integer.compare(semestreNum(x), semestreNum(y)))
             .map(a -> {
                 Map<String, Object> map = new HashMap<>();
@@ -196,8 +224,7 @@ public class CoordinadorController {
 
         for (Estudiante est : todos) {
             // El inicio del coordinador solo lista a los alumnos de 8.° y 9.° semestre
-            String nivel = nivelPractica(est.getAsignatura());
-            if (!"PEDAGOGICA".equals(nivel) && !"PROFESIONAL".equals(nivel)) {
+            if (!esPracticaFinal(nivelPractica(est.getAsignatura()))) {
                 continue;
             }
 
@@ -222,6 +249,7 @@ public class CoordinadorController {
             dto.put("idAsignatura", est.getAsignatura().getIdAsignatura());
             dto.put("asignaturaNombre", est.getAsignatura().getNombre());
             dto.put("tieneAsociacion", practicaActiva != null);
+            dto.put("planificacionAprobada", planificacionAprobada(est));
             dto.put("idPractica", practicaActiva != null ? practicaActiva.getIdPractica() : null);
 
             if (practicaActiva != null) {
@@ -243,14 +271,16 @@ public class CoordinadorController {
     }
 
     /**
-     * Retorna candidatos elegibles para una asignatura específica:
-     * - Estudiantes de esa asignatura
+     * Retorna candidatos elegibles para una asignatura de 8.° o 9.° semestre:
+     * - Estudiantes de esa asignatura con una planificación aprobada y aún no asociados (salvo {@code incluirEstudianteId}, el alumno
+     *   abierto desde "Ver / Modificar" en el inicio, para poder revisar o reemplazar su asociación)
      * - Profesores colaboradores disponibles
      * - Tutores de práctica disponibles
      * - Centros de práctica
      */
     @GetMapping("/candidatos")
-    public ResponseEntity<?> obtenerCandidatos(@RequestParam(required = false) Long asignaturaId) {
+    public ResponseEntity<?> obtenerCandidatos(@RequestParam(required = false) Long asignaturaId,
+                                               @RequestParam(required = false) Long incluirEstudianteId) {
         if (asignaturaId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "El parámetro 'asignaturaId' es obligatorio."));
         }
@@ -261,17 +291,19 @@ public class CoordinadorController {
         }
 
         Asignatura asignatura = asigOpt.get();
-        if (!esAsignaturaPractica(asignatura)) {
+        if (!esPracticaFinal(nivelPractica(asignatura))) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La asignatura seleccionada no es una de las 6 asignaturas de la línea de práctica."
+                "error", "La asignatura seleccionada no es una práctica de 8.° o 9.° semestre."
             ));
         }
 
-        // 1. Estudiantes de esa asignatura
+        // 1. Estudiantes de esa asignatura habilitados (planificación aprobada) y aún no asociados
         List<Estudiante> estudiantesAsig = estudianteRepository.findByAsignaturaIdAsignatura(asignaturaId);
         List<Map<String, Object>> estudiantesList = estudiantesAsig.stream()
             .filter(e -> e.getUsuario() == null || (e.getUsuario().isActivo() && !"inactivo".equalsIgnoreCase(e.getUsuario().getEstado())))
             .filter(e -> !"INACTIVO".equalsIgnoreCase(e.getEstado()))
+            .filter(e -> e.getIdEstudiante().equals(incluirEstudianteId)
+                || (!estaAsociado(e, asignaturaId) && planificacionAprobada(e)))
             .map(e -> {
                 Map<String, Object> map = new HashMap<>();
                 map.put("idEstudiante", e.getIdEstudiante());
@@ -380,8 +412,8 @@ public class CoordinadorController {
     /**
      * Asocia Estudiante + Asignatura de práctica (+ Profesor Colaborador, Tutor y Centro según el ciclo):
      * - Iniciales (Aproximación al Sistema Escolar, Ambientes de Aprendizaje): solo estudiante y asignatura.
-     * - Intermedias y Práctica Pedagógica: además profesor colaborador y centro (obligatorio, sin valor por defecto).
-     * - Práctica Profesional: además tutor universitario.
+     * - Intermedias: además profesor colaborador y centro (obligatorio, sin valor por defecto).
+     * - Práctica Pedagógica (8.°) y Práctica Profesional (9.°): además tutor universitario.
      *
      * Protecciones:
      * - Exige el permiso PRACTICAS_ASOCIAR.
@@ -432,9 +464,9 @@ public class CoordinadorController {
         }
         Asignatura asignatura = asigOpt.get();
         String nivel = nivelPractica(asignatura);
-        if (nivel == null) {
+        if (!esPracticaFinal(nivel)) {
             return ResponseEntity.badRequest().body(Map.of(
-                "error", "La asignatura '" + asignatura.getNombre() + "' no es una de las 6 asignaturas de la línea de práctica."
+                "error", "La asignatura '" + asignatura.getNombre() + "' no es una práctica de 8.° o 9.° semestre."
             ));
         }
         if (requiereColaborador(nivel) && idColaborador == null) {
@@ -468,7 +500,13 @@ public class CoordinadorController {
             ));
         }
 
-        // 3. Tutor (solo Práctica Profesional)
+        // Solo se asocia a quien tiene una planificación aprobada; una asociación vigente se puede seguir revisando
+        if (!estaAsociado(estudiante, idAsignatura) && !planificacionAprobada(estudiante)) {
+            return conflicto("PLANIFICACION_NO_APROBADA",
+                "El estudiante aún no tiene una planificación aprobada por su profesor de asignatura.");
+        }
+
+        // 3. Tutor (desde 8.° semestre)
         TutorPractica tutor = null;
         if (requiereTutor(nivel)) {
             tutor = tutorPracticaRepository.findById(idTutor).orElse(null);
@@ -531,13 +569,18 @@ public class CoordinadorController {
             || !Objects.equals(tutorActualId, tutorNuevoId);
         boolean cambiaAsignatura = existente != null && existente.getAsignatura() != null
             && !idAsignatura.equals(existente.getAsignatura().getIdAsignatura());
+        // Completar una asociación que no tenía tutor (mismo colaborador) no reemplaza a nadie: no pide
+        // confirmación y se permite aunque ya haya pautas, porque las evaluaciones existentes no cambian.
+        boolean soloAgregaTutor = tutorActualId == null && tutorNuevoId != null
+            && colaboradoresActualesIds.equals(colaboradoresNuevosIds) && !cambiaAsignatura;
+        boolean reemplazaEvaluadores = teniaAsociacion && cambiaEvaluadores && !soloAgregaTutor;
 
-        if (existente != null && tienePautas && ((teniaAsociacion && cambiaEvaluadores) || cambiaAsignatura)) {
+        if (existente != null && tienePautas && (reemplazaEvaluadores || cambiaAsignatura)) {
             return conflicto("PAUTAS_APLICADAS",
                 "No se puede reemplazar la asociación: la práctica de este estudiante ya tiene pautas de evaluación aplicadas. " +
                 "Cambiar a sus evaluadores dejaría esas evaluaciones sin respaldo.");
         }
-        if (teniaAsociacion && cambiaEvaluadores && !reemplazar) {
+        if (reemplazaEvaluadores && !reemplazar) {
             String actual = colaboradoresPrevios.isEmpty() ? "sin colaborador"
                 : "colaborador " + colaboradoresPrevios.stream()
                     .map(c -> nombreCompleto(c.getUsuario()))

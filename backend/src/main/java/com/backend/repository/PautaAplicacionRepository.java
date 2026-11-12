@@ -5,15 +5,16 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
 
 import com.backend.model.PautaAplicacion;
 
-@Repository
+
 public interface PautaAplicacionRepository extends JpaRepository<PautaAplicacion, Long> {
     List<PautaAplicacion> findByPracticaIdPractica(Long idPractica);
-    Optional<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
+    List<PautaAplicacion> findByPautaIdAndPracticaIdPractica(Long pautaId, Long idPractica);
+    Optional<PautaAplicacion> findByPautaIdAndPracticaIdPracticaAndEvaluadorRut(Long pautaId, Long idPractica, String evaluadorRut);
     boolean existsByPautaId(Long pautaId);
+    Optional<PautaAplicacion> findByNotaIdNota(Long idNota);
     boolean existsByPracticaIdPractica(Long idPractica);
 
     /** Ids de las prácticas que ya tienen al menos una pauta aplicada (para marcarlas sin una consulta por práctica). */

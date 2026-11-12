@@ -5,10 +5,12 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,11 +28,15 @@ import com.backend.dto.PautaDTOs.PautaRequest;
 import com.backend.dto.PautaDTOs.PautaResumenDTO;
 import com.backend.dto.PautaDTOs.RespuestaDTO;
 import com.backend.dto.PautaDTOs.ResultadoDTO;
+import com.backend.model.Nota;
+import com.backend.model.NotaDeVoz;
 import com.backend.model.Pauta;
 import com.backend.model.PautaAplicacion;
 import com.backend.model.PautaCriterio;
 import com.backend.model.PautaRespuesta;
 import com.backend.model.Practica;
+import com.backend.repository.NotaDeVozRepository;
+import com.backend.repository.NotaRepository;
 import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PautaRepository;
 import com.backend.repository.PracticaRepository;
@@ -43,7 +49,8 @@ public class PautaService {
     static final double NOTA_APROBACION = 4.0;
     static final double NOTA_MAX = 7.0;
 
-    private static final Set<String> EVALUADORES = Set.of("COLABORADOR", "TUTOR", "ACADEMICO");
+    /** Evaluadores posibles, en el orden en que se guardan cuando la pauta tiene varios. */
+    private static final List<String> EVALUADORES = List.of("COLABORADOR", "TUTOR", "ACADEMICO");
     private static final Set<String> MOMENTOS = Set.of("PRIMERA", "SEGUNDA", "UNICA");
     private static final Set<String> ESPECIALIDADES = Set.of("ESPECIALIDAD", "ORIENTACION");
     private static final Set<String> MODOS_CALCULO = Set.of("ESCALA_EXIGENCIA", "PROMEDIO");
@@ -52,15 +59,24 @@ public class PautaService {
     private final PautaAplicacionRepository aplicacionRepository;
     private final PracticaRepository practicaRepository;
     private final PautaAccesoService acceso;
+    private final NotaRepository notaRepository;
+    private final NotaDeVozRepository notaDeVozRepository;
+    private final FileStorageService fileStorageService;
 
     public PautaService(PautaRepository pautaRepository,
                         PautaAplicacionRepository aplicacionRepository,
                         PracticaRepository practicaRepository,
-                        PautaAccesoService acceso) {
+                        PautaAccesoService acceso,
+                        NotaRepository notaRepository,
+                        NotaDeVozRepository notaDeVozRepository,
+                        FileStorageService fileStorageService) {
         this.pautaRepository = pautaRepository;
         this.aplicacionRepository = aplicacionRepository;
         this.practicaRepository = practicaRepository;
         this.acceso = acceso;
+        this.notaRepository = notaRepository;
+        this.notaDeVozRepository = notaDeVozRepository;
+        this.fileStorageService = fileStorageService;
     }
 
     // ---------------------------------------------------------- Catálogo de pautas (HU-21)
@@ -74,7 +90,8 @@ public class PautaService {
             .filter(p -> coincide(p.getAsignatura(), asignatura))
             .filter(p -> coincide(p.getEspecialidad(), especialidad))
             .filter(p -> coincide(p.getMomento(), momento))
-            .filter(p -> coincide(p.getEvaluador(), evaluador))
+            .filter(p -> evaluador == null || evaluador.isBlank()
+                || p.evaluadoresLista().contains(evaluador.trim().toUpperCase(Locale.ROOT)))
             .filter(p -> !soloActivas || !Boolean.FALSE.equals(p.getActiva()))
             .map(p -> resumen(p, null))
             .collect(Collectors.toList());
@@ -154,9 +171,11 @@ public class PautaService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta práctica.");
         }
         String asignatura = practica.getAsignatura() != null ? practica.getAsignatura().getNombre() : null;
+        // Cada evaluador ve su propia aplicación; quien no evalúa la pauta ve cualquiera de las registradas.
         Map<Long, PautaAplicacion> aplicadas = new HashMap<>();
         for (PautaAplicacion a : aplicacionRepository.findByPracticaIdPractica(practicaId)) {
-            aplicadas.put(a.getPauta().getId(), a);
+            if (esPropia(a, s.rut())) aplicadas.put(a.getPauta().getId(), a);
+            else if (!acceso.puedeEvaluar(s, a.getPauta(), practica)) aplicadas.putIfAbsent(a.getPauta().getId(), a);
         }
         return pautaRepository.findAll().stream()
             .filter(p -> !Boolean.FALSE.equals(p.getActiva()))
@@ -171,14 +190,17 @@ public class PautaService {
     }
 
     @Transactional(readOnly = true)
-    public AplicacionDTO obtenerAplicacion(String rut, Long pautaId, Long practicaId) {
+    public AplicacionDTO obtenerAplicacion(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
         Solicitante s = acceso.identificar(rut);
         Pauta pauta = obtenerPauta(pautaId);
         Practica practica = obtenerPractica(practicaId);
         if (!acceso.puedeVerPractica(s, practica)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta práctica.");
         }
-        PautaAplicacion app = aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId).orElse(null);
+        // Sin aplicacionId se abre la del propio evaluador; los resultados indican cuál mostrar.
+        PautaAplicacion app = aplicacionId != null
+            ? aplicacionPorId(aplicacionId, pautaId, practicaId)
+            : aplicacionDe(pautaId, practicaId, s.rut()).orElse(null);
         if (app == null) {
             if (!s.puedeGestionar() && !acceso.puedeEvaluar(s, pauta, practica)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta pauta.");
@@ -189,6 +211,64 @@ public class PautaService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta pauta.");
         }
         return aplicacionDTO(app, pauta);
+    }
+
+    /** PDF de una pauta aplicada. */
+    public record PdfPauta(String nombreArchivo, byte[] contenido) {}
+
+    /** PDF de una pauta aplicada a una práctica del estudiante, con la asignatura de esa práctica. */
+    public record PdfPautaEstudiante(com.backend.model.Asignatura asignatura, String nombreArchivo, byte[] contenido) {}
+
+    /**
+     * PDF de todas las pautas aplicadas en las prácticas del estudiante (finalizadas y en borrador), para el
+     * expediente que descarga el coordinador. El control de acceso lo hace quien arma el expediente.
+     */
+    @Transactional(readOnly = true)
+    public List<PdfPautaEstudiante> pdfsDeEstudiante(Long idEstudiante) {
+        List<PdfPautaEstudiante> resultado = new ArrayList<>();
+        if (idEstudiante == null) return resultado;
+        for (Practica practica : practicaRepository.findByEstudianteIdEstudiante(idEstudiante)) {
+            for (PautaAplicacion app : aplicacionRepository.findByPracticaIdPractica(practica.getIdPractica())) {
+                Pauta pauta = app.getPauta();
+                ResultadoDTO r = resultadoDTO(app);
+                byte[] pdf = PautaPdfGenerator.generar(pauta, app,
+                    new PautaPdfGenerator.Contexto(r.estudianteNombre(), r.estudianteRut(), r.evaluadorRol(), r.nota()));
+                String rol = r.evaluadorRol() != null ? r.evaluadorRol().toUpperCase(Locale.ROOT) : "EVALUADOR";
+                String nombre = ("Pauta_" + Objects.requireNonNullElse(pauta.getCodigo(), String.valueOf(pauta.getId())) + "_" + rol
+                        + ("FINALIZADA".equalsIgnoreCase(app.getEstado()) ? "" : "_BORRADOR"))
+                    .replaceAll("[^A-Za-z0-9_-]", "") + ".pdf";
+                resultado.add(new PdfPautaEstudiante(practica.getAsignatura(), nombre, pdf));
+            }
+        }
+        return resultado;
+    }
+
+    /**
+     * Exporta a PDF una pauta aplicada (criterios con su puntaje, nota y observaciones). Mismas reglas de
+     * acceso que para verla en pantalla.
+     */
+    @Transactional(readOnly = true)
+    public PdfPauta exportarPdf(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
+        Solicitante s = acceso.identificar(rut);
+        Pauta pauta = obtenerPauta(pautaId);
+        Practica practica = obtenerPractica(practicaId);
+        if (!acceso.puedeVerPractica(s, practica)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta práctica.");
+        }
+        PautaAplicacion app = aplicacionId != null
+            ? aplicacionPorId(aplicacionId, pautaId, practicaId)
+            : aplicacionDe(pautaId, practicaId, s.rut())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada."));
+        if (!acceso.puedeVerAplicacion(s, app)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene acceso a esta pauta.");
+        }
+        ResultadoDTO r = resultadoDTO(app);
+        byte[] pdf = PautaPdfGenerator.generar(pauta, app,
+            new PautaPdfGenerator.Contexto(r.estudianteNombre(), r.estudianteRut(), r.evaluadorRol(), r.nota()));
+        String base = (Objects.requireNonNullElse(pauta.getCodigo(), "pauta") + "_"
+                + Objects.requireNonNullElse(r.estudianteRut(), "estudiante"))
+            .replaceAll("[^A-Za-z0-9_-]", "");
+        return new PdfPauta("Pauta_" + base + ".pdf", pdf);
     }
 
     @Transactional
@@ -202,7 +282,7 @@ public class PautaService {
                 "Esta pauta no le corresponde: debe ser el evaluador asignado a esta práctica.");
         }
 
-        PautaAplicacion app = aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId)
+        PautaAplicacion app = aplicacionDe(pautaId, practicaId, s.rut())
             .orElseGet(() -> {
                 PautaAplicacion nueva = new PautaAplicacion();
                 nueva.setPauta(pauta);
@@ -216,7 +296,7 @@ public class PautaService {
         }
         if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "La pauta ya fue finalizada. Solo el coordinador puede reabrirla.");
+                "La pauta ya fue finalizada. Use «Modificar» para reabrirla y corregirla.");
         }
 
         Map<Long, PautaCriterio> criteriosPorId = pauta.getCriterios().stream()
@@ -266,21 +346,77 @@ public class PautaService {
         }
 
         recalcular(app, pauta);
+        if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) registrarNota(app, pauta);
         return aplicacionDTO(aplicacionRepository.save(app), pauta);
     }
 
-    /** Solo el coordinador: devuelve una pauta finalizada a borrador para que el evaluador la corrija. */
+    /**
+     * "Limpiar" / "Eliminar": borra la aplicación de la pauta con sus respuestas, sus audios y la nota que
+     * dejó al estudiante, para que no quede registro y el coordinador pueda desvincular la práctica o
+     * eliminar la pauta. La puede borrar el evaluador que la completó (también si ya está finalizada) y el
+     * coordinador.
+     */
     @Transactional
-    public AplicacionDTO reabrir(String rut, Long pautaId, Long practicaId) {
-        acceso.exigirGestion(acceso.identificar(rut));
+    public void limpiarAplicacion(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
+        Solicitante s = acceso.identificar(rut);
         Pauta pauta = obtenerPauta(pautaId);
-        PautaAplicacion app = aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada."));
+        Practica practica = obtenerPractica(practicaId);
+        PautaAplicacion app = aplicacionId != null
+            ? aplicacionPorId(aplicacionId, pautaId, practicaId)
+            : aplicacionDe(pautaId, practicaId, s.rut()).orElse(null);
+        if (app == null) return;
+
+        if (!s.puedeGestionar()) {
+            if (!acceso.puedeEvaluar(s, pauta, practica)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Esta pauta no le corresponde: debe ser el evaluador asignado a esta práctica.");
+            }
+            if (app.getEvaluadorRut() != null && !app.getEvaluadorRut().equalsIgnoreCase(s.rut())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Solo quien completó esta pauta puede limpiarla.");
+            }
+        }
+        eliminarAplicacion(app);
+    }
+
+    /**
+     * "Modificar": devuelve una pauta finalizada a borrador para corregirla. La nota se retira del registro del
+     * estudiante hasta que se finalice de nuevo. Lo puede hacer el evaluador que la completó o el coordinador.
+     */
+    @Transactional
+    public AplicacionDTO reabrir(String rut, Long pautaId, Long practicaId, Long aplicacionId) {
+        Solicitante s = acceso.identificar(rut);
+        Pauta pauta = obtenerPauta(pautaId);
+        PautaAplicacion app;
+        if (!s.puedeGestionar()) {
+            Practica practica = obtenerPractica(practicaId);
+            if (!acceso.puedeEvaluar(s, pauta, practica)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Esta pauta no le corresponde: debe ser el evaluador asignado a esta práctica.");
+            }
+            app = aplicacionId != null
+                ? aplicacionPorId(aplicacionId, pautaId, practicaId)
+                : aplicacionDe(pautaId, practicaId, s.rut())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada."));
+            if (!esPropia(app, s.rut())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo quien completó esta pauta puede modificarla.");
+            }
+        } else if (aplicacionId != null) {
+            app = aplicacionPorId(aplicacionId, pautaId, practicaId);
+        } else {
+            List<PautaAplicacion> apps = aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId);
+            if (apps.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada.");
+            if (apps.size() > 1) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La pauta tiene evaluaciones de varios evaluadores: indique cuál reabrir.");
+            }
+            app = apps.get(0);
+        }
         app.setEstado(PautaAplicacion.BORRADOR);
         app.setFechaFinalizacion(null);
         app.setFechaActualizacion(LocalDateTime.now());
         recalcular(app, pauta);
-        app.setNota(null);
+        quitarNota(app);
         return aplicacionDTO(aplicacionRepository.save(app), pauta);
     }
 
@@ -310,8 +446,53 @@ public class PautaService {
         double maximo = (double) pauta.getCriterios().size() * escalaMax;
         app.setPuntajeObtenido(puntaje);
         app.setPuntajeMaximo(maximo);
+    }
+
+    /** Nota que resulta de las respuestas, o null si faltan indicadores por responder. */
+    private Double notaCalculada(PautaAplicacion app, Pauta pauta) {
         boolean completa = app.getRespuestas().size() == pauta.getCriterios().size() && !pauta.getCriterios().isEmpty();
-        app.setNota(completa ? calcularNota(pauta, puntaje, app.getRespuestas().size(), maximo) : null);
+        if (!completa || app.getPuntajeObtenido() == null || app.getPuntajeMaximo() == null) return null;
+        return calcularNota(pauta, app.getPuntajeObtenido(), app.getRespuestas().size(), app.getPuntajeMaximo());
+    }
+
+    /** Nota a mostrar: la registrada al finalizar o, en un borrador completo, la que resultaría. */
+    private Double notaDe(PautaAplicacion app, Pauta pauta) {
+        if (app.getNota() != null) return app.getNota().getPuntajeObtenido();
+        return notaCalculada(app, pauta);
+    }
+
+    /** Al finalizar, la nota queda en la tabla nota del estudiante, emitida por el evaluador de la pauta. */
+    private void registrarNota(PautaAplicacion app, Pauta pauta) {
+        Nota nota = app.getNota() != null ? app.getNota() : new Nota();
+        nota.setEvaluacion(null);
+        nota.setEstudiante(app.getPractica().getEstudiante());
+        nota.setPuntajeObtenido(notaCalculada(app, pauta));
+        nota.setRutEvaluador(app.getEvaluadorRut());
+        app.setNota(notaRepository.save(nota));
+    }
+
+    /** Retira la nota de la pauta del registro del estudiante. */
+    private void quitarNota(PautaAplicacion app) {
+        Nota nota = app.getNota();
+        if (nota == null) return;
+        app.setNota(null);
+        aplicacionRepository.saveAndFlush(app);
+        notaRepository.delete(nota);
+    }
+
+    /** Borra la aplicación, sus respuestas (en cascada), sus audios y la nota que dejó al estudiante. */
+    private void eliminarAplicacion(PautaAplicacion app) {
+        Nota nota = app.getNota();
+        List<String> archivos = new ArrayList<>();
+        if (app.getId() != null) {
+            List<NotaDeVoz> audios = notaDeVozRepository.findByAplicacionPautaIdOrderByFechaGrabacionDesc(app.getId());
+            audios.forEach(a -> archivos.add(a.getUbicacionArchivo()));
+            notaDeVozRepository.deleteAll(audios);
+        }
+        aplicacionRepository.delete(app);
+        aplicacionRepository.flush();
+        if (nota != null) notaRepository.delete(nota);
+        archivos.stream().filter(Objects::nonNull).forEach(fileStorageService::deleteFile);
     }
 
     /**
@@ -346,6 +527,46 @@ public class PautaService {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Práctica no encontrada."));
     }
 
+    /**
+     * "tutor, colaborador" -> "COLABORADOR,TUTOR": sin repetidos y en orden fijo, para comparar y mostrar igual
+     * aunque se elijan en otro orden. Rechaza valores desconocidos.
+     */
+    static String normalizarEvaluadores(String valor) {
+        Set<String> elegidos = new HashSet<>();
+        for (String parte : valor.split(",")) {
+            String e = parte.trim().toUpperCase(Locale.ROOT);
+            if (e.isEmpty()) continue;
+            if (!EVALUADORES.contains(e)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor no válido para evaluador: " + parte.trim());
+            }
+            elegidos.add(e);
+        }
+        if (elegidos.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta indicar: evaluador.");
+        return EVALUADORES.stream().filter(elegidos::contains).collect(Collectors.joining(","));
+    }
+
+    /** La aplicación es del evaluador si lleva su RUT; las antiguas sin RUT las puede retomar cualquiera de ellos. */
+    private static boolean esPropia(PautaAplicacion a, String rut) {
+        return a.getEvaluadorRut() == null || a.getEvaluadorRut().equalsIgnoreCase(rut);
+    }
+
+    /** Aplicación del evaluador en esa práctica: cada evaluador de la pauta tiene la suya. */
+    private Optional<PautaAplicacion> aplicacionDe(Long pautaId, Long practicaId, String rut) {
+        Optional<PautaAplicacion> propia =
+            aplicacionRepository.findByPautaIdAndPracticaIdPracticaAndEvaluadorRut(pautaId, practicaId, rut);
+        if (propia.isPresent()) return propia;
+        return aplicacionRepository.findByPautaIdAndPracticaIdPractica(pautaId, practicaId).stream()
+            .filter(a -> a.getEvaluadorRut() == null)
+            .findFirst();
+    }
+
+    /** Aplicación concreta (resultados, coordinador), validando que sea de esa pauta y práctica. */
+    private PautaAplicacion aplicacionPorId(Long aplicacionId, Long pautaId, Long practicaId) {
+        return aplicacionRepository.findById(aplicacionId)
+            .filter(a -> a.getPauta().getId().equals(pautaId) && a.getPractica().getIdPractica().equals(practicaId))
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay evaluación registrada."));
+    }
+
     private static boolean coincide(String valor, String filtro) {
         if (filtro == null || filtro.isBlank()) return true;
         return valor != null && valor.toUpperCase(Locale.ROOT).equals(filtro.trim().toUpperCase(Locale.ROOT));
@@ -363,7 +584,8 @@ public class PautaService {
         if (crear && (r.criterios() == null || r.criterios().isEmpty())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La pauta necesita al menos un indicador.");
         }
-        validarOpcion(r.evaluador(), EVALUADORES, "evaluador", crear);
+        if (r.evaluador() != null && !r.evaluador().isBlank()) normalizarEvaluadores(r.evaluador());
+        else if (crear) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta indicar: evaluador.");
         validarOpcion(r.momento(), MOMENTOS, "momento de evaluación", crear);
         validarOpcion(r.especialidad(), ESPECIALIDADES, "especialidad", crear);
         validarOpcion(r.modoCalculo(), MODOS_CALCULO, "modo de cálculo", false);
@@ -399,7 +621,7 @@ public class PautaService {
         boolean cambia = distinto(p.getAsignatura(), r.asignatura(), false)
             || distinto(p.getEspecialidad(), r.especialidad(), true)
             || distinto(p.getMomento(), r.momento(), true)
-            || distinto(p.getEvaluador(), r.evaluador(), true)
+            || (r.evaluador() != null && !normalizarEvaluadores(r.evaluador()).equals(p.getEvaluador()))
             || distinto(p.getModoCalculo(), r.modoCalculo(), true)
             || (r.escalaMin() != null && !r.escalaMin().equals(p.getEscalaMin()))
             || (r.escalaMax() != null && !r.escalaMax().equals(p.getEscalaMax()))
@@ -424,7 +646,7 @@ public class PautaService {
         if (r.tipo() != null) p.setTipo(r.tipo());
         if (r.especialidad() != null) p.setEspecialidad(r.especialidad().toUpperCase(Locale.ROOT));
         if (r.momento() != null) p.setMomento(r.momento().toUpperCase(Locale.ROOT));
-        if (r.evaluador() != null) p.setEvaluador(r.evaluador().toUpperCase(Locale.ROOT));
+        if (r.evaluador() != null) p.setEvaluador(normalizarEvaluadores(r.evaluador()));
         p.setEscalaMin(Objects.requireNonNullElse(r.escalaMin(), Objects.requireNonNullElse(p.getEscalaMin(), 1)));
         p.setEscalaMax(Objects.requireNonNullElse(r.escalaMax(), Objects.requireNonNullElse(p.getEscalaMax(), 7)));
         p.setModoCalculo(r.modoCalculo() != null ? r.modoCalculo().toUpperCase(Locale.ROOT)
@@ -460,7 +682,7 @@ public class PautaService {
         return new PautaResumenDTO(p.getId(), p.getCodigo(), p.getTitulo(), p.getAsignatura(), p.getTipo(),
             p.getEspecialidad(), p.getMomento(), p.getEvaluador(), n, n * escalaMax, p.getPonderacion(),
             p.getVersion(), p.getActiva(),
-            app != null ? app.getId() : null, app != null ? app.getEstado() : null, app != null ? app.getNota() : null);
+            app != null ? app.getId() : null, app != null ? app.getEstado() : null, app != null ? notaDe(app, p) : null);
     }
 
     private PautaDetalleDTO detalle(Pauta p) {
@@ -483,7 +705,25 @@ public class PautaService {
         return new AplicacionDTO(a.getId(), pauta.getId(), a.getPractica().getIdPractica(), a.getEstado(),
             a.getEvaluadorRut(), a.getEvaluadorNombre(), a.getObservaciones(), respuestas,
             respuestas.size(), pauta.getCriterios().size(), a.getPuntajeObtenido(), a.getPuntajeMaximo(),
-            a.getNota(), a.getFechaActualizacion(), a.getFechaFinalizacion());
+            notaDe(a, pauta), a.getFechaActualizacion(), a.getFechaFinalizacion());
+    }
+
+    /** Rol con que se completó la aplicación: si la pauta tiene varios evaluadores, el de quien la llenó. */
+    private static String rolDelEvaluador(PautaAplicacion a) {
+        Set<String> roles = a.getPauta().evaluadoresLista();
+        if (roles.size() <= 1 || a.getEvaluadorRut() == null) return a.getPauta().getEvaluador();
+        Practica pr = a.getPractica();
+        String rut = a.getEvaluadorRut();
+        if (roles.contains("TUTOR") && pr.getTutorPractica() != null && pr.getTutorPractica().getUsuario() != null
+                && rut.equalsIgnoreCase(pr.getTutorPractica().getUsuario().getRut())) {
+            return "TUTOR";
+        }
+        if (roles.contains("COLABORADOR") && pr.getProfesoresColaboradores() != null
+                && pr.getProfesoresColaboradores().stream()
+                    .anyMatch(c -> c.getUsuario() != null && rut.equalsIgnoreCase(c.getUsuario().getRut()))) {
+            return "COLABORADOR";
+        }
+        return roles.contains("ACADEMICO") ? "ACADEMICO" : a.getPauta().getEvaluador();
     }
 
     private ResultadoDTO resultadoDTO(PautaAplicacion a) {
@@ -498,8 +738,8 @@ public class PautaService {
             estRut = pr.getEstudiante().getUsuario().getRut();
         }
         return new ResultadoDTO(a.getId(), p.getId(), p.getCodigo(), p.getTitulo(), p.getAsignatura(),
-            p.getEvaluador(), a.getEvaluadorNombre(), pr.getIdPractica(), estNombre, estRut,
-            a.getEstado(), a.getPuntajeObtenido(), a.getPuntajeMaximo(), a.getNota(),
+            rolDelEvaluador(a), a.getEvaluadorNombre(), pr.getIdPractica(), estNombre, estRut,
+            a.getEstado(), a.getPuntajeObtenido(), a.getPuntajeMaximo(), notaDe(a, p),
             p.getModoCalculo(), p.getPonderacion(), a.getFechaActualizacion(), a.getFechaFinalizacion());
     }
 }

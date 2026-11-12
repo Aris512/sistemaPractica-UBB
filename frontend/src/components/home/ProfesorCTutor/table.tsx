@@ -4,8 +4,10 @@ import type { EstudianteTutorRow, SortState } from "./types";
 import { TableToolbar } from "./TableToolbar";
 import { ObservacionBadge, EvaluacionBadge } from "./TableBadges";
 import { ModalDetalleEstudiante } from "./ModalDetalleEstudiante";
-import { ModalEvaluarEstudianteTutor } from "./ModalEvaluarEstudianteTutor";
+import { PautaFormulario } from "./PautaFormulario";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getPautasDePractica, type PautaResumen } from "@/services/pautaApi";
 import {
   UnifiedTableContainer,
   UnifiedTable,
@@ -24,6 +26,9 @@ import {
   RefreshCw,
   Lock,
   Award,
+  Loader2,
+  CheckCircle2,
+  PencilLine,
 } from "lucide-react";
 import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -40,7 +45,10 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
   const [observacionFilter, setObservacionFilter] = useState("ALL");
   const [evaluacionFilter, setEvaluacionFilter] = useState("ALL");
   const [selectedStudent, setSelectedStudent] = useState<EstudianteTutorRow | null>(null);
-  const [studentToEvaluate, setStudentToEvaluate] = useState<EstudianteTutorRow | null>(null);
+  // "Evaluar" lleva directo a la pauta: con una sola pauta asignada se abre; con varias se elige cuál
+  const [buscandoPautas, setBuscandoPautas] = useState<number | string | null>(null);
+  const [eligiendo, setEligiendo] = useState<{ est: EstudianteTutorRow; pautas: PautaResumen[] } | null>(null);
+  const [pautaAbierta, setPautaAbierta] = useState<{ est: EstudianteTutorRow; pautaId: number } | null>(null);
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(8);
@@ -164,6 +172,54 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
       return { column: null, direction: null };
     });
   };
+
+  const evaluar = async (est: EstudianteTutorRow) => {
+    if (!est.idPractica) {
+      sileo.warning({
+        title: "Sin práctica asociada",
+        description: "El estudiante aún no tiene una práctica asociada para evaluar.",
+      });
+      return;
+    }
+    setBuscandoPautas(est.idEstudiante);
+    try {
+      const pautas = await getPautasDePractica(user.rut, est.idPractica);
+      if (pautas.length === 0) {
+        sileo.info({
+          title: "Sin pautas asignadas",
+          description: "No tiene pautas activas para evaluar en la práctica de este estudiante.",
+        });
+      } else if (pautas.length === 1) {
+        setPautaAbierta({ est, pautaId: pautas[0].id });
+      } else {
+        setEligiendo({ est, pautas });
+      }
+    } catch (e) {
+      sileo.error({
+        title: "No se pudieron cargar las pautas",
+        description: e instanceof Error ? e.message : "Intente nuevamente.",
+      });
+    } finally {
+      setBuscandoPautas(null);
+    }
+  };
+
+  // Pauta abierta desde "Evaluar": al volver se recarga el listado para ver el estado actualizado
+  if (pautaAbierta && pautaAbierta.est.idPractica != null) {
+    return (
+      <PautaFormulario
+        pautaId={pautaAbierta.pautaId}
+        practicaId={pautaAbierta.est.idPractica}
+        estudianteNombre={pautaAbierta.est.nombre}
+        user={user}
+        textoVolver="Volver al inicio"
+        onBack={() => {
+          setPautaAbierta(null);
+          fetchData();
+        }}
+      />
+    );
+  }
 
   if (loadingPermissions) {
     return (
@@ -367,11 +423,16 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
 
                       <Button
                         size="sm"
-                        onClick={() => setStudentToEvaluate(item)}
+                        onClick={() => evaluar(item)}
+                        disabled={buscandoPautas === item.idEstudiante}
                         className="h-8 px-2.5 text-xs font-semibold bg-sky-600 hover:bg-sky-700 text-white gap-1 cursor-pointer shadow-2xs"
-                        title="Registrar o gestionar evaluación"
+                        title="Abrir la pauta asignada para evaluar"
                       >
-                        <Award className="size-3.5" />
+                        {buscandoPautas === item.idEstudiante ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Award className="size-3.5" />
+                        )}
                         Evaluar
                       </Button>
                     </div>
@@ -428,19 +489,69 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
         />
       )}
 
-      {/* Modal de Evaluación para Tutor / Profesor Colaborador */}
-      {studentToEvaluate && (
-        <ModalEvaluarEstudianteTutor
-          isOpen={!!studentToEvaluate}
-          student={studentToEvaluate}
-          user={user}
-          onClose={() => setStudentToEvaluate(null)}
-          onSaved={() => {
-            setStudentToEvaluate(null);
-            fetchData();
-          }}
-        />
-      )}
+      {/* Varias pautas asignadas: se elige cuál evaluar */}
+      <Dialog open={!!eligiendo} onOpenChange={(abierto) => !abierto && setEligiendo(null)}>
+        <DialogContent className="sm:max-w-lg bg-white">
+          <DialogHeader>
+            <DialogTitle>Elegir pauta a evaluar</DialogTitle>
+            <DialogDescription>
+              {eligiendo?.est.nombre} · {eligiendo?.est.asignaturaNombre}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {eligiendo?.pautas.map((p) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const est = eligiendo.est;
+                    setEligiendo(null);
+                    setPautaAbierta({ est, pautaId: p.id });
+                  }}
+                  className="w-full flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-sky-300 hover:bg-sky-50/50 transition-colors cursor-pointer"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-slate-900 leading-snug">{p.titulo}</span>
+                    <span className="block text-[11px] text-slate-500 mt-0.5">
+                      {MOMENTO_LABEL[p.momento] ?? p.momento} · {ESPECIALIDAD_LABEL[p.especialidad] ?? p.especialidad}
+                    </span>
+                  </span>
+                  <EstadoPauta pauta={p} />
+                  <ChevronRight className="size-4 text-slate-400 shrink-0" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+const MOMENTO_LABEL: Record<string, string> = { PRIMERA: "1ª observación", SEGUNDA: "2ª observación", UNICA: "Única" };
+const ESPECIALIDAD_LABEL: Record<string, string> = { ESPECIALIDAD: "Especialidad", ORIENTACION: "Orientación" };
+
+/** Estado de la pauta del evaluador: sin iniciar, en borrador o finalizada con su nota. */
+function EstadoPauta({ pauta }: { pauta: PautaResumen }) {
+  if (pauta.estadoAplicacion === "FINALIZADA") {
+    return (
+      <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+        <CheckCircle2 className="size-3" />
+        {pauta.nota != null ? `Nota ${pauta.nota.toFixed(1)}` : "Finalizada"}
+      </span>
+    );
+  }
+  if (pauta.estadoAplicacion === "BORRADOR") {
+    return (
+      <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+        <PencilLine className="size-3" />
+        Borrador
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+      Sin iniciar
+    </span>
   );
 }

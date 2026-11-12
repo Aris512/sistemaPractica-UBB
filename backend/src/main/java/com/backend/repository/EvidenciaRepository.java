@@ -4,11 +4,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import com.backend.model.Evidencia;
 
-@Repository
+
 public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
 
     List<Evidencia> findAllByOrderByFechaEntregaDesc();

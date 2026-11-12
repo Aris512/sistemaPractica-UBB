@@ -105,9 +105,25 @@ public class PautaController {
     public ResponseEntity<AplicacionDTO> obtenerAplicacion(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
             @PathVariable Long pautaId,
-            @PathVariable Long practicaId) {
-        AplicacionDTO dto = pautaService.obtenerAplicacion(rut, pautaId, practicaId);
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        AplicacionDTO dto = pautaService.obtenerAplicacion(rut, pautaId, practicaId, aplicacionId);
         return dto == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(dto);
+    }
+
+    /** Exporta la pauta aplicada a PDF, con su nota y observaciones. */
+    @GetMapping("/{pautaId}/practica/{practicaId}/pdf")
+    public ResponseEntity<byte[]> exportarPdf(
+            @RequestHeader(value = HEADER_RUT, required = false) String rut,
+            @PathVariable Long pautaId,
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        PautaService.PdfPauta pdf = pautaService.exportarPdf(rut, pautaId, practicaId, aplicacionId);
+        return ResponseEntity.ok()
+            .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + pdf.nombreArchivo() + "\"")
+            .body(pdf.contenido());
     }
 
     @PutMapping("/{pautaId}/practica/{practicaId}")
@@ -119,12 +135,23 @@ public class PautaController {
         return ResponseEntity.ok(pautaService.guardarAplicacion(rut, pautaId, practicaId, request));
     }
 
+    @DeleteMapping("/{pautaId}/practica/{practicaId}")
+    public ResponseEntity<Void> limpiarAplicacion(
+            @RequestHeader(value = HEADER_RUT, required = false) String rut,
+            @PathVariable Long pautaId,
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        pautaService.limpiarAplicacion(rut, pautaId, practicaId, aplicacionId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{pautaId}/practica/{practicaId}/reabrir")
     public ResponseEntity<AplicacionDTO> reabrir(
             @RequestHeader(value = HEADER_RUT, required = false) String rut,
             @PathVariable Long pautaId,
-            @PathVariable Long practicaId) {
-        return ResponseEntity.ok(pautaService.reabrir(rut, pautaId, practicaId));
+            @PathVariable Long practicaId,
+            @RequestParam(required = false) Long aplicacionId) {
+        return ResponseEntity.ok(pautaService.reabrir(rut, pautaId, practicaId, aplicacionId));
     }
 
     // ---- Resultados para estudiante, profesor de asignatura, coordinador y evaluadores

@@ -6,13 +6,10 @@ import {
   Mail,
   School,
   BookOpen,
-  FileText,
   Award,
   Clock,
-  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
 
 interface ModalDetalleEstudianteProps {
   student: EstudianteTutorRow | null;
@@ -124,37 +121,6 @@ export function ModalDetalleEstudiante({ student, onClose }: ModalDetalleEstudia
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Observaciones y Retroalimentación */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="size-3.5 text-sky-700" />
-              Observaciones Pedagógicas y Retroalimentación
-            </h4>
-
-            {student.observacionTexto ? (
-              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 text-xs text-slate-700 leading-relaxed italic">
-                "{student.observacionTexto}"
-              </div>
-            ) : (
-              <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-200/50 text-xs text-slate-400 italic">
-                No hay observaciones registradas para este estudiante actualmente.
-              </div>
-            )}
-          </div>
-
-          {/* Notas de Voz y Audio */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Volume2 className="size-3.5 text-sky-700" />
-              Notas de Voz Registradas
-            </h4>
-            <VoiceNoteRecorder
-              idEvaluacion={student.idEvaluacion}
-              readOnly={true}
-              defaultCollapsed={false}
-            />
           </div>
 
           {/* Fecha de actualización */}

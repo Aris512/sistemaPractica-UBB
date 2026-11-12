@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, Loader2, PencilLine, Search } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, FileDown, Loader2, PencilLine, Search } from "lucide-react";
+import { sileo } from "sileo";
 import type { UserSession } from "@/types/auth";
-import { getResultados, type ResultadoPauta } from "@/services/pautaApi";
+import { descargarPdfAplicacion, getResultados, type ResultadoPauta } from "@/services/pautaApi";
 import { PautaFormulario } from "./PautaFormulario";
 
 export type ModoResultados = "estudiante" | "profesor" | "coordinador";
@@ -61,6 +62,22 @@ export function PautasResultados({ user, modo, onBack, embebido = false }: Pauta
   const [abierta, setAbierta] = useState<ResultadoPauta | null>(null);
 
   const [version, setVersion] = useState(0);
+  const [exportandoId, setExportandoId] = useState<number | null>(null);
+
+  const exportarPdf = async (f: ResultadoPauta) => {
+    if (exportandoId !== null) return;
+    setExportandoId(f.aplicacionId);
+    try {
+      await descargarPdfAplicacion(user.rut, f.pautaId, f.practicaId, f.aplicacionId);
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo exportar",
+        description: e instanceof Error ? e.message : "Inténtalo nuevamente.",
+      });
+    } finally {
+      setExportandoId(null);
+    }
+  };
 
   useEffect(() => {
     let cancelado = false;
@@ -113,6 +130,7 @@ export function PautasResultados({ user, modo, onBack, embebido = false }: Pauta
       <PautaFormulario
         pautaId={abierta.pautaId}
         practicaId={abierta.practicaId}
+        aplicacionId={abierta.aplicacionId}
         estudianteNombre={abierta.estudianteNombre ?? "—"}
         user={user}
         soloLectura
@@ -218,11 +236,11 @@ export function PautasResultados({ user, modo, onBack, embebido = false }: Pauta
       {!cargando && filtradas.length > 0 && (
         <ul className="bg-white rounded-2xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
           {filtradas.map((f) => (
-            <li key={f.aplicacionId}>
+            <li key={f.aplicacionId} className="flex items-stretch">
               <button
                 type="button"
                 onClick={() => setAbierta(f)}
-                className="w-full text-left px-4 sm:px-5 py-4 hover:bg-sky-50/50 transition-colors cursor-pointer flex items-center gap-4 group"
+                className="flex-1 min-w-0 text-left pl-4 sm:pl-5 pr-2 py-4 hover:bg-sky-50/50 transition-colors cursor-pointer flex items-center gap-4 group"
               >
                 {modo !== "estudiante" && (
                   <span className="hidden sm:flex size-10 shrink-0 rounded-full bg-slate-100 border border-slate-200 items-center justify-center text-xs font-bold text-slate-700 group-hover:border-sky-300">
@@ -270,6 +288,17 @@ export function PautasResultados({ user, modo, onBack, embebido = false }: Pauta
                   )}
                 </div>
                 <ChevronRight className="size-5 text-slate-300 group-hover:text-sky-500 shrink-0" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void exportarPdf(f)}
+                disabled={exportandoId !== null}
+                aria-label={`Exportar a PDF la pauta de ${f.estudianteNombre ?? "el estudiante"}`}
+                title="Exportar a PDF con nota y observaciones"
+                className="shrink-0 px-3 sm:px-4 border-l border-slate-100 text-slate-500 hover:text-sky-700 hover:bg-sky-50/70 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-0.5"
+              >
+                {exportandoId === f.aplicacionId ? <Loader2 className="size-4 animate-spin" /> : <FileDown className="size-4" />}
+                <span className="text-[10px] font-semibold">PDF</span>
               </button>
             </li>
           ))}

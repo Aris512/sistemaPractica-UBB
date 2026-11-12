@@ -259,6 +259,15 @@ export const getNotasDeVozPorEvaluacion = async (
   return response.json();
 };
 
+/** Audios de las observaciones de una pauta aplicada. */
+export const getNotasDeVozPorAplicacionPauta = async (idAplicacion: number): Promise<NotaDeVozDTO[]> => {
+  const response = await fetch(`${NOTAS_VOZ_URL}/pauta-aplicacion/${idAplicacion}`);
+  if (!response.ok) {
+    throw new Error(`Error al obtener las notas de voz de la pauta: ${response.statusText}`);
+  }
+  return response.json();
+};
+
 export const getNotasDeVozPorEstudiante = async (
   idEstudiante: number
 ): Promise<NotaDeVozDTO[]> => {

@@ -7,11 +7,13 @@ import {
   CloudOff,
   Eraser,
   Eye,
+  FileDown,
   Loader2,
   Lock,
   PencilLine,
   RotateCcw,
   Save,
+  Trash2,
   X,
 } from "lucide-react";
 import { sileo } from "sileo";
@@ -19,10 +21,13 @@ import type { UserSession } from "@/types/auth";
 import { VoiceNoteRecorder } from "@/components/ui/VoiceNoteRecorder";
 import { ConfirmDeleteDialog } from "@/components/ui/ConfirmDeleteDialog";
 import {
+  descargarPdfAplicacion,
   getAplicacion,
   getPautaDetalle,
   guardarAplicacion,
+  limpiarAplicacion,
   reabrirAplicacion,
+  evaluadoresDe,
   type AplicacionPauta,
   type PautaDetalle,
 } from "@/services/pautaApi";
@@ -37,6 +42,8 @@ interface PautaFormularioProps {
   soloLectura?: boolean;
   /** Solo coordinador: permite devolver una pauta finalizada a borrador. */
   puedeReabrir?: boolean;
+  /** Aplicación concreta a mostrar (resultados). Sin ella se abre la del propio evaluador. */
+  aplicacionId?: number | null;
   textoVolver?: string;
 }
 
@@ -87,6 +94,7 @@ export function PautaFormulario({
   onBack,
   soloLectura = false,
   puedeReabrir = false,
+  aplicacionId = null,
   textoVolver = "Volver a las pautas",
 }: PautaFormularioProps) {
   const [pauta, setPauta] = useState<PautaDetalle | null>(null);
@@ -98,6 +106,7 @@ export function PautaFormulario({
   const [guardado, setGuardado] = useState<EstadoGuardado>("idle");
   const [finalizando, setFinalizando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const [confirmar, setConfirmar] = useState<"limpiar" | "cancelar" | null>(null);
   // Lo último guardado en el servidor: "Cancelar" vuelve a esto y sirve para saber si hay cambios sin guardar.
   const [base, setBase] = useState<{ respuestas: Record<number, number>; observaciones: string }>({
@@ -121,7 +130,7 @@ export function PautaFormulario({
       try {
         const [detalle, guardada] = await Promise.all([
           getPautaDetalle(user.rut, pautaId),
-          getAplicacion(user.rut, pautaId, practicaId),
+          getAplicacion(user.rut, pautaId, practicaId, aplicacionId),
         ]);
         if (cancelado) return;
         setPauta(detalle);
@@ -141,10 +150,9 @@ export function PautaFormulario({
     return () => {
       cancelado = true;
     };
-  }, [pautaId, practicaId, user.rut]);
+  }, [pautaId, practicaId, aplicacionId, user.rut]);
 
-  // Solo se guarda con "Guardar" o "Finalizar". Se envían todos los indicadores: los vacíos (null) se borran,
-  // así "Limpiar respuestas" también queda guardado.
+  // Solo se guarda con "Guardar" o "Finalizar". Se envían todos los indicadores: los vacíos (null) se borran.
   const guardar = useCallback(
     async (finalizar = false) => {
       if (!pauta) throw new Error("La pauta no está cargada.");
@@ -199,14 +207,40 @@ export function PautaFormulario({
   };
 
   const limpiar = () => {
-    if (Object.keys(respuestas).length === 0 && !observaciones) return;
+    if (Object.keys(respuestas).length === 0 && !observaciones && !aplicacion) return;
     setConfirmar("limpiar");
+  };
+
+  /**
+   * Borra los puntajes y observaciones y, si la pauta ya estaba guardada, elimina su registro: así no queda
+   * una evaluación vacía que impida al coordinador desvincular la práctica o eliminar la pauta.
+   */
+  const confirmarLimpiar = async () => {
+    try {
+      if (aplicacion) await limpiarAplicacion(user.rut, pautaId, practicaId, aplicacion.id);
+      setAplicacion(null);
+      setRespuestas({});
+      setObservaciones("");
+      setBase({ respuestas: {}, observaciones: "" });
+      setGuardado("idle");
+      sileo.success({
+        title: aplicacion ? "Pauta eliminada" : "Pauta limpiada",
+        description: aplicacion
+          ? "Se eliminó el registro de esta pauta y la nota del estudiante."
+          : "Se borraron los puntajes y observaciones sin guardar.",
+      });
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo limpiar",
+        description: e instanceof Error ? e.message : "Intente nuevamente.",
+      });
+    }
   };
 
   const finalizar = async () => {
     if (!pauta) return;
     const ok = window.confirm(
-      "Al finalizar la pauta ya no podrá modificarse. ¿Desea finalizar y registrar la evaluación?"
+      "Al finalizar, la nota queda registrada para el estudiante. Podrá modificarla o eliminarla después. ¿Desea finalizar la pauta?"
     );
     if (!ok) return;
     setFinalizando(true);
@@ -226,16 +260,23 @@ export function PautaFormulario({
     }
   };
 
+  /** Coordinador ("Reabrir") o el propio evaluador ("Modificar"): la pauta vuelve a borrador para corregirla. */
   const reabrir = async () => {
     const ok = window.confirm(
-      "La pauta volverá a borrador y el evaluador podrá corregirla. La nota se recalculará al finalizar de nuevo. ¿Desea continuar?"
+      soloLectura
+        ? "La pauta volverá a borrador y el evaluador podrá corregirla. La nota se recalculará al finalizar de nuevo. ¿Desea continuar?"
+        : "La pauta volverá a borrador para que la corrija. La nota se quita del registro del estudiante hasta que la finalice de nuevo. ¿Desea continuar?"
     );
     if (!ok) return;
     setReabriendo(true);
     try {
-      const res = await reabrirAplicacion(user.rut, pautaId, practicaId);
+      const res = await reabrirAplicacion(user.rut, pautaId, practicaId, aplicacion?.id ?? aplicacionId);
       setAplicacion(res);
-      sileo.success({ title: "Pauta reabierta", description: "El evaluador puede corregirla." });
+      sileo.success(
+        soloLectura
+          ? { title: "Pauta reabierta", description: "El evaluador puede corregirla." }
+          : { title: "Pauta en edición", description: "Corrija los puntajes y vuelva a finalizarla." }
+      );
     } catch (e) {
       sileo.error({
         title: "No se pudo reabrir",
@@ -281,14 +322,41 @@ export function PautaFormulario({
     );
   }
 
+  const exportarPdf = async () => {
+    if (!aplicacion || exportando) return;
+    setExportando(true);
+    try {
+      await descargarPdfAplicacion(user.rut, pautaId, practicaId, aplicacion.id);
+    } catch (e) {
+      sileo.error({
+        title: "No se pudo exportar",
+        description: e instanceof Error ? e.message : "Inténtalo nuevamente.",
+      });
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const niveles: number[] = [];
   for (let n = pauta.escalaMin; n <= pauta.escalaMax; n++) niveles.push(n);
   const usaNiveles = pauta.escalaMin === 2 && pauta.escalaMax === 7;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div className="pt-2">
+      <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
         <BotonVolver onClick={cancelar} texto={textoVolver} />
+        {aplicacion && (
+          <button
+            type="button"
+            onClick={exportarPdf}
+            disabled={exportando || hayCambios}
+            title={hayCambios ? "Guarda los cambios para exportar la pauta" : "Descargar la pauta con su nota y observaciones"}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {exportando ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+            <span>Exportar PDF</span>
+          </button>
+        )}
       </div>
 
       {/* Encabezado: pauta, estudiante y escala */}
@@ -302,7 +370,9 @@ export function PautaFormulario({
               {MOMENTO_LABEL[pauta.momento] ?? pauta.momento}
             </span>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-              {EVALUADOR_LABEL[pauta.evaluador] ?? pauta.evaluador}
+              {evaluadoresDe(pauta.evaluador)
+                .map((e) => EVALUADOR_LABEL[e] ?? e)
+                .join(" · ")}
             </span>
           </div>
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">{pauta.titulo}</h1>
@@ -355,7 +425,7 @@ export function PautaFormulario({
         <div className="flex items-center gap-2 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
           <Lock className="size-4 shrink-0" />
           <span className="flex-1">
-            Pauta finalizada. Ya no puede modificarse.
+            {soloLectura ? "Pauta finalizada." : "Pauta finalizada: la nota quedó registrada para el estudiante."}
             {aplicacion?.nota != null && (
               <b className="ml-1">
                 {pauta.modoCalculo === "PROMEDIO" ? "Promedio" : "Nota"} {aplicacion.nota.toFixed(1)}
@@ -372,6 +442,28 @@ export function PautaFormulario({
               {reabriendo ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
               Reabrir
             </button>
+          )}
+          {/* El evaluador puede corregir o eliminar su pauta finalizada (y con ella la nota del estudiante) */}
+          {!soloLectura && (
+            <span className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={reabrir}
+                disabled={reabriendo}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-white border border-emerald-300 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {reabriendo ? <Loader2 className="size-3.5 animate-spin" /> : <PencilLine className="size-3.5" />}
+                Modificar
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmar("limpiar")}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-white border border-rose-200 text-rose-700 text-xs font-semibold hover:bg-rose-50 transition-colors cursor-pointer"
+              >
+                <Trash2 className="size-3.5" />
+                Eliminar
+              </button>
+            </span>
           )}
         </div>
       )}
@@ -475,9 +567,12 @@ export function PautaFormulario({
           placeholder={bloqueada ? "Sin observaciones registradas." : "Fortalezas y aspectos a mejorar…"}
           className="w-full rounded-xl border border-slate-200 p-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-300 disabled:bg-slate-50"
         />
-        {!bloqueada && (
+        {/* Audios de las observaciones: se guardan con la pauta (hay que guardarla una vez antes de adjuntarlos) */}
+        {!bloqueada ? (
           <VoiceNoteRecorder
-            soloDictado
+            idAplicacionPauta={aplicacion?.id ?? null}
+            rutGrabador={user.rut}
+            nombreGrabador={`${user.nombre ?? ""} ${user.apellido ?? ""}`.trim()}
             defaultCollapsed
             onInsertTranscription={(texto) => {
               setObservaciones((prev) => (prev ? `${prev}\n${texto}` : texto));
@@ -487,6 +582,8 @@ export function PautaFormulario({
               });
             }}
           />
+        ) : (
+          aplicacion && <VoiceNoteRecorder idAplicacionPauta={aplicacion.id} readOnly defaultCollapsed />
         )}
       </section>
 
@@ -518,8 +615,8 @@ export function PautaFormulario({
               <button
                 type="button"
                 onClick={limpiar}
-                disabled={respondidos === 0 && !observaciones}
-                title="Borrar todos los puntajes y observaciones"
+                disabled={respondidos === 0 && !observaciones && !aplicacion}
+                title="Eliminar los puntajes, las observaciones y el registro de esta pauta"
                 className="inline-flex items-center gap-1.5 h-10 px-2 sm:px-3 shrink-0 rounded-xl text-sm font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-600"
               >
                 <Eraser className="size-4" />
@@ -564,14 +661,15 @@ export function PautaFormulario({
       <ConfirmDeleteDialog
         open={confirmar === "limpiar"}
         onOpenChange={(abierto) => !abierto && setConfirmar(null)}
-        onConfirm={() => {
-          setRespuestas({});
-          setObservaciones("");
-        }}
-        title="Limpiar respuestas"
-        description="Se borrarán todos los puntajes y las observaciones de esta pauta. El cambio se aplica al presionar «Guardar»."
-        confirmLabel="Limpiar"
-        confirmingLabel="Limpiando..."
+        onConfirm={confirmarLimpiar}
+        title={finalizada ? "Eliminar pauta" : "Limpiar pauta"}
+        description={
+          aplicacion
+            ? "Se eliminarán los puntajes, las observaciones, los audios y el registro guardado de esta pauta, junto con la nota del estudiante. Esta acción no se puede deshacer."
+            : "Se borrarán los puntajes y las observaciones que aún no ha guardado."
+        }
+        confirmLabel={finalizada ? "Eliminar" : "Limpiar"}
+        confirmingLabel={finalizada ? "Eliminando..." : "Limpiando..."}
       />
       <ConfirmDeleteDialog
         open={confirmar === "cancelar"}

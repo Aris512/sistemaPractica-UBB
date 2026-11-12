@@ -63,6 +63,7 @@ public class DocumentoPracticaService {
     private final AvanceAcademicoService avanceAcademicoService;
     private final ActividadRepository actividadRepository;
     private final PracticaRepository practicaRepository;
+    private final PautaService pautaService;
 
     public DocumentoPracticaService(DocumentoPracticaRepository documentoPracticaRepository,
                                    EstudianteRepository estudianteRepository,
@@ -73,7 +74,8 @@ public class DocumentoPracticaService {
                                    EvidenciaRepository evidenciaRepository,
                                    AvanceAcademicoService avanceAcademicoService,
                                    ActividadRepository actividadRepository,
-                                   PracticaRepository practicaRepository) {
+                                   PracticaRepository practicaRepository,
+                                   PautaService pautaService) {
         this.documentoPracticaRepository = documentoPracticaRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
@@ -84,6 +86,7 @@ public class DocumentoPracticaService {
         this.avanceAcademicoService = avanceAcademicoService;
         this.actividadRepository = actividadRepository;
         this.practicaRepository = practicaRepository;
+        this.pautaService = pautaService;
         initUploadsDirectory();
     }
 
@@ -755,7 +758,8 @@ public class DocumentoPracticaService {
      * Estructura:
      * {Nombre_Asignatura}/
      *    ├── Alumnos/
-     *    └── Profesor/
+     *    ├── Profesor/
+     *    └── Pautas/      (PDF de cada pauta aplicada, con nota y observaciones)
      */
     @Transactional(readOnly = true)
     public void escribirZipEstudiante(String rutRaw, OutputStream out) throws IOException {
@@ -852,7 +856,22 @@ public class DocumentoPracticaService {
                 hayArchivos = true;
             }
 
-            // 3. Si no hay evidencias ni documentos, crear al menos la estructura con un archivo informativo
+            // 3. Pautas de evaluación aplicadas en sus prácticas, como PDF con nota y observaciones
+            List<PautaService.PdfPautaEstudiante> pautas = estudiante != null
+                ? pautaService.pdfsDeEstudiante(estudiante.getIdEstudiante())
+                : List.of();
+            for (PautaService.PdfPautaEstudiante pdf : pautas) {
+                Asignatura asigPauta = pdf.asignatura() != null ? pdf.asignatura() : estudiante.getAsignatura();
+                String carpetaPautas = obtenerCarpetaAsignatura(asigPauta) + "Pautas/";
+                crearCarpetaZip(zos, carpetasCreadas, obtenerCarpetaAsignatura(asigPauta));
+                crearCarpetaZip(zos, carpetasCreadas, carpetaPautas);
+                zos.putNextEntry(new ZipEntry(resolverNombreUnicoEnZip(rutasEnZip, carpetaPautas, pdf.nombreArchivo())));
+                zos.write(pdf.contenido());
+                zos.closeEntry();
+                hayArchivos = true;
+            }
+
+            // 4. Si no hay evidencias ni documentos, crear al menos la estructura con un archivo informativo
             if (!hayArchivos) {
                 Asignatura asig = estudiante != null ? estudiante.getAsignatura() : null;
                 String carpetaAsignatura = obtenerCarpetaAsignatura(asig);

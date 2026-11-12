@@ -10,9 +10,11 @@ interface MensajeChatProps {
   contenido: string;
   /** Mensaje del usuario aún sin confirmar por el servidor o cuya respuesta falló. */
   estado?: "pendiente" | "fallido";
+  /** Servicio de IA que respondió; con GEMINI se indica que respondió el respaldo. */
+  proveedor?: string | null;
 }
 
-export function MensajeChat({ rol, contenido, estado }: MensajeChatProps) {
+export function MensajeChat({ rol, contenido, estado, proveedor }: MensajeChatProps) {
   const esUsuario = rol === "USER";
 
   return (
@@ -32,7 +34,16 @@ export function MensajeChat({ rol, contenido, estado }: MensajeChatProps) {
         >
           {esUsuario ? contenido : <MarkdownTexto texto={contenido} />}
         </div>
-        {!estado && <BotonCopiar texto={contenido} />}
+        {!estado && (
+          <div className="flex items-center gap-2">
+            <BotonCopiar texto={contenido} />
+            {!esUsuario && proveedor === "GEMINI" && (
+              <span className="mt-1 text-[11px] text-slate-400" title="El servicio principal estaba saturado y respondió el de respaldo">
+                Respondido por Gemini (respaldo)
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -46,7 +57,7 @@ export function AvatarIA() {
   );
 }
 
-/** Indicador mientras Groq genera la respuesta. */
+/** Indicador mientras la IA genera la respuesta. */
 export function IndicadorRespondiendo() {
   return (
     <div className="flex gap-3" role="status" aria-live="polite">

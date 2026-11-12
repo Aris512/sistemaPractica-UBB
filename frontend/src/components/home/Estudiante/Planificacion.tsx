@@ -18,6 +18,8 @@ import {
   Clock,
   X,
   Paperclip,
+  Send,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 import type { UserSession } from "@/types/auth";
@@ -32,6 +34,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { sileo } from "sileo";
+import { enviarPlanificacionAlProfesor } from "@/services/retroalimentacionApi";
+import { ESTADOS_RETRO, type EstadoRetroalimentacion } from "@/types/retroalimentacion";
 
 interface PlanificacionProps {
   user?: UserSession;
@@ -57,6 +61,8 @@ interface PlanificacionItem {
   archivos: ArchivoPlanificacion[];
   pendientes: Categoria[];
   completa: boolean;
+  /** Estado de su revisión (null si nunca se revisó ni se envió al profesor). */
+  estadoRevision: EstadoRetroalimentacion | null;
 }
 
 /** Las 5 categorías obligatorias (deben coincidir con PlanificacionService en el backend). */
@@ -148,6 +154,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
   const [loading, setLoading] = useState(true);
   const [creando, setCreando] = useState(false);
   const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   // Modal de subida
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -220,6 +227,24 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
       await cargar();
     } catch (err) {
       sileo.error({ title: "No se pudo eliminar", description: err instanceof Error ? err.message : "" });
+    }
+  };
+
+  const enviarAlProfesor = async (plan: PlanificacionItem) => {
+    setEnviando(true);
+    try {
+      await enviarPlanificacionAlProfesor(rut, plan.idPlanificacion);
+      sileo.success({
+        title: "Enviada al profesor",
+        description: plan.completa
+          ? "Verás sus observaciones en Retroalimentación. Puedes cambiar tus archivos hasta que la apruebe."
+          : "Tu profesor verá como pendientes los archivos que faltan; puedes subirlos hasta que la apruebe.",
+      });
+      await cargar();
+    } catch (err) {
+      sileo.error({ title: "No se pudo enviar", description: err instanceof Error ? err.message : "" });
+    } finally {
+      setEnviando(false);
     }
   };
 
@@ -297,6 +322,11 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
   // ── Render ───────────────────────────────────────────────────────────────
 
   const subidos = seleccionada ? 5 - seleccionada.pendientes.length : 0;
+  const estadoSel = seleccionada?.estadoRevision ?? null;
+  const aprobada = estadoSel === "APROBADO";
+  const enRevision = estadoSel === "ESPERANDO_PROFESOR";
+  // Se puede enviar aunque falten archivos; basta el documento «Planificación», que es lo que revisa el profesor
+  const tieneArchivoPrincipal = !!seleccionada?.archivos.some((a) => a.categoria === "PLANIFICACION" && a.idDocumento);
 
   return (
     <div className="max-w-6xl mx-auto py-2 space-y-6">
@@ -406,26 +436,72 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                         INCOMPLETA
                       </span>
                     )}
+                    {estadoSel && (
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${ESTADOS_RETRO[estadoSel].clases}`}>
+                        {ESTADOS_RETRO[estadoSel].etiqueta}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={abrirModal}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer whitespace-nowrap"
-                    >
-                      <Upload className="size-3.5" />
-                      <span>Subir archivos</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteAction(() => () => eliminarPlanificacion(seleccionada))}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Eliminar planificación"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
+                  {aprobada ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                      <Lock className="size-3.5" />
+                      Aprobada por tu profesor: ya no se puede modificar
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={abrirModal}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        <Upload className="size-3.5" />
+                        <span>Subir archivos</span>
+                      </button>
+                      {!enRevision && (
+                        <button
+                          type="button"
+                          onClick={() => void enviarAlProfesor(seleccionada)}
+                          disabled={!tieneArchivoPrincipal || enviando}
+                          title={
+                            !tieneArchivoPrincipal
+                              ? "Sube al menos el archivo «Planificación» para enviarla"
+                              : seleccionada.completa
+                                ? "Enviar a tu profesor de asignatura"
+                                : "Puedes enviarla aunque falten archivos; tu profesor los verá como pendientes"
+                          }
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {enviando ? <RefreshCw className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                          <span>Enviar al profesor</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setDeleteAction(() => () => eliminarPlanificacion(seleccionada))}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Eliminar planificación"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {enRevision && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-1.5">
+                    <Clock className="size-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Tu profesor la está revisando. Puedes seguir reemplazando archivos hasta que la apruebe; sus
+                      observaciones aparecen en Retroalimentación.
+                    </span>
+                  </p>
+                )}
+                {estadoSel === "RECHAZADO" && (
+                  <p className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 flex items-start gap-1.5">
+                    <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                    <span>Tu profesor la rechazó. Corrige los archivos según sus observaciones y vuelve a enviarla.</span>
+                  </p>
+                )}
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-slate-500">
@@ -515,14 +591,16 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                                   >
                                     <Download className="size-3.5" />
                                   </a>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeleteAction(() => () => eliminarArchivo(seleccionada, archivo))}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                    title="Eliminar archivo"
-                                  >
-                                    <Trash2 className="size-3.5" />
-                                  </button>
+                                  {!aprobada && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDeleteAction(() => () => eliminarArchivo(seleccionada, archivo))}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                      title="Eliminar archivo"
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </td>

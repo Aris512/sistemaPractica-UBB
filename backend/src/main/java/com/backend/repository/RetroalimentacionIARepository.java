@@ -13,5 +13,10 @@ public interface RetroalimentacionIARepository extends JpaRepository<Retroalimen
 
     Optional<RetroalimentacionIA> findFirstByPlanificacionIdPlanificacionOrderByIdRetroalimentacionDesc(Long idPlanificacion);
 
+    List<RetroalimentacionIA> findByPlanificacionIdPlanificacion(Long idPlanificacion);
+
     List<RetroalimentacionIA> findByPlanificacionAsignaturaIdAsignaturaAndFechaEnvioProfesorIsNotNull(Long idAsignatura);
+
+    /** Habilita al estudiante para que el coordinador lo asocie (estado APROBADO). */
+    boolean existsByPlanificacionEstudianteIdEstudianteAndEstado(Long idEstudiante, RetroalimentacionIA.Estado estado);
 }

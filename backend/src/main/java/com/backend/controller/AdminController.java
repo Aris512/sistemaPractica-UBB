@@ -724,6 +724,9 @@ public class AdminController {
             archivos.addAll(rutasEvidencias("id_estudiante IN (" + inEstClause + ")", estArgs));
             jdbcTemplate.update("DELETE FROM evidencia WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
             jdbcTemplate.update("DELETE FROM cursos_aprobados WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
+            // Las pautas aplicadas guardan su nota en la tabla nota: se desvinculan antes de borrarla
+            jdbcTemplate.update("UPDATE pauta_aplicacion SET id_nota = NULL WHERE id_nota IN "
+                + "(SELECT id_nota FROM nota WHERE id_estudiante IN (" + inEstClause + "))", estArgs);
             jdbcTemplate.update("DELETE FROM nota WHERE id_estudiante IN (" + inEstClause + ")", estArgs);
             eliminarEvaluacionesHuerfanas(idsEvaluacion, archivos);
 

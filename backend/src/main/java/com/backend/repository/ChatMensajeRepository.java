@@ -19,4 +19,10 @@ public interface ChatMensajeRepository extends JpaRepository<ChatMensaje, Long> 
     int findMaxOrden(@Param("idConversacion") Long idConversacion);
 
     long countByConversacionUsuarioRutAndRolAndFechaAfter(String rut, ChatRolMensaje rol, LocalDateTime desde);
+
+    /** Mensajes escritos por el alumno (no los automáticos de la plataforma) con orden mayor a desdeOrden. */
+    @Query("SELECT COUNT(m) FROM ChatMensaje m WHERE m.conversacion.idConversacion = :idConversacion "
+            + "AND m.rol = com.backend.model.ChatRolMensaje.USER AND m.orden > :desdeOrden "
+            + "AND (m.automatico IS NULL OR m.automatico = false)")
+    long contarPreguntas(@Param("idConversacion") Long idConversacion, @Param("desdeOrden") int desdeOrden);
 }

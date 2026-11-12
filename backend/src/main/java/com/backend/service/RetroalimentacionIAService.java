@@ -15,12 +15,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.backend.dto.RetroalimentacionDTOs.InicioRevisionDTO;
+import com.backend.dto.RetroalimentacionDTOs.MensajeChatDTO;
+import com.backend.dto.RetroalimentacionDTOs.ObservacionDTO;
 import com.backend.dto.RetroalimentacionDTOs.PlanificacionRetroDTO;
 import com.backend.dto.RetroalimentacionDTOs.RetroDTO;
 import com.backend.dto.RetroalimentacionDTOs.RetroProfesorDTO;
 import com.backend.dto.RetroalimentacionDTOs.RetroProfesorDetalleDTO;
 import com.backend.model.Documento;
 import com.backend.model.Estudiante;
+import com.backend.model.ObservacionRetroalimentacion;
 import com.backend.model.Planificacion;
 import com.backend.model.Profesor;
 import com.backend.model.RetroalimentacionIA;
@@ -29,6 +32,7 @@ import com.backend.model.Usuario;
 import com.backend.repository.ChatConversacionRepository;
 import com.backend.repository.ChatMensajeRepository;
 import com.backend.repository.EstudianteRepository;
+import com.backend.repository.ObservacionRetroalimentacionRepository;
 import com.backend.repository.PlanificacionRepository;
 import com.backend.repository.ProfesorRepository;
 import com.backend.repository.RetroalimentacionIARepository;
@@ -39,6 +43,10 @@ import com.backend.repository.UsuarioRepository;
  * (máximo {@link RetroalimentacionIA#MAX_REVISIONES_IA} revisiones por ciclo); con su visto bueno el alumno
  * la envía al profesor de asignatura, que la aprueba o la rechaza. Tras un rechazo, o si se agotan las
  * revisiones de la IA, el alumno sube una versión corregida y empieza un ciclo nuevo.
+ *
+ * El alumno también puede enviarla directamente al profesor, sin la IA. Mientras el profesor la revisa, el alumno
+ * puede seguir cambiando sus archivos y recibe sus observaciones; una vez aprobada queda cerrada y el estudiante
+ * queda habilitado para que el coordinador lo asocie.
  */
 @Service
 public class RetroalimentacionIAService {
@@ -50,6 +58,7 @@ public class RetroalimentacionIAService {
     private static final int MAX_COMENTARIO_ADJUNTO = 3500;
 
     private final RetroalimentacionIARepository repository;
+    private final ObservacionRetroalimentacionRepository observacionRepository;
     private final PlanificacionRepository planificacionRepository;
     private final EstudianteRepository estudianteRepository;
     private final ProfesorRepository profesorRepository;
@@ -62,6 +71,7 @@ public class RetroalimentacionIAService {
     private final TransactionTemplate transaccion;
 
     public RetroalimentacionIAService(RetroalimentacionIARepository repository,
+                                      ObservacionRetroalimentacionRepository observacionRepository,
                                       PlanificacionRepository planificacionRepository,
                                       EstudianteRepository estudianteRepository,
                                       ProfesorRepository profesorRepository,
@@ -73,6 +83,7 @@ public class RetroalimentacionIAService {
                                       PlanificacionService planificacionService,
                                       PlatformTransactionManager transactionManager) {
         this.repository = repository;
+        this.observacionRepository = observacionRepository;
         this.planificacionRepository = planificacionRepository;
         this.estudianteRepository = estudianteRepository;
         this.profesorRepository = profesorRepository;
@@ -97,10 +108,12 @@ public class RetroalimentacionIAService {
                 .map(p -> {
                     Documento archivo = archivoPlanificacion(p);
                     RetroalimentacionIA retro = retroDe(p);
+                    boolean completa = planificacionService.categoriasPendientes(p).isEmpty();
                     return new PlanificacionRetroDTO(p.getIdPlanificacion(), p.getFechaCreacion(),
                             p.getAsignatura() != null ? p.getAsignatura().getNombre() : null,
                             archivo != null ? archivo.getIdDocumento() : null,
                             archivo != null ? archivo.getNombre() : null,
+                            completa, archivo != null && (retro == null || admiteEnvioDirecto(retro)),
                             retro != null ? aDTO(retro, archivo) : null);
                 })
                 .toList();
@@ -123,7 +136,7 @@ public class RetroalimentacionIAService {
         String aviso = inicio.aviso();
         if (inicio.mensajeAutomatico() != null) {
             try {
-                chatService.enviarMensaje(rut, inicio.idConversacion(), inicio.mensajeAutomatico());
+                chatService.enviarMensajeAutomatico(rut, inicio.idConversacion(), inicio.mensajeAutomatico());
             } catch (ChatException e) {
                 logger.warn("No se pudo enviar el primer mensaje de revisión (conversación {}): {}", inicio.idConversacion(), e.getCodigo());
                 aviso = "La IA no pudo responder todavía (" + e.getMessage() + "). Escríbele en la conversación para reintentar.";
@@ -179,9 +192,11 @@ public class RetroalimentacionIAService {
 
         String mensaje = null;
         if (nueva) {
-            mensaje = "Hola, adjunto mi planificación «" + archivo.getNombre() + "» para que la revises.";
+            mensaje = "Hola, adjunto mi planificación «" + archivo.getNombre() + "» para que la revises y me hagas "
+                    + "preguntas de reflexión sobre lo que esté poco claro o incompleto.";
         } else if (archivoNuevo) {
-            mensaje = "Adjunto una versión actualizada de mi planificación «" + archivo.getNombre() + "». Por favor, revísala.";
+            mensaje = "Adjunto una versión actualizada de mi planificación «" + archivo.getNombre() + "». Por favor, revísala "
+                    + "y hazme preguntas de reflexión sobre lo que siga poco claro o incompleto.";
         }
         if (mensaje != null && comentario != null && !comentario.isBlank()) {
             mensaje += "\n\n" + comentario.strip();
@@ -192,7 +207,8 @@ public class RetroalimentacionIAService {
     /**
      * Reemplaza el archivo «Planificación» desde la conversación de revisión (botón +). Con la revisión abierta, la IA
      * lee el archivo nuevo en la misma conversación; si ya estaba cerrada (aprobada por la IA, rechazada por el profesor
-     * o revisiones agotadas) se reinicia el ciclo y se abre una conversación nueva.
+     * o revisiones agotadas) se reinicia el ciclo y se abre una conversación nueva. Si el profesor la está revisando,
+     * solo se reemplaza el archivo: el profesor ve la versión nueva y la IA no interviene.
      */
     public InicioRevisionDTO reemplazarArchivo(String rutCliente, Long idPlanificacion, MultipartFile archivo, String comentario) {
         String rut = chatService.resolverUsuario(rutCliente);
@@ -203,10 +219,9 @@ public class RetroalimentacionIAService {
         // Se valida todo antes de tocar el archivo actual, para no perderlo si lo nuevo no sirve
         transaccion.executeWithoutResult(status -> {
             RetroalimentacionIA retro = retroDe(planificacionPropia(rut, idPlanificacion));
-            if (retro != null && (retro.getEstado() == Estado.ESPERANDO_PROFESOR || retro.getEstado() == Estado.APROBADO)) {
-                throw new ChatException(HttpStatus.CONFLICT, "RETRO_NO_EDITABLE", retro.getEstado() == Estado.APROBADO
-                        ? "Tu profesor ya aprobó esta planificación."
-                        : "Tu profesor está revisando esta planificación: espera su respuesta antes de cambiar el archivo.");
+            // Mientras el profesor la revisa se puede seguir cambiando; al aprobarla queda cerrada
+            if (retro != null && retro.getEstado() == Estado.APROBADO) {
+                throw new ChatException(HttpStatus.CONFLICT, "RETRO_NO_EDITABLE", "Tu profesor ya aprobó esta planificación.");
             }
         });
         if (archivo == null || archivo.isEmpty()) {
@@ -217,13 +232,21 @@ public class RetroalimentacionIAService {
 
         planificacionService.subirArchivos(idPlanificacion, List.of(archivo), List.of(CATEGORIA_PLANIFICACION), rut);
 
-        transaccion.executeWithoutResult(status -> {
+        InicioRevisionDTO enRevisionProfesor = transaccion.execute(status -> {
             Planificacion planificacion = planificacionPropia(rut, idPlanificacion);
             RetroalimentacionIA retro = retroDe(planificacion);
+            if (retro != null && retro.getEstado() == Estado.ESPERANDO_PROFESOR) {
+                return new InicioRevisionDTO(retro.getConversacion() != null ? retro.getConversacion().getIdConversacion() : null,
+                        false, "Actualizaste tu planificación: tu profesor revisará la versión nueva.");
+            }
             if (retro != null && puedeReiniciar(retro, archivoPlanificacion(planificacion))) {
                 reiniciar(rut, retro.getIdRetroalimentacion());
             }
+            return null;
         });
+        if (enRevisionProfesor != null) {
+            return enRevisionProfesor;
+        }
         return iniciarRevisionIa(rut, idPlanificacion, comentario);
     }
 
@@ -237,16 +260,55 @@ public class RetroalimentacionIAService {
                     ? "Cambiaste el archivo después de la revisión de la IA. Reinicia la revisión con la nueva versión."
                     : "Solo puedes enviarla al profesor cuando la IA la marque como apta.");
         }
-        Long idAsignatura = retro.getPlanificacion().getAsignatura() != null
-                ? retro.getPlanificacion().getAsignatura().getIdAsignatura() : null;
-        if (idAsignatura == null || profesorRepository.findAllByAsignaturaId(idAsignatura).isEmpty()) {
-            throw new ChatException(HttpStatus.CONFLICT, "RETRO_SIN_PROFESOR",
-                    "Tu asignatura aún no tiene un profesor asignado. Contacta a la coordinación.");
-        }
+        exigirProfesorAsignado(retro.getPlanificacion());
         retro.setEstado(Estado.ESPERANDO_PROFESOR);
         retro.setFechaEnvioProfesor(LocalDateTime.now());
         retro.setFechaRespuestaProfesor(null);
         return aDTO(retro, archivo);
+    }
+
+    /**
+     * Botón «Enviar al profesor» de la planificación: la envía sin pasar por la IA. Basta el archivo «Planificación»;
+     * el profesor ve como pendientes los que falten. Tras un rechazo empieza un ciclo nuevo; la conversación con la IA,
+     * si la hubo, se conserva para que el profesor la lea.
+     */
+    @Transactional
+    public RetroDTO enviarDirecto(String rutCliente, Long idPlanificacion) {
+        String rut = chatService.resolverUsuario(rutCliente);
+        Planificacion planificacion = planificacionPropia(rut, idPlanificacion);
+        Documento archivo = archivoPlanificacion(planificacion);
+        if (archivo == null) {
+            throw new ChatException(HttpStatus.CONFLICT, "RETRO_SIN_ARCHIVO",
+                    "Sube al menos el archivo «Planificación» antes de enviarla a tu profesor.");
+        }
+        RetroalimentacionIA retro = retroDe(planificacion);
+        if (retro == null) {
+            retro = new RetroalimentacionIA(planificacion);
+        }
+        if (!admiteEnvioDirecto(retro)) {
+            throw new ChatException(HttpStatus.CONFLICT, "RETRO_NO_ENVIABLE", retro.getEstado() == Estado.APROBADO
+                    ? "Tu profesor ya aprobó esta planificación."
+                    : "Tu profesor ya está revisando esta planificación.");
+        }
+        exigirProfesorAsignado(planificacion);
+        if (retro.getEstado() == Estado.RECHAZADO) {
+            retro.setCiclo(retro.getCiclo() + 1);
+        }
+        retro.setIdDocumentoRevisado(archivo.getIdDocumento());
+        retro.setNombreArchivoRevisado(archivo.getNombre());
+        retro.setEstado(Estado.ESPERANDO_PROFESOR);
+        retro.setFechaEnvioProfesor(LocalDateTime.now());
+        retro.setFechaRespuestaProfesor(null);
+        repository.save(retro);
+        return aDTO(retro, archivo);
+    }
+
+    private void exigirProfesorAsignado(Planificacion planificacion) {
+        Long idAsignatura = planificacion.getAsignatura() != null ? planificacion.getAsignatura().getIdAsignatura() : null;
+        if (idAsignatura == null || profesorRepository.findAllByAsignaturaId(idAsignatura).isEmpty()) {
+            throw new ChatException(HttpStatus.CONFLICT, "RETRO_SIN_PROFESOR",
+                    "Tu asignatura aún no tiene un profesor asignado. Contacta a la coordinación.");
+        }
     }
 
     /** Ciclo nuevo con la versión corregida: tras un rechazo, revisiones agotadas o un archivo cambiado tras el visto bueno. */
@@ -292,8 +354,7 @@ public class RetroalimentacionIAService {
 
     @Transactional(readOnly = true)
     public RetroProfesorDetalleDTO detalleProfesor(String rutCliente, Long idRetroalimentacion) {
-        RetroalimentacionIA retro = retroDelProfesor(profesorDe(rutCliente), idRetroalimentacion);
-        return new RetroProfesorDetalleDTO(aDTOProfesor(retro), retro.getUltimaRevisionIa());
+        return detalle(retroDelProfesor(profesorDe(rutCliente), idRetroalimentacion));
     }
 
     @Transactional
@@ -319,7 +380,46 @@ public class RetroalimentacionIAService {
         retro.setComentarioProfesor(texto.isEmpty() ? null : texto);
         retro.setRutProfesorRevisor(profesor.getUsuario().getRut());
         retro.setFechaRespuestaProfesor(LocalDateTime.now());
+        observacionRepository.save(new ObservacionRetroalimentacion(retro,
+                aprobado ? ObservacionRetroalimentacion.Tipo.APROBACION : ObservacionRetroalimentacion.Tipo.RECHAZO,
+                retro.getComentarioProfesor(), retro.getRutProfesorRevisor()));
         return aDTOProfesor(retro);
+    }
+
+    /**
+     * El profesor elimina por completo la retroalimentación de un alumno de su asignatura: la planificación (y su
+     * registro en la tabla planificacion), los archivos que subió, sus observaciones y el chat que usó con la IA.
+     */
+    @Transactional
+    public void eliminarDelProfesor(String rutCliente, Long idRetroalimentacion) {
+        Profesor profesor = profesorDe(rutCliente);
+        Planificacion planificacion = retroDelProfesor(profesor, idRetroalimentacion).getPlanificacion();
+        logger.info("El profesor {} eliminó la retroalimentación {} (planificación {}).",
+                profesor.getUsuario().getRut(), idRetroalimentacion, planificacion.getIdPlanificacion());
+        planificacionService.eliminarPorProfesor(planificacion);
+    }
+
+    /** Observación del profesor mientras la revisa (o tras rechazarla); no cambia el estado de la retroalimentación. */
+    @Transactional
+    public RetroProfesorDetalleDTO observar(String rutCliente, Long idRetroalimentacion, String texto) {
+        Profesor profesor = profesorDe(rutCliente);
+        RetroalimentacionIA retro = retroDelProfesor(profesor, idRetroalimentacion);
+        if (!puedeObservar(retro)) {
+            throw new ChatException(HttpStatus.CONFLICT, "RETRO_YA_APROBADA",
+                    "La planificación ya fue aprobada: no admite más observaciones.");
+        }
+        String limpio = texto == null ? "" : texto.strip();
+        if (limpio.isEmpty()) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "RETRO_OBSERVACION_VACIA", "Escribe la observación para el estudiante.");
+        }
+        if (limpio.length() > MAX_COMENTARIO) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "RETRO_COMENTARIO_LARGO",
+                    "La observación supera el máximo de " + MAX_COMENTARIO + " caracteres.");
+        }
+        observacionRepository.save(new ObservacionRetroalimentacion(retro, ObservacionRetroalimentacion.Tipo.OBSERVACION,
+                limpio, profesor.getUsuario().getRut()));
+        retro.tocar();
+        return detalle(retro);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -338,6 +438,15 @@ public class RetroalimentacionIAService {
 
     private static boolean puedeEnviar(RetroalimentacionIA retro, Documento archivo) {
         return retro.getEstado() == Estado.REVISADO_POR_IA && !archivoCambiado(retro, archivo);
+    }
+
+    /** Envío sin la IA: desde cualquier estado salvo cuando el profesor ya la tiene o ya la aprobó. */
+    private static boolean admiteEnvioDirecto(RetroalimentacionIA retro) {
+        return retro.getEstado() != Estado.ESPERANDO_PROFESOR && retro.getEstado() != Estado.APROBADO;
+    }
+
+    private static boolean puedeObservar(RetroalimentacionIA retro) {
+        return retro.getEstado() == Estado.ESPERANDO_PROFESOR || retro.getEstado() == Estado.RECHAZADO;
     }
 
     private static boolean puedeReiniciar(RetroalimentacionIA retro, Documento archivo) {
@@ -391,6 +500,11 @@ public class RetroalimentacionIAService {
         if (profesor.getAsignatura() == null) {
             throw new ChatException(HttpStatus.FORBIDDEN, "RETRO_SIN_ASIGNATURA", "No tienes una asignatura asignada.");
         }
+        int semestre = AvanceAcademicoService.semestreNumerico(profesor.getAsignatura().getSemestre());
+        if (semestre < 8 || semestre == Integer.MAX_VALUE) {
+            throw new ChatException(HttpStatus.FORBIDDEN, "RETRO_SOLO_PRACTICA",
+                    "La revisión de planificaciones es para profesores de 8.° y 9.° semestre.");
+        }
         return profesor;
     }
 
@@ -426,7 +540,31 @@ public class RetroalimentacionIAService {
                 r.getConversacion() != null ? r.getConversacion().getIdConversacion() : null,
                 r.getNombreArchivoRevisado(), archivoCambiado(r, archivo), r.getComentarioProfesor(),
                 nombreUsuario(r.getRutProfesorRevisor()), r.getFechaEnvioProfesor(), r.getFechaRespuestaProfesor(),
-                r.getFechaActualizacion(), puedeRevisarIa(r, archivo), puedeEnviar(r, archivo), puedeReiniciar(r, archivo));
+                r.getFechaActualizacion(), puedeRevisarIa(r, archivo), puedeEnviar(r, archivo), puedeReiniciar(r, archivo),
+                observacionesDe(r));
+    }
+
+    private List<ObservacionDTO> observacionesDe(RetroalimentacionIA r) {
+        if (r.getIdRetroalimentacion() == null) {
+            return List.of();
+        }
+        return observacionRepository.findByRetroalimentacionIdRetroalimentacionOrderByFechaAscIdObservacionAsc(r.getIdRetroalimentacion())
+                .stream()
+                .map(o -> new ObservacionDTO(o.getIdObservacion(), o.getTipo().name(), o.getTexto(),
+                        nombreUsuario(o.getRutProfesor()), o.getCiclo(), o.getFecha()))
+                .toList();
+    }
+
+    /** Lo que revisa el profesor: los 5 archivos, la conversación del alumno con la IA y sus observaciones. */
+    private RetroProfesorDetalleDTO detalle(RetroalimentacionIA retro) {
+        List<MensajeChatDTO> conversacion = retro.getConversacion() == null ? List.of()
+                : mensajeRepository.findByConversacionIdConversacionOrderByOrdenAsc(retro.getConversacion().getIdConversacion())
+                        .stream()
+                        .map(m -> new MensajeChatDTO(m.getRol().name(), m.getContenido(), m.getFecha(), m.getProveedor()))
+                        .toList();
+        return new RetroProfesorDetalleDTO(aDTOProfesor(retro), retro.getUltimaRevisionIa(),
+                planificacionService.archivosDe(retro.getPlanificacion()), conversacion, observacionesDe(retro),
+                puedeObservar(retro));
     }
 
     private RetroProfesorDTO aDTOProfesor(RetroalimentacionIA r) {

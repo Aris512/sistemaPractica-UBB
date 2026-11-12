@@ -261,6 +261,7 @@ function EditorContenido({ user, tipo, id, onCerrar, onGuardada, onEliminada, on
     if (!form.titulo.trim()) return "Escriba el título de la pauta.";
     if (tipo !== "editar" && !form.codigo.trim()) return "Escriba un código único para la pauta.";
     if (!form.asignatura) return "Elija la asignatura de la práctica.";
+    if (!form.evaluador) return "Elija al menos un evaluador.";
     if (!bloqueada) {
       if (!Number.isInteger(min) || !Number.isInteger(max) || min < 0 || max > 10 || min >= max) {
         return "La escala de puntaje debe tener un mínimo menor que el máximo, con números enteros entre 0 y 10.";
@@ -492,6 +493,8 @@ function EditorContenido({ user, tipo, id, onCerrar, onGuardada, onEliminada, on
             />
             <Opciones
               etiqueta="Quién evalúa"
+              multiple
+              ayuda="Puede elegir uno, dos o los tres. Cada evaluador completa su propia pauta."
               valor={form.evaluador}
               onChange={(v) => cambiar("evaluador", v)}
               deshabilitado={bloqueada}
@@ -829,33 +832,48 @@ function Resumen({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 }
 
 /** Selector de una opción entre pocas, como botones (más rápido que un desplegable). */
+/**
+ * Botones de opción. Con `multiple`, el valor es la lista de opciones elegidas separadas por coma
+ * (en el orden de `opciones`) y cada botón se marca o desmarca por separado.
+ */
 function Opciones({
   etiqueta,
   valor,
   onChange,
   opciones,
   deshabilitado,
+  multiple = false,
+  ayuda,
 }: {
   etiqueta: string;
   valor: string;
   onChange: (valor: string) => void;
   opciones: { valor: string; texto: string }[];
   deshabilitado?: boolean;
+  multiple?: boolean;
+  ayuda?: string;
 }) {
+  const elegidos = multiple ? valor.split(",").filter(Boolean) : [valor];
+  const alternar = (o: string) => {
+    if (!multiple) return onChange(o);
+    const nuevos = elegidos.includes(o) ? elegidos.filter((v) => v !== o) : [...elegidos, o];
+    onChange(opciones.map((x) => x.valor).filter((v) => nuevos.includes(v)).join(","));
+  };
   return (
     <div className="space-y-1.5">
       <span className="text-xs font-semibold text-slate-700">{etiqueta}</span>
-      <div role="radiogroup" aria-label={etiqueta} className="flex flex-wrap gap-1.5">
+      {ayuda && <p className="text-[11px] text-slate-500">{ayuda}</p>}
+      <div role={multiple ? "group" : "radiogroup"} aria-label={etiqueta} className="flex flex-wrap gap-1.5">
         {opciones.map((o) => {
-          const activa = valor === o.valor;
+          const activa = elegidos.includes(o.valor);
           return (
             <button
               key={o.valor}
               type="button"
-              role="radio"
+              role={multiple ? "checkbox" : "radio"}
               aria-checked={activa}
               disabled={deshabilitado}
-              onClick={() => onChange(o.valor)}
+              onClick={() => alternar(o.valor)}
               className={`h-8 px-3 rounded-lg text-xs font-semibold border transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                 activa
                   ? "bg-sky-600 border-sky-600 text-white"

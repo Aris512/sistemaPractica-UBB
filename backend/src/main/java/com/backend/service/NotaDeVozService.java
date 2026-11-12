@@ -1,5 +1,6 @@
 package com.backend.service;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,10 +14,12 @@ import org.springframework.web.multipart.MultipartFile;
 import com.backend.dto.NotaDeVozDTO;
 import com.backend.model.Evaluacion;
 import com.backend.model.NotaDeVoz;
+import com.backend.model.PautaAplicacion;
 import com.backend.model.Usuario;
 import com.backend.repository.EvaluacionRepository;
 import com.backend.repository.NotaDeVozRepository;
 import com.backend.repository.NotaRepository;
+import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.UsuarioRepository;
 
 @Service
@@ -34,13 +37,16 @@ public class NotaDeVozService {
     private final UsuarioRepository usuarioRepository;
     private final FileStorageService fileStorageService;
     private final GroqClient groqClient;
+    private final PautaAplicacionRepository pautaAplicacionRepository;
 
     public NotaDeVozService(NotaDeVozRepository notaDeVozRepository,
                             EvaluacionRepository evaluacionRepository,
                             NotaRepository notaRepository,
                             UsuarioRepository usuarioRepository,
                             FileStorageService fileStorageService,
-                            GroqClient groqClient) {
+                            GroqClient groqClient,
+                            PautaAplicacionRepository pautaAplicacionRepository) {
+        this.pautaAplicacionRepository = pautaAplicacionRepository;
         this.notaDeVozRepository = notaDeVozRepository;
         this.evaluacionRepository = evaluacionRepository;
         this.notaRepository = notaRepository;
@@ -69,6 +75,13 @@ public class NotaDeVozService {
     }
 
     @Transactional(readOnly = true)
+    public List<NotaDeVozDTO> obtenerPorAplicacionPauta(Long idAplicacion) {
+        if (idAplicacion == null) return List.of();
+        return notaDeVozRepository.findByAplicacionPautaIdOrderByFechaGrabacionDesc(idAplicacion).stream()
+                .map(this::convertirADTO).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<NotaDeVozDTO> obtenerPorEstudiante(Long idEstudiante) {
         if (idEstudiante == null) return List.of();
         List<NotaDeVoz> notas = notaDeVozRepository.findByEstudianteId(idEstudiante);
@@ -76,11 +89,13 @@ public class NotaDeVozService {
     }
 
     /**
-     * Adjunta una nota de voz a una evaluación ya guardada del propio evaluador. No se crean
-     * evaluaciones implícitas: quedaban sin puntajes ni tipo y duplicaban la evaluación real.
+     * Adjunta una nota de voz a una evaluación ya guardada del propio evaluador, o a las observaciones de
+     * una pauta que ese evaluador está completando (idAplicacionPauta). No se crean evaluaciones implícitas:
+     * quedaban sin puntajes ni tipo y duplicaban la evaluación real.
      */
     @Transactional
     public NotaDeVozDTO guardarNotaDeVoz(Long idEvaluacion,
+                                         Long idAplicacionPauta,
                                          MultipartFile file,
                                          String duracion,
                                          String transcripcion,
@@ -89,29 +104,42 @@ public class NotaDeVozService {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("El archivo de audio es requerido.");
         }
-        if (idEvaluacion == null) {
+        if (idEvaluacion == null && idAplicacionPauta == null) {
             throw new IllegalArgumentException("Guarde la evaluación antes de adjuntarle notas de voz.");
         }
         if (rutGrabador == null || rutGrabador.isBlank()) {
             throw new IllegalArgumentException("El RUT de quien graba es requerido.");
         }
 
-        Evaluacion evaluacion = evaluacionRepository.findById(idEvaluacion)
-                .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
-        if (!esEvaluadorDe(evaluacion, rutGrabador)) {
-            throw new SecurityException("Solo el evaluador de esta evaluación puede adjuntarle notas de voz.");
+        Evaluacion evaluacion = null;
+        PautaAplicacion aplicacion = null;
+        String nombreEvaluadorPorDefecto;
+        if (idAplicacionPauta != null) {
+            aplicacion = pautaAplicacionRepository.findById(idAplicacionPauta)
+                    .orElseThrow(() -> new IllegalArgumentException("Pauta no encontrada con ID: " + idAplicacionPauta));
+            if (aplicacion.getEvaluadorRut() == null || !aplicacion.getEvaluadorRut().equalsIgnoreCase(rutGrabador.trim())) {
+                throw new SecurityException("Solo quien completa esta pauta puede adjuntarle notas de voz.");
+            }
+            nombreEvaluadorPorDefecto = aplicacion.getEvaluadorNombre();
+        } else {
+            evaluacion = evaluacionRepository.findById(idEvaluacion)
+                    .orElseThrow(() -> new IllegalArgumentException("Evaluación no encontrada con ID: " + idEvaluacion));
+            if (!esEvaluadorDe(evaluacion, rutGrabador)) {
+                throw new SecurityException("Solo el evaluador de esta evaluación puede adjuntarle notas de voz.");
+            }
+            nombreEvaluadorPorDefecto = evaluacion.getNombreEvaluador();
         }
 
-        // Determinar nombre del grabador si no viene explícito
+        // Determinar nombre del grabador si no viene explícito (rutGrabador ya se validó como no vacío)
         String nombreFinal = (nombreGrabador != null && !nombreGrabador.isBlank()) ? nombreGrabador.trim() : null;
-        if (nombreFinal == null && rutGrabador != null && !rutGrabador.isBlank()) {
+        if (nombreFinal == null) {
             Usuario u = usuarioRepository.findByRut(rutGrabador).orElse(null);
             if (u != null) {
                 nombreFinal = (u.getNombre() + " " + (u.getApellido() != null ? u.getApellido() : "")).trim();
             }
         }
-        if (nombreFinal == null && evaluacion.getNombreEvaluador() != null) {
-            nombreFinal = evaluacion.getNombreEvaluador();
+        if (nombreFinal == null) {
+            nombreFinal = nombreEvaluadorPorDefecto;
         }
 
         // Almacenar el archivo de audio usando FileStorageService en subdirectorio "notas_de_voz"
@@ -133,7 +161,7 @@ public class NotaDeVozService {
                     transcripcionLimpia = textoWhisper.trim();
                     logger.info("Transcripción automática con Groq Whisper generada para nota de voz.");
                 }
-            } catch (Exception e) {
+            } catch (IOException | RuntimeException e) {
                 logger.warn("No se pudo autotranscribir con Groq Whisper: {}", e.getMessage());
             }
         }
@@ -147,9 +175,10 @@ public class NotaDeVozService {
                 rutGrabador,
                 nombreFinal
         );
+        nota.setAplicacionPauta(aplicacion);
         nota = notaDeVozRepository.save(nota);
-        logger.info("Nota de voz guardada con éxito (id: {}, evalId: {}, grabador: {}, archivo: {})",
-                nota.getIdAudio(), evaluacion.getIdEvaluacion(), nombreFinal, stored.relativePath());
+        logger.info("Nota de voz guardada con éxito (id: {}, evalId: {}, pauta aplicada: {}, grabador: {}, archivo: {})",
+                nota.getIdAudio(), idEvaluacion, idAplicacionPauta, nombreFinal, stored.relativePath());
 
         return convertirADTO(nota);
     }
@@ -172,13 +201,21 @@ public class NotaDeVozService {
         if (groqClient == null || !groqClient.estaConfigurado()) {
             throw new IllegalStateException("El servicio de transcripción de IA no está configurado (falta GROQ_API_KEY).");
         }
+        byte[] audio;
         try {
-            String resultado = groqClient.transcribirAudio(file.getBytes(), file.getOriginalFilename());
-            return resultado != null ? resultado : "";
-        } catch (Exception e) {
-            logger.warn("Error al procesar audio en transcribirAudio: {}", e.getMessage());
-            throw new RuntimeException("No se pudo transcribir el audio.");
+            audio = file.getBytes();
+        } catch (IOException e) {
+            logger.warn("No se pudo leer el audio en transcribirAudio: {}", e.getMessage());
+            throw new IllegalStateException("No se pudo leer el archivo de audio.", e);
         }
+        String resultado;
+        try {
+            resultado = groqClient.transcribirAudio(audio, file.getOriginalFilename());
+        } catch (RuntimeException e) {
+            logger.warn("Error al procesar audio en transcribirAudio: {}", e.getMessage());
+            throw new IllegalStateException("No se pudo transcribir el audio.", e);
+        }
+        return resultado != null ? resultado : "";
     }
 
     /**

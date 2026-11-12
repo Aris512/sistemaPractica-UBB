@@ -15,15 +15,12 @@ import {
 import {
   Home,
   Briefcase,
-  CalendarDays,
   ClipboardCheck,
   ClipboardList,
   CalendarPlus,
   MessageSquareCheck,
-  FolderGit2,
   LogOut,
 } from "lucide-react";
-import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface HomeSidebarProps {
@@ -71,18 +68,6 @@ export function HomeSidebar({
 }: HomeSidebarProps) {
   const { hasPermission } = usePermissions(user);
 
-  const esProfesor = [user?.rol, ...(user?.roles ?? [])]
-    .some((r) => String(r ?? "").toUpperCase().includes("PROFESOR"));
-  // Documentos de Práctica: solo profesores con asignatura de semestre >= 8
-  const puedeVerDocumentosPractica = esProfesor && esProfesorOctavoONoveno;
-
-  const handleSelectMockup = (menu: ProfesorMenuKey, modulo: string) => {
-    onSelectMenu(menu);
-    sileo.warning({
-      title: "Módulo en desarrollo",
-      description: `${modulo} se encuentra actualmente en desarrollo`,
-    });
-  };
 
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
@@ -153,45 +138,6 @@ export function HomeSidebar({
                 </SidebarMenuItem>
               )}
 
-              {/* Documentos de Práctica (Solo profesores con semestre >= 8) */}
-              {puedeVerDocumentosPractica && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={activeMenu === "documentos-practica"}
-                    onClick={() => onSelectMenu("documentos-practica")}
-                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                      activeMenu === "documentos-practica"
-                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <FolderGit2 className="size-4.5 text-slate-900 shrink-0" />
-                      <span>Documentos de Práctica</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {/* Planificación (Solo para profesores de 8.º y 9.º semestre) */}
-              {esProfesorOctavoONoveno && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={activeMenu === "planificacion"}
-                    onClick={() => handleSelectMockup("planificacion", "Planificación")}
-                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                      activeMenu === "planificacion"
-                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <CalendarDays className="size-4.5 text-slate-900 shrink-0" />
-                      <span>Planificación</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
 
               {/* Evaluaciones (visible para quien puede consultar o realizar evaluaciones) */}
               {(hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")) && (

@@ -11,15 +11,27 @@ public final class ChatDTOs {
     private ChatDTOs() {
     }
 
-    public record ConversacionDTO(Long id, String titulo, LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion) {
-        public static ConversacionDTO de(ChatConversacion c) {
-            return new ConversacionDTO(c.getIdConversacion(), c.getTitulo(), c.getFechaCreacion(), c.getFechaActualizacion());
+    /**
+     * preguntasUsadas / maxPreguntas: mensajes que el alumno ya escribió en la conversación y máximo permitido.
+     * Al llegar al máximo la conversación queda cerrada (en las de revisión, hasta que suba una versión nueva).
+     */
+    public record ConversacionDTO(Long id, String titulo, LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion,
+                                  int preguntasUsadas, int maxPreguntas) {
+        public static ConversacionDTO de(ChatConversacion c, int preguntasUsadas, int maxPreguntas) {
+            return new ConversacionDTO(c.getIdConversacion(), c.getTitulo(), c.getFechaCreacion(), c.getFechaActualizacion(),
+                    preguntasUsadas, maxPreguntas);
         }
     }
 
-    public record MensajeDTO(Long id, String rol, String contenido, LocalDateTime fecha, Integer orden) {
+    /**
+     * automatico: mensaje que la plataforma escribió en nombre del alumno (no cuenta como pregunta).
+     * proveedor: servicio de IA que generó la respuesta (GROQ o GEMINI); nulo en los mensajes del alumno.
+     */
+    public record MensajeDTO(Long id, String rol, String contenido, LocalDateTime fecha, Integer orden, boolean automatico,
+                             String proveedor) {
         public static MensajeDTO de(ChatMensaje m) {
-            return new MensajeDTO(m.getIdMensaje(), m.getRol().name(), m.getContenido(), m.getFecha(), m.getOrden());
+            return new MensajeDTO(m.getIdMensaje(), m.getRol().name(), m.getContenido(), m.getFecha(), m.getOrden(),
+                    m.isAutomatico(), m.getProveedor());
         }
     }
 

@@ -1,6 +1,16 @@
 const API_URL = "/api/pautas";
 
 export type EvaluadorPauta = "COLABORADOR" | "TUTOR" | "ACADEMICO";
+
+/** Evaluadores de una pauta: el backend los guarda separados por coma ("COLABORADOR,TUTOR"). */
+export const evaluadoresDe = (valor?: string | null): EvaluadorPauta[] =>
+  (valor ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean) as EvaluadorPauta[];
+
+/** Consulta para indicar una aplicación concreta (cada evaluador de la pauta tiene la suya). */
+const conAplicacion = (aplicacionId?: number | null) => (aplicacionId ? `?aplicacionId=${aplicacionId}` : "");
 export type EstadoAplicacion = "BORRADOR" | "FINALIZADA";
 
 export interface PautaResumen {
@@ -11,7 +21,8 @@ export interface PautaResumen {
   tipo: string;
   especialidad: string;
   momento: string;
-  evaluador: EvaluadorPauta;
+  /** Uno o varios evaluadores separados por coma. */
+  evaluador: string;
   criteriosCount: number;
   puntajeMaximo: number;
   ponderacion?: string | null;
@@ -38,7 +49,8 @@ export interface PautaDetalle {
   tipo: string;
   especialidad: string;
   momento: string;
-  evaluador: EvaluadorPauta;
+  /** Uno o varios evaluadores separados por coma. */
+  evaluador: string;
   escalaMin: number;
   escalaMax: number;
   modoCalculo: "ESCALA_EXIGENCIA" | "PROMEDIO";
@@ -165,9 +177,12 @@ export const getPautaDetalle = async (rut: string, id: number): Promise<PautaDet
 export const getAplicacion = async (
   rut: string,
   pautaId: number,
-  practicaId: number
+  practicaId: number,
+  aplicacionId?: number | null
 ): Promise<AplicacionPauta | null> => {
-  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}`, { headers: cabeceras(rut) });
+  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}${conAplicacion(aplicacionId)}`, {
+    headers: cabeceras(rut),
+  });
   if (response.status === 204) return null;
   if (!response.ok) throw await leerError(response, "No se pudo cargar la evaluación guardada");
   return response.json();
@@ -188,17 +203,55 @@ export const guardarAplicacion = async (
   return response.json();
 };
 
+/** Elimina la pauta aplicada (puntajes y observaciones) para que no quede registro guardado. */
+export const limpiarAplicacion = async (
+  rut: string,
+  pautaId: number,
+  practicaId: number,
+  aplicacionId?: number | null
+): Promise<void> => {
+  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}${conAplicacion(aplicacionId)}`, {
+    method: "DELETE",
+    headers: cabeceras(rut),
+  });
+  if (!response.ok) throw await leerError(response, "No se pudo limpiar la pauta");
+};
+
 export const reabrirAplicacion = async (
   rut: string,
   pautaId: number,
-  practicaId: number
+  practicaId: number,
+  aplicacionId?: number | null
 ): Promise<AplicacionPauta> => {
-  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}/reabrir`, {
+  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}/reabrir${conAplicacion(aplicacionId)}`, {
     method: "POST",
     headers: cabeceras(rut),
   });
   if (!response.ok) throw await leerError(response, "No se pudo reabrir la pauta");
   return response.json();
+};
+
+/** Descarga el PDF de una pauta aplicada: criterios con su puntaje, nota y observaciones del evaluador. */
+export const descargarPdfAplicacion = async (
+  rut: string,
+  pautaId: number,
+  practicaId: number,
+  aplicacionId?: number | null
+): Promise<void> => {
+  const response = await fetch(`${API_URL}/${pautaId}/practica/${practicaId}/pdf${conAplicacion(aplicacionId)}`, {
+    headers: cabeceras(rut),
+  });
+  if (!response.ok) throw await leerError(response, "No se pudo exportar la pauta a PDF");
+  const blob = await response.blob();
+  const nombre = /filename="?([^";]+)"?/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "pauta.pdf";
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  URL.revokeObjectURL(url);
 };
 
 export const getResultados = async (rut: string): Promise<ResultadoPauta[]> => {
