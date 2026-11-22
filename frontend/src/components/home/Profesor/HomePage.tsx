@@ -15,6 +15,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
 import { usePermissions } from "@/hooks/usePermissions";
+import { SinPermiso } from "@/components/home/SinPermiso";
 
 interface HomePageProps {
   user: UserSession;
@@ -32,7 +33,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
   const [formattedDate, setFormattedDate] = useState("");
   const [esProfesorOctavoONoveno, setEsProfesorOctavoONoveno] = useState<boolean>(false);
   const [cargandoProfesor, setCargandoProfesor] = useState<boolean>(true);
-  const { hasPermission } = usePermissions(user);
+  const { hasPermission, loading: cargandoPermisos } = usePermissions(user);
 
   useEffect(() => {
     try {
@@ -102,6 +103,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
       case "perfil":
         return <PerfilProfesor user={user} onBack={() => setActiveMenu("inicio")} />;
       case "actividades":
+        if (!hasPermission("ACTIVIDADES_GESTIONAR")) return cargandoPermisos ? null : <SinPermiso funcion="gestionar actividades" />;
         return (
           <Actividades
             user={user}
@@ -113,6 +115,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         if (cargandoProfesor || !esProfesorOctavoONoveno) {
           return null;
         }
+        if (!hasPermission("RETROALIMENTACION_REVISAR")) return cargandoPermisos ? null : <SinPermiso funcion="revisar planificaciones" />;
         return (
           <RevisionRetroalimentacion
             user={user}
@@ -127,20 +130,16 @@ export function HomePage({ user, onLogout }: HomePageProps) {
         return <DocumentosPracticaView user={user} onBack={() => setActiveMenu("inicio")} />;
       case "portafolio":
         if (!hasPermission("PORTAFOLIO_CONSULTAR") && !hasPermission("PORTAFOLIO_SUBIR")) {
-          return null;
+          return cargandoPermisos ? null : <SinPermiso funcion="ver portafolios" />;
         }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "cursos-practica":
         return null;
       case "evaluaciones":
-        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
-          return null;
-        }
+        if (!hasPermission("EVALUACIONES_REALIZAR")) return cargandoPermisos ? null : <SinPermiso funcion="calificar entregas" />;
         return <Evaluaciones user={user} onBack={() => setActiveMenu("inicio")} />;
       case "pautas-practica":
-        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
-          return null;
-        }
+        if (!hasPermission("PAUTAS_CONSULTAR")) return cargandoPermisos ? null : <SinPermiso funcion="ver resultados de pautas" />;
         return <PautasResultados user={user} modo="profesor" onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:
@@ -148,7 +147,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
           <InicioProfesor
             user={user}
             esProfesorOctavoONoveno={!cargandoProfesor && esProfesorOctavoONoveno}
-            puedeEvaluar={hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")}
+            puedeEvaluar={hasPermission("EVALUACIONES_REALIZAR")}
             onNavigate={setActiveMenu}
           />
         );

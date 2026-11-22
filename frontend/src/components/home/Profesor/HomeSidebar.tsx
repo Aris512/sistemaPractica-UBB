@@ -90,6 +90,7 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Actividades del Curso */}
+              {hasPermission("ACTIVIDADES_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "actividades"}
@@ -106,9 +107,10 @@ export function HomeSidebar({
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Revisión y Retroalimentación (Solo para profesores de 8.º y 9.º semestre) */}
-              {esProfesorOctavoONoveno && (
+              {esProfesorOctavoONoveno && hasPermission("RETROALIMENTACION_REVISAR") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "revision-retroalimentacion"}
@@ -128,8 +130,8 @@ export function HomeSidebar({
               )}
 
 
-              {/* Evaluaciones (visible para quien puede consultar o realizar evaluaciones) */}
-              {(hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")) && (
+              {/* Evaluaciones (calificar entregas) */}
+              {hasPermission("EVALUACIONES_REALIZAR") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "evaluaciones"}
@@ -149,7 +151,7 @@ export function HomeSidebar({
               )}
 
               {/* Pautas de práctica (evaluaciones digitales finalizadas de la asignatura) */}
-              {(hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")) && (
+              {hasPermission("PAUTAS_CONSULTAR") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "pautas-practica"}

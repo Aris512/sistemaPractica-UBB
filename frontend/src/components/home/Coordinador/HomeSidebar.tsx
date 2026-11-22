@@ -105,6 +105,7 @@ export function HomeSidebar({
               )}
 
               {/* Centros de Práctica (Reutilización de admin/centros_practica) */}
+              {hasPermission("CENTROS_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "centros-practica"}
@@ -119,8 +120,10 @@ export function HomeSidebar({
                   <span>Centros de Práctica</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Evaluaciones (Basado en Profesor/Evaluaciones.tsx) */}
+              {hasPermission("EVALUACIONES_CONSULTAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "evaluaciones"}
@@ -135,8 +138,10 @@ export function HomeSidebar({
                   <span>Evaluaciones</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Pautas de evaluación (seguimiento y catálogo) */}
+              {hasPermission("PAUTAS_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "pautas"}
@@ -151,8 +156,10 @@ export function HomeSidebar({
                   <span>Pautas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Documentos */}
+              {hasPermission("DOCUMENTOS_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "documentos" || activeMenu === "documentos-practica"}
@@ -167,8 +174,10 @@ export function HomeSidebar({
                   <span>Documentos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Portafolios */}
+              {(hasPermission("PORTAFOLIO_CONSULTAR") || hasPermission("PORTAFOLIO_SUBIR")) && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "portafolio"}
@@ -183,6 +192,7 @@ export function HomeSidebar({
                   <span>Portafolios</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

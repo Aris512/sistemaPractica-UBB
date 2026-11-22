@@ -1,6 +1,7 @@
 package com.backend.service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.backend.config.PermisosCatalogo;
 import com.backend.dto.GuardarPermisosRequest;
 import com.backend.dto.PermisoDTO;
 import com.backend.dto.RolPermisoConfigDTO;
@@ -62,15 +64,18 @@ public class PermisoService {
     }
 
     /**
-     * Obtiene la matriz completa de permisos para un rol (tanto asignados como no asignados).
+     * Permisos configurables de un rol: solo los del catálogo que aplican a ese rol (asignados o no),
+     * en el orden del catálogo. Un rol sin permisos aplicables (p. ej. el administrador) recibe una lista vacía.
      */
     @Transactional(readOnly = true)
     public List<RolPermisoConfigDTO> obtenerConfiguracionPorRol(Long idRol) {
-        if (!rolRepository.existsById(idRol)) {
-            throw new IllegalArgumentException("Rol no encontrado con ID: " + idRol);
-        }
+        Rol rol = rolRepository.findById(idRol)
+                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado con ID: " + idRol));
 
-        List<Permiso> todosLosPermisos = permisoRepository.findAll();
+        List<Permiso> todosLosPermisos = permisoRepository.findAll().stream()
+                .filter(p -> PermisosCatalogo.aplicaA(p.getCodigo(), rol.getNombre()))
+                .sorted(Comparator.comparingInt(p -> PermisosCatalogo.orden(p.getCodigo())))
+                .toList();
         List<RolPermiso> asignados = rolPermisoRepository.findByRolIdRol(idRol);
 
         Map<Long, RolPermiso> asignadosMap = asignados.stream()
@@ -135,6 +140,12 @@ public class PermisoService {
                 permiso = permisoRepository.findByCodigo(item.getCodigo().trim()).orElse(null);
             }
 
+            // Un permiso que no aplica al rol no se puede conceder (p. ej. «Asociar prácticas» a un colaborador)
+            if (permiso != null && !PermisosCatalogo.aplicaA(permiso.getCodigo(), rol.getNombre())) {
+                logger.warn("Se ignora el permiso '{}': no aplica al rol '{}'.", permiso.getCodigo(), rol.getNombre());
+                permiso = null;
+            }
+
             if (permiso != null) {
                 Optional<RolPermiso> existenteOpt = rolPermisoRepository.findByRolIdRolAndPermisoIdPermiso(idRol, permiso.getIdPermiso());
                 RolPermiso rolPermiso;
@@ -168,8 +179,10 @@ public class PermisoService {
         List<RolPermiso> asignados = rolPermisoRepository.findByRolNombre(rolNombre.trim());
         for (RolPermiso rp : asignados) {
             if (rp.getActivo() && rp.permiteSemestre(semestre)) {
-                if (rp.getPermiso() != null && rp.getPermiso().getCodigo() != null) {
-                    activos.add(rp.getPermiso().getCodigo());
+                String codigo = rp.getPermiso() != null ? rp.getPermiso().getCodigo() : null;
+                // Filas antiguas de permisos que ya no aplican al rol no conceden nada
+                if (codigo != null && PermisosCatalogo.aplicaA(codigo, rolNombre)) {
+                    activos.add(codigo);
                 }
             }
         }

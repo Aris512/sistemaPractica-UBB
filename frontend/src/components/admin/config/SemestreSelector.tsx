@@ -65,10 +65,10 @@ export function SemestreSelector({ value, onChange }: SemestreSelectorProps) {
   };
 
   return (
-    <div className="pt-2 pl-7 space-y-1.5 select-none">
+    <div className="pt-3 space-y-1.5 select-none">
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-medium text-slate-500">
-          Seleccionar semestres:
+          Disponible en los semestres:
         </span>
         {!isAll && (
           <span className="text-[11px] text-slate-400 font-normal">
@@ -79,7 +79,7 @@ export function SemestreSelector({ value, onChange }: SemestreSelectorProps) {
 
       <div className="flex items-center gap-2">
         {/* Contenedor segmentado unificado que no se rompe */}
-        <div className="inline-flex items-center rounded-lg bg-slate-100/90 p-1 border border-slate-200/80 gap-1 shrink-0">
+        <div className="inline-flex flex-wrap items-center rounded-lg bg-slate-100/90 p-1 border border-slate-200/80 gap-1">
           <button
             type="button"
             onClick={handleToggleAll}

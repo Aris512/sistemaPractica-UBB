@@ -15,6 +15,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
 import "sileo/styles.css";
+import { SinPermiso } from "@/components/home/SinPermiso";
 
 interface CoordinadorHomePageProps {
   user: UserSession;
@@ -70,13 +71,7 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
         return <PerfilProfesor user={user} onBack={() => setActiveMenu("inicio")} />;
       case "asociar":
         if (cargandoPermisos) return null;
-        if (!puedeAsociar) {
-          return (
-            <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200/90 p-6 text-sm text-slate-600">
-              No tienes permiso para asociar prácticas. Solicítalo al administrador.
-            </div>
-          );
-        }
+        if (!puedeAsociar) return <SinPermiso funcion="asociar prácticas" />;
         return (
           <AsociarPracticaView
             user={user}
@@ -85,15 +80,27 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
           />
         );
       case "centros-practica":
+        if (cargandoPermisos) return null;
+        if (!hasPermission("CENTROS_GESTIONAR")) return <SinPermiso funcion="gestionar centros de práctica" />;
         return <CentrosPracticaView />;
       case "evaluaciones":
+        if (cargandoPermisos) return null;
+        if (!hasPermission("EVALUACIONES_CONSULTAR")) return <SinPermiso funcion="ver evaluaciones" />;
         return <EvaluacionesView onBack={() => setActiveMenu("inicio")} />;
       case "pautas":
+        if (cargandoPermisos) return null;
+        if (!hasPermission("PAUTAS_GESTIONAR")) return <SinPermiso funcion="administrar pautas" />;
         return <PautasCoordinador user={user} onBack={() => setActiveMenu("inicio")} />;
       case "documentos":
       case "documentos-practica":
+        if (cargandoPermisos) return null;
+        if (!hasPermission("DOCUMENTOS_GESTIONAR")) return <SinPermiso funcion="revisar documentos de práctica" />;
         return <DocumentosView />;
       case "portafolio":
+        if (cargandoPermisos) return null;
+        if (!hasPermission("PORTAFOLIO_CONSULTAR") && !hasPermission("PORTAFOLIO_SUBIR")) {
+          return <SinPermiso funcion="ver portafolios" />;
+        }
         return <Portafolio user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":
       default:

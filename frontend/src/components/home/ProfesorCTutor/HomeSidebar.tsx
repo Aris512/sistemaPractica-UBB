@@ -17,7 +17,6 @@ import {
   Home,
   FileText,
   LogOut,
-  Briefcase,
 } from "lucide-react";
 import { sileo } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -92,7 +91,7 @@ export function HomeSidebar({
               </SidebarMenuItem>
 
               {/* Pautas */}
-              {(hasPermission("EVALUACIONES_CONSULTAR") || hasPermission("EVALUACIONES_REALIZAR")) && (
+              {hasPermission("PAUTAS_APLICAR") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={activeMenu === "pautas"}
@@ -106,26 +105,6 @@ export function HomeSidebar({
                     <div className="flex items-center gap-2.5">
                       <FileText className="size-4.5 text-slate-900 shrink-0" />
                       <span>Pautas</span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
-              {/* Portafolio (condicionado al permiso Subir archivos) */}
-              {hasPermission("PORTAFOLIO_SUBIR") && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={activeMenu === "portafolio"}
-                    onClick={() => onSelectMenu("portafolio")}
-                    className={`w-full justify-start cursor-pointer font-medium text-sm transition-colors ${
-                      activeMenu === "portafolio"
-                        ? "bg-slate-100 text-slate-950 font-bold border-l-4 border-slate-900 pl-2"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Briefcase className="size-4.5 text-slate-900 shrink-0" />
-                      <span>Portafolio</span>
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -115,7 +115,7 @@ export function PracticaEstudianteHomePage({
         }
         break;
       case "pautas":
-        if (hasPermission("EVALUACIONES_CONSULTAR")) {
+        if (hasPermission("PAUTAS_CONSULTAR")) {
           return <PautasResultados user={user} modo="estudiante" onBack={volverAlInicio} />;
         }
         break;
