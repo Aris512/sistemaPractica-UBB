@@ -860,8 +860,9 @@ public class DocumentoPracticaService {
             List<PautaService.PdfPautaEstudiante> pautas = estudiante != null
                 ? pautaService.pdfsDeEstudiante(estudiante.getIdEstudiante())
                 : List.of();
+            Asignatura asigEstudiante = estudiante != null ? estudiante.getAsignatura() : null;
             for (PautaService.PdfPautaEstudiante pdf : pautas) {
-                Asignatura asigPauta = pdf.asignatura() != null ? pdf.asignatura() : estudiante.getAsignatura();
+                Asignatura asigPauta = pdf.asignatura() != null ? pdf.asignatura() : asigEstudiante;
                 String carpetaPautas = obtenerCarpetaAsignatura(asigPauta) + "Pautas/";
                 crearCarpetaZip(zos, carpetasCreadas, obtenerCarpetaAsignatura(asigPauta));
                 crearCarpetaZip(zos, carpetasCreadas, carpetaPautas);
