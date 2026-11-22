@@ -13,10 +13,14 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.backend.model.ChatMensaje;
+import com.backend.model.Documento;
+import com.backend.model.Planificacion;
 import com.backend.model.RetroalimentacionIA;
 import com.backend.model.RetroalimentacionIA.Estado;
+import com.backend.repository.ChatMensajeRepository;
 import com.backend.repository.RetroalimentacionIARepository;
 
 /**
@@ -31,16 +35,25 @@ public class RevisionIAPlanificacion {
     private static final Pattern VEREDICTO = Pattern.compile(
             "VEREDICTO\\s*:\\s*\\**\\s*(APTO PARA ENVIAR|REQUIERE CORRECCIONES)", Pattern.CASE_INSENSITIVE);
 
+    /** Categoría del archivo que la IA revisa: el subido con la etiqueta «Planificación». */
+    private static final String CATEGORIA_PLANIFICACION = "PLANIFICACION";
+
     private final RetroalimentacionIARepository repository;
+    private final ChatMensajeRepository mensajeRepository;
+    private final PlanificacionTextoExtractor extractor;
     private final JdbcTemplate jdbcTemplate;
     private final String promptRetroPlani;
     private final int maxCaracteresHistorial;
 
     public RevisionIAPlanificacion(RetroalimentacionIARepository repository,
+                                   ChatMensajeRepository mensajeRepository,
+                                   PlanificacionTextoExtractor extractor,
                                    JdbcTemplate jdbcTemplate,
                                    @Value("${retroalimentacion.max-caracteres-historial:6000}") int maxCaracteresHistorial)
             throws IOException {
         this.repository = repository;
+        this.mensajeRepository = mensajeRepository;
+        this.extractor = extractor;
         this.jdbcTemplate = jdbcTemplate;
         this.maxCaracteresHistorial = maxCaracteresHistorial;
         try (InputStream entrada = new ClassPathResource("ia/retroplani-sistema.md").getInputStream()) {
@@ -70,6 +83,37 @@ public class RevisionIAPlanificacion {
             jdbcTemplate.update("DELETE FROM pregunta_diagnostica WHERE id_retroalimentacion = ?", id);
             repository.delete(retro);
             repository.flush();
+        });
+    }
+
+    /**
+     * Antes de cada mensaje de una conversación de revisión: si el alumno subió otro archivo «Planificación» desde la
+     * sección Planificación (sin usar el botón + del chat), la IA pasa a leer ese archivo. Sin esto seguía recibiendo
+     * el texto de la versión anterior hasta que se reiniciara la revisión. Al cambiar de versión, lo conversado antes
+     * deja de enviarse y las preguntas vuelven a contarse desde aquí, igual que al subirla con el botón +.
+     */
+    @Transactional
+    public void sincronizarArchivoVigente(Long idConversacion) {
+        deConversacion(idConversacion).ifPresent(retro -> {
+            if (retro.getEstado() != Estado.NO_REVISADO) return;
+            Planificacion planificacion = retro.getPlanificacion();
+            Documento archivo = planificacion != null && planificacion.getDocumentoPlanificacion() != null
+                    ? planificacion.getDocumentoPlanificacion().getArchivo(CATEGORIA_PLANIFICACION) : null;
+            if (archivo == null) return;
+
+            boolean habiaVersion = retro.getIdDocumentoRevisado() != null;
+            boolean cambiado = !archivo.getIdDocumento().equals(retro.getIdDocumentoRevisado());
+            boolean sinTexto = retro.getTextoPlanificacion() == null || retro.getTextoPlanificacion().isBlank();
+            if (!cambiado && !sinTexto) return;
+
+            retro.setTextoPlanificacion(extractor.extraer(archivo));
+            retro.setIdDocumentoRevisado(archivo.getIdDocumento());
+            retro.setNombreArchivoRevisado(archivo.getNombre());
+            if (cambiado && habiaVersion) {
+                retro.setMensajesPreviosArchivo(mensajeRepository.findMaxOrden(idConversacion));
+            }
+            retro.tocar();
+            repository.save(retro);
         });
     }
 

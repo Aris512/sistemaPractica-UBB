@@ -218,6 +218,8 @@ public class ChatService {
         }
 
         obtenerPropia(rut, idConversacion);
+        // En las revisiones de planificación, la IA siempre lee el archivo «Planificación» vigente
+        revisionPlanificacion.sincronizarArchivoVigente(idConversacion);
         List<ChatMensaje> historial = mensajeRepository.findByConversacionIdConversacionOrderByOrdenAsc(idConversacion);
         if (historial.size() + 2 > maxMensajesPorConversacion) {
             throw new ChatException(HttpStatus.CONFLICT, "CHAT_CONVERSACION_LLENA",
