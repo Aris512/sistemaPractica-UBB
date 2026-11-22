@@ -68,6 +68,7 @@ public class RetroalimentacionIAService {
     private final ChatService chatService;
     private final PlanificacionTextoExtractor extractor;
     private final PlanificacionService planificacionService;
+    private final GuardiaPromptInjection guardia;
     private final TransactionTemplate transaccion;
 
     public RetroalimentacionIAService(RetroalimentacionIARepository repository,
@@ -81,6 +82,7 @@ public class RetroalimentacionIAService {
                                       ChatService chatService,
                                       PlanificacionTextoExtractor extractor,
                                       PlanificacionService planificacionService,
+                                      GuardiaPromptInjection guardia,
                                       PlatformTransactionManager transactionManager) {
         this.repository = repository;
         this.observacionRepository = observacionRepository;
@@ -93,6 +95,7 @@ public class RetroalimentacionIAService {
         this.chatService = chatService;
         this.extractor = extractor;
         this.planificacionService = planificacionService;
+        this.guardia = guardia;
         this.transaccion = new TransactionTemplate(transactionManager);
     }
 
@@ -216,6 +219,8 @@ public class RetroalimentacionIAService {
             throw new ChatException(HttpStatus.BAD_REQUEST, "CHAT_MENSAJE_LARGO",
                     "El mensaje que acompaña al archivo supera el máximo de " + MAX_COMENTARIO_ADJUNTO + " caracteres.");
         }
+        // Antes de tocar el archivo: un comentario que intenta manipular a la IA se rechaza sin reemplazar nada
+        guardia.validar(comentario);
         // Se valida todo antes de tocar el archivo actual, para no perderlo si lo nuevo no sirve
         transaccion.executeWithoutResult(status -> {
             RetroalimentacionIA retro = retroDe(planificacionPropia(rut, idPlanificacion));
