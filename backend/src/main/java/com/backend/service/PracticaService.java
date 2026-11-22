@@ -3,6 +3,8 @@ package com.backend.service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
@@ -22,7 +24,6 @@ import com.backend.repository.ObservacionPracticaRepository;
 import com.backend.repository.PautaAplicacionRepository;
 import com.backend.repository.PracticaRepository;
 
-import com.backend.repository.ProfesorRepository;
 import java.util.Collections;
 
 @Service
@@ -33,7 +34,6 @@ public class PracticaService {
     private final ObservacionPracticaRepository observacionPracticaRepository;
     private final JdbcTemplate jdbcTemplate;
     private final FileStorageService fileStorageService;
-    private final ProfesorRepository profesorRepository;
     private final PautaAplicacionRepository pautaAplicacionRepository;
 
     public PracticaService(PracticaRepository practicaRepository,
@@ -41,7 +41,6 @@ public class PracticaService {
                            ObservacionPracticaRepository observacionPracticaRepository,
                            JdbcTemplate jdbcTemplate,
                            FileStorageService fileStorageService,
-                           ProfesorRepository profesorRepository,
                            PautaAplicacionRepository pautaAplicacionRepository) {
         this.pautaAplicacionRepository = pautaAplicacionRepository;
         this.practicaRepository = practicaRepository;
@@ -49,7 +48,6 @@ public class PracticaService {
         this.observacionPracticaRepository = observacionPracticaRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.fileStorageService = fileStorageService;
-        this.profesorRepository = profesorRepository;
     }
 
     public List<Practica> obtenerTodos() {
@@ -113,28 +111,14 @@ public class PracticaService {
             return Collections.emptyList();
         }
 
-        List<Practica> practicas = new ArrayList<>();
+        // Solo las prácticas en que esta persona figura como tutor o como profesor colaborador (puede ser
+        // ambas cosas en prácticas distintas). Nunca se completa con otros estudiantes: sin asociación, lista vacía.
+        Map<Long, Practica> asociadas = new LinkedHashMap<>();
         List<Practica> byTutor = practicaRepository.findByTutorPracticaUsuarioRut(rut);
-        if (byTutor != null && !byTutor.isEmpty()) {
-            practicas.addAll(byTutor);
-        } else {
-            List<Practica> byColab = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut);
-            if (byColab != null && !byColab.isEmpty()) {
-                practicas.addAll(byColab);
-            }
-        }
-
-        if (practicas.isEmpty()) {
-            // Verificar si el usuario es un profesor de asignatura asignado a una práctica
-            profesorRepository.findByUsuarioRut(rut).ifPresent(prof -> {
-                if (prof.getAsignatura() != null && prof.getAsignatura().getIdAsignatura() != null) {
-                    List<Practica> practicasAsig = practicaRepository.findByAsignaturaIdAsignatura(prof.getAsignatura().getIdAsignatura());
-                    if (practicasAsig != null && !practicasAsig.isEmpty()) {
-                        practicas.addAll(practicasAsig);
-                    }
-                }
-            });
-        }
+        if (byTutor != null) byTutor.forEach(p -> asociadas.putIfAbsent(p.getIdPractica(), p));
+        List<Practica> byColab = practicaRepository.findByProfesoresColaboradoresUsuarioRut(rut);
+        if (byColab != null) byColab.forEach(p -> asociadas.putIfAbsent(p.getIdPractica(), p));
+        List<Practica> practicas = new ArrayList<>(asociadas.values());
 
         List<EstudianteTutorDTO> resultado = new ArrayList<>();
 
@@ -169,7 +153,6 @@ public class PracticaService {
             }
         }
 
-        // Filtro estricto: Nunca retornar todos los estudiantes del sistema si el usuario no tiene asignación
         return resultado;
     }
 
