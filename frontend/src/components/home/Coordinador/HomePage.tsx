@@ -136,7 +136,7 @@ export function CoordinadorHomePage({ user, onLogout }: CoordinadorHomePageProps
               rel="noopener noreferrer"
               className="text-sky-700 hover:underline font-semibold"
             >
-              Acerca de Sistema de Práctica - Portal Docente
+              Acerca de PrisMath - Portal Docente
             </a>
             , Universidad del Bío-Bío © 2026
           </p>

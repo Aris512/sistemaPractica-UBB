@@ -38,7 +38,7 @@ export function AdminSidebar({
           <div className="flex flex-col gap-0.5 leading-none">
             <span className="font-semibold text-sm">UBB Admin</span>
             <span className="text-[11px] text-muted-foreground">
-              Sistema de Práctica
+              PrisMath
             </span>
           </div>
         </div>

@@ -1126,7 +1126,7 @@ public class DocumentoPracticaService {
             BT /F1 14 Tf 50 720 Td (%s) Tj
             /F1 11 Tf 0 -30 Td (Estudiante: %s) Tj
             0 -20 Td (Asignatura: %s) Tj
-            0 -20 Td (Universidad del Bio-Bio - Sistema de Practicas) Tj
+            0 -20 Td (Universidad del Bio-Bio - PrisMath) Tj
             0 -20 Td (Documento verificado y archivado localmente.) Tj ET
             endstream
             endobj
