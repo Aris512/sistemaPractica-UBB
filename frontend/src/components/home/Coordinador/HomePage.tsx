@@ -7,7 +7,7 @@ import { EstudiantesPracticaList } from "./EstudiantesPracticaList";
 import { AsociarPracticaView } from "./AsociarPracticaView";
 import { CentrosPracticaView } from "@/components/admin/centros_practica";
 import { EvaluacionesView } from "@/components/admin/Evaluaciones";
-import { PautasCoordinador } from "@/components/home/ProfesorCTutor/PautasCoordinador";
+import { PautasCoordinador } from "@/components/home/Pautas/PautasCoordinador";
 import { PerfilProfesor } from "@/components/home/Profesor/PerfilProfesor";
 import { Portafolio } from "@/components/home/Profesor/Portafolio";
 import { DocumentosView } from "@/components/admin/documentos";

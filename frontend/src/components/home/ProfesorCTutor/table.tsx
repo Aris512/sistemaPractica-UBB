@@ -4,7 +4,7 @@ import type { EstudianteTutorRow, SortState } from "./types";
 import { TableToolbar } from "./TableToolbar";
 import { ObservacionBadge, EvaluacionBadge } from "./TableBadges";
 import { ModalDetalleEstudiante } from "./ModalDetalleEstudiante";
-import { PautaFormulario } from "./PautaFormulario";
+import { PautaFormulario } from "@/components/home/Pautas/PautaFormulario";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPautasDePractica, type PautaResumen } from "@/services/pautaApi";

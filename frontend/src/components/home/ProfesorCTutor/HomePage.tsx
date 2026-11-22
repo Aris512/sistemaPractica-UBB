@@ -4,7 +4,7 @@ import type { ProfesorCTutorMenuKey } from "./types";
 import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { TableEstudiantes } from "./table";
-import { Pautas } from "./Pautas";
+import { Pautas } from "@/components/home/Pautas/Pautas";
 import { PerfilProfesor } from "./PerfilProfesor";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";

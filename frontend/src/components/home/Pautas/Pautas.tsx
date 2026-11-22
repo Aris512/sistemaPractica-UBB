@@ -11,7 +11,7 @@ import {
   UserX,
 } from "lucide-react";
 import type { UserSession } from "@/types/auth";
-import type { EstudianteTutorRow } from "./types";
+import type { EstudianteTutorRow } from "@/components/home/ProfesorCTutor/types";
 import { getPautasDePractica, type PautaResumen } from "@/services/pautaApi";
 import { PautaFormulario } from "./PautaFormulario";
 

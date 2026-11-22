@@ -6,7 +6,7 @@ import { HomeHeader } from "./HomeHeader";
 import { PerfilProfesor } from "./PerfilProfesor";
 import { Portafolio } from "./Portafolio";
 import { Evaluaciones } from "./Evaluaciones";
-import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
+import { PautasResultados } from "@/components/home/Pautas/PautasResultados";
 import { Actividades } from "./Actividades";
 import { RevisionRetroalimentacion } from "./RevisionRetroalimentacion";
 import { InicioProfesor } from "./InicioProfesor";

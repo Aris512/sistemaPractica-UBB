@@ -16,7 +16,7 @@ import { Toaster } from "sileo";
 import "sileo/styles.css";
 import { RefreshCw } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
-import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
+import { PautasResultados } from "@/components/home/Pautas/PautasResultados";
 
 interface PracticaEstudianteHomePageProps {
   user: UserSession;
