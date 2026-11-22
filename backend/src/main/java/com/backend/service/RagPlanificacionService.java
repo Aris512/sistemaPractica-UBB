@@ -116,7 +116,7 @@ public class RagPlanificacionService {
         // Lectura del archivo y embeddings fuera de la transacción: pueden tardar (o ir por red)
         List<FragmentadorTexto.Fragmento> partes = fragmentador.fragmentar(extractor.extraerCompleto(documento));
         if (partes.isEmpty()) return List.of();
-        List<float[]> vectores = embeddings.embeddings(partes.stream().map(FragmentadorTexto.Fragmento::textoParaEmbedding).toList());
+        List<float[]> vectores = embeddings.embeddings(partes.stream().map(parte -> parte.textoParaEmbedding()).toList());
 
         try {
             transaccion.executeWithoutResult(status -> {
@@ -141,7 +141,7 @@ public class RagPlanificacionService {
     ContextoArchivo seleccionar(List<FragmentoPlanificacion> fragmentos, String consulta, int presupuesto) {
         int total = fragmentos.stream().mapToInt(f -> f.getTexto().length() + 1).sum();
         if (total <= presupuesto) {
-            String completo = String.join("\n", fragmentos.stream().map(FragmentoPlanificacion::getTexto).toList());
+            String completo = String.join("\n", fragmentos.stream().map(f -> f.getTexto()).toList());
             return new ContextoArchivo(completo, true, fragmentos.size(), fragmentos.size());
         }
 

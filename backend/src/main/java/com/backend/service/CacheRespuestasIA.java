@@ -150,7 +150,7 @@ public class CacheRespuestasIA {
 
     private void registrarAcierto(Long idCache) {
         try {
-            transaccion.executeWithoutResult(status -> repository.findById(idCache).ifPresent(RespuestaCacheIA::registrarAcierto));
+            transaccion.executeWithoutResult(status -> repository.findById(idCache).ifPresent(cache -> cache.registrarAcierto()));
         } catch (RuntimeException e) {
             logger.debug("[CacheIA] No se pudo registrar el acierto.");
         }
