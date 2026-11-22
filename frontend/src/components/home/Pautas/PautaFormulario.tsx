@@ -107,7 +107,7 @@ export function PautaFormulario({
   const [finalizando, setFinalizando] = useState(false);
   const [reabriendo, setReabriendo] = useState(false);
   const [exportando, setExportando] = useState(false);
-  const [confirmar, setConfirmar] = useState<"limpiar" | "cancelar" | null>(null);
+  const [confirmar, setConfirmar] = useState<"limpiar" | "cancelar" | "finalizar" | "reabrir" | null>(null);
   // Lo último guardado en el servidor: "Cancelar" vuelve a esto y sirve para saber si hay cambios sin guardar.
   const [base, setBase] = useState<{ respuestas: Record<number, number>; observaciones: string }>({
     respuestas: {},
@@ -237,12 +237,14 @@ export function PautaFormulario({
     }
   };
 
-  const finalizar = async () => {
+  /** Pide confirmar antes de finalizar (diálogo propio de la página, no el del navegador). */
+  const finalizar = () => {
     if (!pauta) return;
-    const ok = window.confirm(
-      "Al finalizar, la nota queda registrada para el estudiante. Podrá modificarla o eliminarla después. ¿Desea finalizar la pauta?"
-    );
-    if (!ok) return;
+    setConfirmar("finalizar");
+  };
+
+  const confirmarFinalizar = async () => {
+    if (!pauta) return;
     setFinalizando(true);
     try {
       const res = await guardar(true);
@@ -261,13 +263,9 @@ export function PautaFormulario({
   };
 
   /** Coordinador ("Reabrir") o el propio evaluador ("Modificar"): la pauta vuelve a borrador para corregirla. */
-  const reabrir = async () => {
-    const ok = window.confirm(
-      soloLectura
-        ? "La pauta volverá a borrador y el evaluador podrá corregirla. La nota se recalculará al finalizar de nuevo. ¿Desea continuar?"
-        : "La pauta volverá a borrador para que la corrija. La nota se quita del registro del estudiante hasta que la finalice de nuevo. ¿Desea continuar?"
-    );
-    if (!ok) return;
+  const reabrir = () => setConfirmar("reabrir");
+
+  const confirmarReabrir = async () => {
     setReabriendo(true);
     try {
       const res = await reabrirAplicacion(user.rut, pautaId, practicaId, aplicacion?.id ?? aplicacionId);
@@ -679,6 +677,30 @@ export function PautaFormulario({
         description="Hay cambios en esta pauta que no ha guardado. Si sale ahora, se perderán."
         confirmLabel="Descartar y salir"
         confirmingLabel="Saliendo..."
+      />
+      <ConfirmDeleteDialog
+        open={confirmar === "finalizar"}
+        onOpenChange={(abierto) => !abierto && setConfirmar(null)}
+        onConfirm={confirmarFinalizar}
+        title="Finalizar pauta"
+        description="Al finalizar, la nota queda registrada para el estudiante. Podrá modificarla o eliminarla después."
+        confirmLabel="Finalizar"
+        confirmingLabel="Finalizando..."
+        confirmVariant="default"
+      />
+      <ConfirmDeleteDialog
+        open={confirmar === "reabrir"}
+        onOpenChange={(abierto) => !abierto && setConfirmar(null)}
+        onConfirm={confirmarReabrir}
+        title={soloLectura ? "Reabrir pauta" : "Modificar pauta"}
+        description={
+          soloLectura
+            ? "La pauta volverá a borrador y el evaluador podrá corregirla. La nota se recalculará al finalizar de nuevo."
+            : "La pauta volverá a borrador para que la corrija. La nota se quita del registro del estudiante hasta que la finalice de nuevo."
+        }
+        confirmLabel={soloLectura ? "Reabrir" : "Modificar"}
+        confirmingLabel={soloLectura ? "Reabriendo..." : "Abriendo..."}
+        confirmVariant="default"
       />
     </div>
   );
