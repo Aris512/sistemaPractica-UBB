@@ -85,6 +85,9 @@ export function sortUsuarios(
   });
 }
 
+/** Clave para comparar nombres de asignatura sin importar mayúsculas ni espacios sobrantes. */
+const claveAsignatura = (nombre: string) => nombre.trim().replace(/\s+/g, " ").toLowerCase();
+
 export function filterUsuarios(
   items: UsuarioRow[],
   searchQuery: string,
@@ -105,7 +108,7 @@ export function filterUsuarios(
       asignaturaFilter === "ALL" ||
       (asignaturaFilter === "NONE"
         ? item.curso === "—" || !item.curso
-        : item.curso.toLowerCase() === asignaturaFilter.toLowerCase());
+        : claveAsignatura(item.curso || "") === claveAsignatura(asignaturaFilter));
 
     if (!matchesAsignatura) return false;
 
@@ -131,6 +134,8 @@ export function useDataTableFeatures(
   defaultPageSize: number = 10
 ) {
   const [data, setData] = useState<UsuarioRow[]>([]);
+  // Catálogo completo de asignaturas: el filtro no depende solo de las que ya tienen usuarios
+  const [catalogoAsignaturas, setCatalogoAsignaturas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,6 +186,27 @@ export function useDataTableFeatures(
     fetchUsuarios();
   }, [fetchUsuarios]);
 
+  useEffect(() => {
+    let cancelado = false;
+    fetch("/api/asignaturas")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((json: unknown) => {
+        if (cancelado || !Array.isArray(json)) return;
+        setCatalogoAsignaturas(
+          json
+            .map((a: { nombre?: string }) => (typeof a?.nombre === "string" ? a.nombre.trim() : ""))
+            .filter(Boolean)
+        );
+      })
+      .catch((err) => {
+        // Sin catálogo el filtro sigue funcionando con las asignaturas de los usuarios cargados
+        console.error("Error al cargar asignaturas para el filtro:", err);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
   // Reset to first page whenever real-time filters change
   useEffect(() => {
     setPage(1);
@@ -198,16 +224,20 @@ export function useDataTableFeatures(
     });
   };
 
-  // Extraer lista de asignaturas disponibles de los datos cargados
+  // Asignaturas del filtro: todo el catálogo más las que aparezcan en los usuarios, sin duplicados
+  // (mayúsculas o espacios distintos) y en orden alfabético con tildes.
   const availableAsignaturas = useMemo(() => {
-    const set = new Set<string>();
-    data.forEach((u) => {
-      if (u.curso && u.curso !== "—") {
-        set.add(u.curso);
-      }
-    });
-    return Array.from(set).sort();
-  }, [data]);
+    const porClave = new Map<string, string>();
+    const agregar = (nombre?: string) => {
+      if (!nombre || nombre === "—") return;
+      const limpio = nombre.trim().replace(/\s+/g, " ");
+      const clave = claveAsignatura(limpio);
+      if (clave && !porClave.has(clave)) porClave.set(clave, limpio);
+    };
+    catalogoAsignaturas.forEach(agregar);
+    data.forEach((u) => agregar(u.curso));
+    return Array.from(porClave.values()).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+  }, [catalogoAsignaturas, data]);
 
   const filteredAndSortedData = useMemo(() => {
     const filtered = filterUsuarios(data, searchQuery, roleFilter, asignaturaFilter, estadoFilter);

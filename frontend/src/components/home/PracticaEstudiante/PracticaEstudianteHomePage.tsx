@@ -16,7 +16,7 @@ import { Toaster } from "sileo";
 import "sileo/styles.css";
 import { RefreshCw } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
-import { PautasResultados } from "@/components/home/ProfesorCTutor/PautasResultados";
+import { PautasResultados } from "@/components/home/Pautas/PautasResultados";
 
 interface PracticaEstudianteHomePageProps {
   user: UserSession;
@@ -115,7 +115,7 @@ export function PracticaEstudianteHomePage({
         }
         break;
       case "pautas":
-        if (hasPermission("EVALUACIONES_CONSULTAR")) {
+        if (hasPermission("PAUTAS_CONSULTAR")) {
           return <PautasResultados user={user} modo="estudiante" onBack={volverAlInicio} />;
         }
         break;

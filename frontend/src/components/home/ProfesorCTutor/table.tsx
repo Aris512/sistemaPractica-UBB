@@ -4,7 +4,7 @@ import type { EstudianteTutorRow, SortState } from "./types";
 import { TableToolbar } from "./TableToolbar";
 import { ObservacionBadge, EvaluacionBadge } from "./TableBadges";
 import { ModalDetalleEstudiante } from "./ModalDetalleEstudiante";
-import { PautaFormulario } from "./PautaFormulario";
+import { PautaFormulario } from "@/components/home/Pautas/PautaFormulario";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getPautasDePractica, type PautaResumen } from "@/services/pautaApi";
@@ -54,57 +54,32 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
   const [pageSize] = useState(8);
   const [sortState, setSortState] = useState<SortState>({ column: null, direction: null });
 
-  const tutorRut = user?.rut || "11111111-1";
+  const tutorRut = user?.rut ?? "";
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
-  // Cargar estudiantes a evaluar desde el endpoint de seguimiento
+  // Solo los estudiantes cuyas prácticas tienen a este usuario como tutor o profesor colaborador.
+  // Si no tiene ninguno asociado la lista queda vacía: nunca se muestran otros estudiantes.
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setErrorCarga(null);
     try {
       const res = await fetch(`/api/practicas/seguimiento/${encodeURIComponent(tutorRut)}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (Array.isArray(json) && json.length > 0) {
-          const activos = json.filter(
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const activos = Array.isArray(json)
+        ? json.filter(
             (item: any) =>
               item.activo !== false &&
               item.estado?.toLowerCase() !== "inactivo" &&
               item.estadoObservacion !== "INACTIVO" &&
               item.estadoEvaluacion !== "INACTIVO"
-          );
-          setData(activos);
-          return;
-        }
-      }
-
-      // Fallback a estudiantes generales
-      const resEst = await fetch("/api/estudiantes");
-      if (resEst.ok) {
-        const estJson = await resEst.json();
-        if (Array.isArray(estJson)) {
-          const activos = estJson.filter(
-            (est: any) =>
-              est.usuario?.activo !== false &&
-              est.usuario?.estado?.toLowerCase() !== "inactivo" &&
-              est.estado?.toUpperCase() !== "INACTIVO"
-          );
-          setData(
-            activos.map((est: any) => ({
-              idEstudiante: est.idEstudiante,
-              rut: est.usuario?.rut || "—",
-              nombre: est.usuario ? `${est.usuario.nombre} ${est.usuario.apellido}` : "Estudiante",
-              correo: est.usuario?.correo || "",
-              asignaturaNombre: est.asignatura ? est.asignatura.nombre : "Práctica Pedagógica",
-              centroPractica: "Colegio San Agustín Concepción",
-              estadoObservacion: "SIN_OBSERVACION",
-              estadoEvaluacion: "PENDIENTE",
-              calificacion: null,
-              observacionTexto: null,
-            }))
-          );
-        }
-      }
+          )
+        : [];
+      setData(activos);
     } catch (err) {
       console.error("Error al cargar estudiantes:", err);
+      setData([]);
+      setErrorCarga("No se pudo cargar la lista de estudiantes. Intenta nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -360,9 +335,19 @@ export function TableEstudiantes({ user }: TableEstudiantesProps) {
                 <UnifiedTableCell colSpan={4} className="h-48 text-center text-slate-500 text-sm">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <Users className="size-7 text-slate-300" />
-                    <p className="font-medium text-slate-700">No se encontraron estudiantes</p>
+                    <p className="font-medium text-slate-700">
+                      {errorCarga
+                        ? "No se pudo cargar la lista"
+                        : data.length === 0
+                          ? "Aún no tienes estudiantes asociados"
+                          : "No se encontraron estudiantes"}
+                    </p>
                     <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                      Intenta cambiar los filtros de búsqueda o el estado de observación y evaluación.
+                      {errorCarga
+                        ? errorCarga
+                        : data.length === 0
+                          ? "Aquí aparecerán los estudiantes en práctica que el coordinador asocie contigo como tutor o profesor colaborador."
+                          : "Intenta cambiar los filtros de búsqueda o el estado de observación y evaluación."}
                     </p>
                   </div>
                 </UnifiedTableCell>

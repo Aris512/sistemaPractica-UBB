@@ -36,7 +36,7 @@ class PlanificacionTextoExtractorTest {
 
     @BeforeEach
     void setUp() {
-        extractor = new PlanificacionTextoExtractor(fileStorageService, MAX_CARACTERES);
+        extractor = new PlanificacionTextoExtractor(fileStorageService, MAX_CARACTERES, 60000);
     }
 
     private static MockMultipartFile archivo(String nombre, byte[] contenido) {

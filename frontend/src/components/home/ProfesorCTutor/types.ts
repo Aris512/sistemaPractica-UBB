@@ -1,4 +1,4 @@
-export type ProfesorCTutorMenuKey = "inicio" | "pautas" | "portafolio" | "perfil";
+export type ProfesorCTutorMenuKey = "inicio" | "pautas" | "perfil";
 
 export interface EstudianteTutorRow {
   idEstudiante: number | string;

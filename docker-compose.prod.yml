@@ -55,6 +55,9 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash}
+      IA_EMBEDDINGS_PROVEEDOR: ${IA_EMBEDDINGS_PROVEEDOR:-local}
+      IA_RAG_HABILITADO: ${IA_RAG_HABILITADO:-true}
+      IA_CACHE_HABILITADA: ${IA_CACHE_HABILITADA:-true}
     volumes:
       # Archivos subidos (documentos, evidencias, portafolios): persisten entre reinicios.
       - uploads_data:/app/uploads

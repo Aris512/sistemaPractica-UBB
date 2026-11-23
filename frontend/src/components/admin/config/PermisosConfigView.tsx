@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
-import { Save, RotateCcw, RefreshCw, Loader2, AlertCircle, ChevronDown } from "lucide-react";
+import { Save, RotateCcw, RefreshCw, Loader2, AlertCircle, Search, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { sileo } from "sileo";
 import {
   Dialog,
   DialogContent,
@@ -12,22 +11,26 @@ import {
 } from "@/components/ui/dialog";
 import { usePermisosAdmin } from "./usePermisosAdmin";
 import { PermisoCardGroup } from "./PermisoCardGroup";
+import { rolMeta } from "./meta";
 import type { PermisoItem } from "./types";
 
-const CATEGORIAS_ORDEN = [
-  "SUBIR ARCHIVOS",
-  "EVALUACIONES",
-  "OBSERVACIONES",
-  "ESTUDIANTES",
-  "INTELIGENCIA ARTIFICIAL",
-];
+/** Orden de los módulos (coincide con el catálogo del backend). */
+const CATEGORIAS_ORDEN = ["PORTAFOLIO", "EVALUACIONES", "PAUTAS", "PRACTICAS", "INTELIGENCIA ARTIFICIAL"];
+
+const normalizar = (texto: string) =>
+  texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
 
 export function PermisosConfigView() {
   const {
     roles,
     selectedRoleId,
+    selectedRole,
     isEstudiante,
     permisos,
+    cambios,
     loadingRoles,
     loadingPermisos,
     saving,
@@ -36,346 +39,326 @@ export function PermisosConfigView() {
     setSelectedRoleId,
     togglePermiso,
     updateSemestres,
+    setTodos,
     savePermisos,
     resetChanges,
     reload,
   } = usePermisosAdmin();
 
   const [pendingRoleId, setPendingRoleId] = useState<number | null>(null);
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
 
-  // Determinar si el rol seleccionado es Profesor Colaborador o Tutor
-  const isColaboradorOTutor = useMemo(() => {
-    const currentRole = roles.find((r) => r.idRol === selectedRoleId);
-    const nombre = currentRole?.nombre?.toUpperCase() || "";
-    return nombre.includes("COLABORADOR") || nombre.includes("TUTOR");
-  }, [roles, selectedRoleId]);
-
-  // Determinar si el rol seleccionado es Profesor de Asignatura
-  const isProfesorAsignatura = useMemo(() => {
-    const currentRole = roles.find((r) => r.idRol === selectedRoleId);
-    const nombre = currentRole?.nombre?.toUpperCase() || "";
-    return nombre === "PROFESOR_ASIGNATURA" || nombre.includes("ASIGNATURA");
-  }, [roles, selectedRoleId]);
-
-  // Agrupar permisos por categoría aplicando los filtros específicos por rol:
-  // 1. Eliminar sección/permiso "Portafolio" (PORTAFOLIO_CONSULTAR) de Administrar Roles
-  // 2. El permiso "Subir archivos" (PORTAFOLIO_SUBIR) se muestra en su propia categoría "SUBIR ARCHIVOS"
-  // 3. Eliminar sección "Subir Archivos" para los roles Profesor Colaborador y Tutor de Práctica
-  // 4. Rol PROFESOR_ASIGNATURA: dentro de Evaluaciones, solo se muestra "Realizar evaluaciones"
-  // 5. Rol ESTUDIANTE: se elimina "Información de Estudiantes" y evaluaciones
-  // 6. Demás roles: se elimina "Inteligencia Artificial" (solo disponible para ESTUDIANTE)
-  const gruposCategorias = useMemo(() => {
+  // El backend ya devuelve solo las funciones que usa cada rol; aquí solo se agrupan y filtran por búsqueda
+  const grupos = useMemo(() => {
+    const termino = normalizar(busqueda.trim());
     const mapa = new Map<string, PermisoItem[]>();
-
-    permisos.forEach((p) => {
-      // Eliminar permiso "Portafolio" / "PORTAFOLIO_CONSULTAR" de Administrar Roles
-      if (p.codigo === "PORTAFOLIO_CONSULTAR") {
-        return;
-      }
-
-      // Para Profesor de Asignatura: en la categoría Evaluaciones, solo mostrar "Realizar evaluaciones"
-      if (isProfesorAsignatura) {
-        const cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
-        const esEvaluaciones = cat === "EVALUACIONES";
-        if (esEvaluaciones) {
-          const esRealizarEvaluaciones =
-            p.codigo === "EVALUACIONES_REALIZAR" ||
-            p.nombre?.toLowerCase().includes("realizar evaluaciones");
-          if (!esRealizarEvaluaciones) {
-            return;
-          }
-        }
-      }
-
-      let cat = p.categoria ? p.categoria.toUpperCase() : "GENERAL";
-
-      // Reubicar "Subir archivos" bajo categoría independiente "SUBIR ARCHIVOS"
-      if (p.codigo === "PORTAFOLIO_SUBIR" || cat === "PORTAFOLIO") {
-        cat = "SUBIR ARCHIVOS";
-      }
-
-      // Eliminar "Subir Archivos" para roles Profesor Colaborador y Tutor (no para Profesor de Asignatura)
-      if (
-        isColaboradorOTutor &&
-        !isProfesorAsignatura &&
-        (p.codigo === "PORTAFOLIO_SUBIR" || cat === "SUBIR ARCHIVOS" || cat === "SUBIR_ARCHIVOS")
-      ) {
-        return;
-      }
-
-      // Eliminar Información de Estudiantes para el rol ESTUDIANTE
-      if (isEstudiante && (cat === "ESTUDIANTES" || cat === "INFORMACIÓN DE ESTUDIANTES")) {
-        return;
-      }
-
-      // Eliminar Realizar Evaluaciones y Registrar Observaciones para el rol ESTUDIANTE
-      if (
-        isEstudiante &&
-        (p.codigo === "EVALUACIONES_REALIZAR" ||
-          p.codigo === "OBSERVACIONES_REGISTRAR" ||
-          p.nombre?.toLowerCase().includes("realizar evaluaciones") ||
-          p.nombre?.toLowerCase().includes("registrar observaciones"))
-      ) {
-        return;
-      }
-
-      // Eliminar Inteligencia Artificial para todos los roles que NO sean ESTUDIANTE
-      if (!isEstudiante && (cat === "INTELIGENCIA ARTIFICIAL" || cat === "IA")) {
-        return;
-      }
-
-      if (!mapa.has(cat)) {
-        mapa.set(cat, []);
-      }
-      mapa.get(cat)!.push(p);
-    });
-
-    const ordenados: { categoria: string; items: PermisoItem[] }[] = [];
-
-    CATEGORIAS_ORDEN.forEach((cat) => {
-      if (mapa.has(cat)) {
-        ordenados.push({ categoria: cat, items: mapa.get(cat)! });
-        mapa.delete(cat);
-      }
-    });
-
-    mapa.forEach((items, categoria) => {
-      ordenados.push({ categoria, items });
-    });
-
-    return ordenados;
-  }, [permisos, isEstudiante, isColaboradorOTutor, isProfesorAsignatura]);
-
-  const getRolFriendlyName = (nombre?: string) => {
-    switch (nombre?.toUpperCase()) {
-      case "ESTUDIANTE":
-        return "Estudiante";
-      case "PROFESOR_ASIGNATURA":
-        return "Profesor de Asignatura";
-      case "PROFESOR_COLABORADOR":
-        return "Profesor Colaborador";
-      case "TUTOR_PRACTICA":
-        return "Tutor de Práctica";
-      case "COORDINADOR":
-        return "Coordinador de Práctica";
-      default:
-        return nombre || "Rol";
-    }
-  };
-
-  const handleRoleChange = (newRoleId: number) => {
-    if (newRoleId === selectedRoleId) return;
-    if (hasUnsavedChanges) {
-      setPendingRoleId(newRoleId);
-      setShowDiscardConfirm(true);
-    } else {
-      setSelectedRoleId(newRoleId);
-      const targetRol = roles.find((r) => r.idRol === newRoleId);
-      sileo.show({
-        title: "Rol seleccionado",
-        description: `Mostrando permisos para ${getRolFriendlyName(targetRol?.nombre)}.`,
+    permisos
+      .filter(
+        (p) =>
+          !termino ||
+          normalizar(p.nombre ?? "").includes(termino) ||
+          normalizar(p.descripcion ?? "").includes(termino)
+      )
+      .forEach((p) => {
+        const cat = (p.categoria || "GENERAL").toUpperCase();
+        if (!mapa.has(cat)) mapa.set(cat, []);
+        mapa.get(cat)!.push(p);
       });
+    const orden = (cat: string) => {
+      const i = CATEGORIAS_ORDEN.indexOf(cat);
+      return i === -1 ? CATEGORIAS_ORDEN.length : i;
+    };
+    return [...mapa.entries()]
+      .sort(([a], [b]) => orden(a) - orden(b))
+      .map(([categoria, items]) => ({ categoria, items }));
+  }, [permisos, busqueda]);
+
+  const totalActivos = permisos.filter((p) => p.activo).length;
+  const porcentaje = permisos.length ? Math.round((totalActivos / permisos.length) * 100) : 0;
+  const meta = rolMeta(selectedRole?.nombre);
+  const IconoRol = meta.icono;
+
+  const cambiarRol = (idRol: number) => {
+    if (idRol === selectedRoleId) return;
+    if (hasUnsavedChanges) {
+      setPendingRoleId(idRol);
+      return;
     }
+    setBusqueda("");
+    setSelectedRoleId(idRol);
   };
 
-  const handleConfirmDiscard = () => {
+  const confirmarDescarte = () => {
     resetChanges();
     if (pendingRoleId !== null) {
+      setBusqueda("");
       setSelectedRoleId(pendingRoleId);
-      const targetRol = roles.find((r) => r.idRol === pendingRoleId);
-      sileo.info({
-        title: "Cambios descartados",
-        description: `Se descartaron los cambios y se cargó el rol ${getRolFriendlyName(targetRol?.nombre)}.`,
-      });
     }
-    setShowDiscardConfirm(false);
     setPendingRoleId(null);
   };
 
-  const handleCancelDiscard = () => {
-    setShowDiscardConfirm(false);
-    setPendingRoleId(null);
-  };
-
-  const handleReload = async () => {
-    sileo.show({
-      title: "Recargando permisos",
-      description: "Consultando la base de datos...",
-    });
-    await reload();
-    sileo.success({
-      title: "Permisos actualizados",
-      description: "Se recargó la configuración desde el servidor.",
-    });
-  };
+  const ocupado = loadingPermisos || saving;
 
   return (
-    <div className="w-full p-4 sm:p-6 lg:p-8 space-y-8">
-      {/* ── Barra Superior Minimalista ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div className="flex flex-wrap items-center gap-4">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">
-            Permisos por Rol
-          </h1>
-
-          <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-
-          {/* Selector de Rol Minimalista */}
-          <div className="flex items-center gap-2">
-            <label htmlFor="role-select" className="text-xs font-medium text-slate-500">
-              Rol:
-            </label>
-            <div className="relative">
-              {loadingRoles ? (
-                <div className="flex items-center gap-1.5 text-xs text-slate-400 py-1">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  <span>Cargando roles...</span>
-                </div>
-              ) : (
-                <>
-                  <select
-                    id="role-select"
-                    value={selectedRoleId ?? ""}
-                    onChange={(e) => handleRoleChange(Number(e.target.value))}
-                    className="appearance-none bg-white text-slate-900 font-medium text-xs border border-slate-200 rounded-lg px-3 py-1.5 pr-8 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer transition-colors shadow-2xs"
-                  >
-                    {roles.map((r) => (
-                      <option key={r.idRol} value={r.idRol}>
-                        {getRolFriendlyName(r.nombre)}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="size-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </>
-              )}
-            </div>
-          </div>
+    <div className="w-full p-4 sm:p-6 lg:p-8 pb-28 space-y-6">
+      {/* Encabezado */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">Permisos por rol</h1>
+          <p className="text-sm text-slate-500 max-w-2xl">
+            Elige un rol y permite o bloquea cada función. Solo se muestran las funciones que ese rol usa en la
+            plataforma.
+          </p>
         </div>
-
-        {/* Acciones Minimalistas */}
-        <div className="flex items-center gap-2 sm:self-auto self-start">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleReload}
-            disabled={loadingPermisos || saving}
-            className="text-xs text-slate-600 hover:text-slate-900 cursor-pointer h-8 px-2.5 gap-1.5"
-            title="Recargar permisos"
-          >
-            <RefreshCw className={`size-3.5 ${loadingPermisos ? "animate-spin" : ""}`} />
-            <span>Recargar</span>
-          </Button>
-
-          {hasUnsavedChanges && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={resetChanges}
-              disabled={saving}
-              className="text-xs text-slate-500 hover:text-slate-800 cursor-pointer h-8 px-2.5 gap-1.5"
-            >
-              <RotateCcw className="size-3.5" />
-              <span>Descartar</span>
-            </Button>
-          )}
-
-          <Button
-            type="button"
-            onClick={savePermisos}
-            disabled={!hasUnsavedChanges || saving || loadingPermisos}
-            className={`h-8 px-4 text-xs font-medium rounded-lg cursor-pointer transition-all gap-1.5 shadow-2xs ${
-              hasUnsavedChanges
-                ? "bg-slate-900 hover:bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-400 cursor-not-allowed"
-            }`}
-          >
-            {saving ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Save className="size-3.5" />
-            )}
-            <span>{saving ? "Guardando..." : "Guardar cambios"}</span>
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => reload()}
+          disabled={ocupado}
+          className="text-xs h-8 gap-1.5 cursor-pointer self-start sm:self-auto"
+        >
+          <RefreshCw className={`size-3.5 ${loadingPermisos ? "animate-spin" : ""}`} />
+          Recargar
+        </Button>
       </div>
 
-      {/* ── Alerta Minimalista de Error ── */}
       {error && (
         <div className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <AlertCircle className="size-4 shrink-0 text-rose-500" />
             <span>{error}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleReload}
-            className="underline font-medium hover:text-rose-800 cursor-pointer"
-          >
+          <button type="button" onClick={() => reload()} className="underline font-medium cursor-pointer">
             Reintentar
           </button>
         </div>
       )}
 
-      {/* ── Checklist de Funcionalidades en 2 Columnas Balanceadas ── */}
-      {loadingPermisos ? (
-        <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400">
-          <Loader2 className="size-6 animate-spin" />
-          <span className="text-xs">Cargando permisos...</span>
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6 items-start">
+        {/* ── Selector de rol ── */}
+        <nav aria-label="Roles" className="lg:sticky lg:top-20">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2 px-1">Roles</p>
+          {loadingRoles ? (
+            <div className="flex items-center gap-2 text-xs text-slate-400 py-4 px-1">
+              <Loader2 className="size-4 animate-spin" />
+              Cargando roles...
+            </div>
+          ) : (
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2">
+              {roles.map((rol) => {
+                const m = rolMeta(rol.nombre);
+                const Icono = m.icono;
+                const activo = rol.idRol === selectedRoleId;
+                return (
+                  <li key={rol.idRol} className="min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => cambiarRol(rol.idRol)}
+                      aria-current={activo ? "true" : undefined}
+                      className={`w-full h-full flex items-center gap-2.5 sm:gap-3 rounded-xl border px-2.5 sm:px-3 py-2.5 text-left transition-colors cursor-pointer ${
+                        activo
+                          ? "border-slate-900 bg-white shadow-sm ring-1 ring-slate-900"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span
+                        className={`size-8 sm:size-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                          activo ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        <Icono className="size-4.5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[13px] sm:text-sm font-medium text-slate-900 leading-tight">
+                          {m.nombre}
+                        </span>
+                        {activo && hasUnsavedChanges && (
+                          <span className="block text-[11px] text-amber-700 font-medium">Cambios sin guardar</span>
+                        )}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </nav>
+
+        {/* ── Permisos del rol ── */}
+        <div className="space-y-4 min-w-0">
+          {selectedRole && (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="size-11 rounded-xl flex items-center justify-center shrink-0 bg-slate-100 text-slate-600">
+                  <IconoRol className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold text-slate-900">{meta.nombre}</h2>
+                  {meta.descripcion && <p className="text-sm text-slate-500">{meta.descripcion}</p>}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+                  <span className="text-slate-600">
+                    <strong className="font-semibold text-slate-900">{totalActivos}</strong> de {permisos.length}{" "}
+                    funciones permitidas
+                  </span>
+                  <div className="flex items-center gap-1 -mx-2 whitespace-nowrap">
+                    <button
+                      type="button"
+                      disabled={ocupado || permisos.length === 0}
+                      onClick={() => setTodos(true)}
+                      className="px-2 py-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Permitir todo
+                    </button>
+                    <span className="text-slate-300">·</span>
+                    <button
+                      type="button"
+                      disabled={ocupado || permisos.length === 0}
+                      onClick={() => setTodos(false)}
+                      className="px-2 py-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Bloquear todo
+                    </button>
+                  </div>
+                </div>
+                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                    style={{ width: `${porcentaje}%` }}
+                  />
+                </div>
+              </div>
+
+              {permisos.length > 4 && (
+                <div className="relative">
+                  <Search className="size-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="search"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar función..."
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-white pl-9 pr-9 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                  {busqueda && (
+                    <button
+                      type="button"
+                      onClick={() => setBusqueda("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {isEstudiante && (
+                <p className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <Info className="size-3.5 mt-0.5 shrink-0" />
+                  Para estudiantes puedes limitar cada función a ciertos semestres de la carrera.
+                </p>
+              )}
+            </div>
+          )}
+
+          {loadingPermisos ? (
+            <div className="space-y-4">
+              {[0, 1].map((i) => (
+                <div key={i} className="h-40 rounded-2xl bg-slate-100 animate-pulse" />
+              ))}
+            </div>
+          ) : permisos.length === 0 && !error ? (
+            <div className="py-14 text-center text-sm text-slate-500 bg-white rounded-2xl border border-dashed border-slate-200">
+              Este rol no tiene funciones configurables.
+            </div>
+          ) : grupos.length === 0 ? (
+            <div className="py-10 text-center text-sm text-slate-500">
+              Ninguna función coincide con «{busqueda}».
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+              {grupos.map((grupo) => (
+                <PermisoCardGroup
+                  key={grupo.categoria}
+                  categoria={grupo.categoria}
+                  permisos={grupo.items}
+                  isEstudiante={isEstudiante}
+                  cambios={cambios}
+                  disabled={saving}
+                  onTogglePermiso={togglePermiso}
+                  onUpdateSemestres={updateSemestres}
+                  onSetGrupo={setTodos}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : gruposCategorias.length === 0 ? (
-        <div className="py-16 text-center text-slate-400 text-xs">
-          No hay permisos registrados en el catálogo.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 items-start">
-          {gruposCategorias.map((grupo) => (
-            <PermisoCardGroup
-              key={grupo.categoria}
-              categoria={grupo.categoria}
-              permisos={grupo.items}
-              isEstudiante={isEstudiante}
-              onTogglePermiso={togglePermiso}
-              onUpdateSemestres={updateSemestres}
-            />
-          ))}
+      </div>
+
+      {/* ── Barra de guardado ── */}
+      {hasUnsavedChanges && (
+        <div className="fixed bottom-4 inset-x-4 sm:left-auto sm:right-6 sm:inset-x-auto z-30">
+          <div className="flex items-center gap-3 rounded-2xl bg-slate-900 text-white shadow-xl px-4 py-3">
+            <span className="text-sm">
+              <strong className="font-semibold">{cambios.size}</strong>{" "}
+              {cambios.size === 1 ? "cambio sin guardar" : "cambios sin guardar"}
+            </span>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetChanges}
+                disabled={saving}
+                className="h-8 text-xs gap-1.5 text-slate-300 hover:text-white hover:bg-white/10 cursor-pointer"
+              >
+                <RotateCcw className="size-3.5" />
+                Descartar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={savePermisos}
+                disabled={saving}
+                className="h-8 text-xs gap-1.5 bg-white text-slate-900 hover:bg-slate-100 cursor-pointer"
+              >
+                {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                {saving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* ── Modal de Confirmación de Descarte Minimalista ── */}
-      <Dialog
-        open={showDiscardConfirm}
-        onOpenChange={(open) => {
-          if (!open) handleCancelDiscard();
-        }}
-      >
+      {/* ── Confirmación al cambiar de rol con cambios pendientes ── */}
+      <Dialog open={pendingRoleId !== null} onOpenChange={(open) => !open && setPendingRoleId(null)}>
         <DialogContent className="sm:max-w-md p-6 bg-white rounded-2xl border border-slate-200 shadow-xl space-y-4">
           <DialogHeader className="space-y-1.5 text-left">
-            <DialogTitle className="text-base font-semibold text-slate-900 tracking-tight">
-              ¿Descartar cambios sin guardar?
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 leading-relaxed">
-              Tienes modificaciones en los permisos que aún no han sido guardadas. Si cambias de rol ahora, se descartarán todos los cambios pendientes.
+            <DialogTitle className="text-base font-semibold text-slate-900">¿Descartar cambios sin guardar?</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500">
+              Tienes {cambios.size} {cambios.size === 1 ? "cambio" : "cambios"} en {meta.nombre}. Si cambias de rol
+              ahora, se perderán.
             </DialogDescription>
           </DialogHeader>
-
           <DialogFooter className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={handleCancelDiscard}
-              className="text-xs text-slate-600 hover:text-slate-900 h-8 px-3 cursor-pointer"
+              onClick={() => setPendingRoleId(null)}
+              className="text-xs h-8 cursor-pointer"
             >
-              Cancelar
+              Seguir editando
             </Button>
             <Button
               type="button"
               size="sm"
-              onClick={handleConfirmDiscard}
-              className="text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white h-8 px-3.5 cursor-pointer shadow-2xs"
+              onClick={confirmarDescarte}
+              className="text-xs h-8 bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
             >
               Descartar y cambiar
             </Button>

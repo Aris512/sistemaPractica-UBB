@@ -122,7 +122,7 @@ export function HomePage({ user, onLogout }: HomePageProps) {
               rel="noopener noreferrer"
               className="text-sky-700 hover:underline font-semibold"
             >
-              Acerca de Sistema de Práctica
+              Acerca de PrisMath
             </a>
             , Universidad del Bío-Bío © 2026
           </p>

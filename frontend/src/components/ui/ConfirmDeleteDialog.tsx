@@ -18,6 +18,8 @@ interface ConfirmDeleteDialogProps {
   /** Texto del botón de confirmación y el que muestra mientras se ejecuta. */
   confirmLabel?: string;
   confirmingLabel?: string;
+  /** "destructive" (rojo, por defecto) para eliminar; "default" para confirmaciones que no borran nada. */
+  confirmVariant?: "destructive" | "default";
 }
 
 export function ConfirmDeleteDialog({
@@ -28,6 +30,7 @@ export function ConfirmDeleteDialog({
   description = "¿Estás seguro de que deseas eliminar este elemento? Esta acción no se puede deshacer.",
   confirmLabel = "Eliminar",
   confirmingLabel = "Eliminando...",
+  confirmVariant = "destructive",
 }: ConfirmDeleteDialogProps) {
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -54,7 +57,7 @@ export function ConfirmDeleteDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming}>
             Cancelar
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={isConfirming}>
+          <Button variant={confirmVariant} onClick={handleConfirm} disabled={isConfirming}>
             {isConfirming ? confirmingLabel : confirmLabel}
           </Button>
         </DialogFooter>

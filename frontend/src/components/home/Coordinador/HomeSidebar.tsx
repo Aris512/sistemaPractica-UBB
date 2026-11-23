@@ -1,3 +1,4 @@
+import prismathLogo from "@/components/login/logo/prismath.png";
 import type { UserSession } from "@/types/auth";
 import type { CoordinadorMenuKey } from "./types";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -31,25 +32,13 @@ interface HomeSidebarProps {
   onLogout?: () => void;
 }
 
-function AdeccaLogo() {
+function PrismathLogo() {
   return (
     <div className="flex items-center gap-2.5 select-none">
-      <svg className="size-8 shrink-0" viewBox="0 0 48 48" fill="none">
-        <line x1="24" y1="24" x2="10" y2="12" stroke="#cbd5e1" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="24" y1="24" x2="38" y2="12" stroke="#cbd5e1" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="24" y1="24" x2="40" y2="28" stroke="#cbd5e1" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="24" y1="24" x2="28" y2="38" stroke="#cbd5e1" strokeWidth="1.8" strokeLinecap="round" />
-        <line x1="24" y1="24" x2="10" y2="32" stroke="#cbd5e1" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="24" cy="24" r="5" fill="#334155" />
-        <circle cx="10" cy="12" r="4.5" fill="#0284c7" />
-        <circle cx="38" cy="12" r="4.5" fill="#e11d48" />
-        <circle cx="40" cy="28" r="4" fill="#f59e0b" />
-        <circle cx="28" cy="38" r="4.5" fill="#10b981" />
-        <circle cx="10" cy="32" r="4" fill="#8b5cf6" />
-      </svg>
+      <img src={prismathLogo} alt="PrisMath" className="size-9 shrink-0 object-contain" />
       <div className="flex flex-col leading-none">
         <span className="text-lg font-bold tracking-tight text-slate-900 font-sans">
-          Plataforma de Práctica
+          PrisMath
         </span>
         <span className="text-[10px] text-slate-500 font-medium">
           Plataforma de educación en línea
@@ -71,7 +60,7 @@ export function HomeSidebar({
   return (
     <Sidebar className="border-r border-slate-200/90 bg-white">
       <SidebarHeader className="p-4 border-b border-slate-100">
-        <AdeccaLogo />
+        <PrismathLogo />
       </SidebarHeader>
 
       <SidebarContent className="p-2 space-y-4">
@@ -116,6 +105,7 @@ export function HomeSidebar({
               )}
 
               {/* Centros de Práctica (Reutilización de admin/centros_practica) */}
+              {hasPermission("CENTROS_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "centros-practica"}
@@ -130,8 +120,10 @@ export function HomeSidebar({
                   <span>Centros de Práctica</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Evaluaciones (Basado en Profesor/Evaluaciones.tsx) */}
+              {hasPermission("EVALUACIONES_CONSULTAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "evaluaciones"}
@@ -146,8 +138,10 @@ export function HomeSidebar({
                   <span>Evaluaciones</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Pautas de evaluación (seguimiento y catálogo) */}
+              {hasPermission("PAUTAS_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "pautas"}
@@ -162,8 +156,10 @@ export function HomeSidebar({
                   <span>Pautas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Documentos */}
+              {hasPermission("DOCUMENTOS_GESTIONAR") && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "documentos" || activeMenu === "documentos-practica"}
@@ -178,8 +174,10 @@ export function HomeSidebar({
                   <span>Documentos</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
 
               {/* Portafolios */}
+              {(hasPermission("PORTAFOLIO_CONSULTAR") || hasPermission("PORTAFOLIO_SUBIR")) && (
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={activeMenu === "portafolio"}
@@ -194,6 +192,7 @@ export function HomeSidebar({
                   <span>Portafolios</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

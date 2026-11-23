@@ -18,7 +18,6 @@ import {
   Clock,
   X,
   Paperclip,
-  Send,
   Lock,
   type LucideIcon,
 } from "lucide-react";
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { sileo } from "sileo";
-import { enviarPlanificacionAlProfesor } from "@/services/retroalimentacionApi";
 import { ESTADOS_RETRO, type EstadoRetroalimentacion } from "@/types/retroalimentacion";
 
 interface PlanificacionProps {
@@ -154,7 +152,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
   const [loading, setLoading] = useState(true);
   const [creando, setCreando] = useState(false);
   const [deleteAction, setDeleteAction] = useState<(() => Promise<void>) | null>(null);
-  const [enviando, setEnviando] = useState(false);
 
   // Modal de subida
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -230,23 +227,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
     }
   };
 
-  const enviarAlProfesor = async (plan: PlanificacionItem) => {
-    setEnviando(true);
-    try {
-      await enviarPlanificacionAlProfesor(rut, plan.idPlanificacion);
-      sileo.success({
-        title: "Enviada al profesor",
-        description: plan.completa
-          ? "Verás sus observaciones en Retroalimentación. Puedes cambiar tus archivos hasta que la apruebe."
-          : "Tu profesor verá como pendientes los archivos que faltan; puedes subirlos hasta que la apruebe.",
-      });
-      await cargar();
-    } catch (err) {
-      sileo.error({ title: "No se pudo enviar", description: err instanceof Error ? err.message : "" });
-    } finally {
-      setEnviando(false);
-    }
-  };
 
   // ── Modal de subida ──────────────────────────────────────────────────────
 
@@ -325,8 +305,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
   const estadoSel = seleccionada?.estadoRevision ?? null;
   const aprobada = estadoSel === "APROBADO";
   const enRevision = estadoSel === "ESPERANDO_PROFESOR";
-  // Se puede enviar aunque falten archivos; basta el documento «Planificación», que es lo que revisa el profesor
-  const tieneArchivoPrincipal = !!seleccionada?.archivos.some((a) => a.categoria === "PLANIFICACION" && a.idDocumento);
 
   return (
     <div className="max-w-6xl mx-auto py-2 space-y-6">
@@ -457,24 +435,6 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                         <Upload className="size-3.5" />
                         <span>Subir archivos</span>
                       </button>
-                      {!enRevision && (
-                        <button
-                          type="button"
-                          onClick={() => void enviarAlProfesor(seleccionada)}
-                          disabled={!tieneArchivoPrincipal || enviando}
-                          title={
-                            !tieneArchivoPrincipal
-                              ? "Sube al menos el archivo «Planificación» para enviarla"
-                              : seleccionada.completa
-                                ? "Enviar a tu profesor de asignatura"
-                                : "Puedes enviarla aunque falten archivos; tu profesor los verá como pendientes"
-                          }
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {enviando ? <RefreshCw className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-                          <span>Enviar al profesor</span>
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => setDeleteAction(() => () => eliminarPlanificacion(seleccionada))}
@@ -499,7 +459,7 @@ export function Planificacion({ user, onBack }: PlanificacionProps) {
                 {estadoSel === "RECHAZADO" && (
                   <p className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 flex items-start gap-1.5">
                     <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
-                    <span>Tu profesor la rechazó. Corrige los archivos según sus observaciones y vuelve a enviarla.</span>
+                    <span>Tu profesor la rechazó. Corrige los archivos según sus observaciones.</span>
                   </p>
                 )}
 

@@ -4,9 +4,8 @@ import type { ProfesorCTutorMenuKey } from "./types";
 import { HomeSidebar } from "./HomeSidebar";
 import { HomeHeader } from "./HomeHeader";
 import { TableEstudiantes } from "./table";
-import { Pautas } from "./Pautas";
+import { Pautas } from "@/components/home/Pautas/Pautas";
 import { PerfilProfesor } from "./PerfilProfesor";
-import { Portafolio } from "../Profesor/Portafolio";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Toaster } from "sileo";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -54,15 +53,10 @@ export function HomePage({ user, onLogout }: HomePageProps) {
   const renderContent = () => {
     switch (activeMenu) {
       case "pautas":
-        if (!hasPermission("EVALUACIONES_CONSULTAR") && !hasPermission("EVALUACIONES_REALIZAR")) {
+        if (!hasPermission("PAUTAS_APLICAR")) {
           return <TableEstudiantes user={user} />;
         }
         return <Pautas user={user} onBack={() => setActiveMenu("inicio")} />;
-      case "portafolio":
-        if (!hasPermission("PORTAFOLIO_SUBIR")) {
-          return <TableEstudiantes user={user} />;
-        }
-        return <Portafolio onBack={() => setActiveMenu("inicio")} />;
       case "perfil":
         return <PerfilProfesor user={user} onBack={() => setActiveMenu("inicio")} />;
       case "inicio":

@@ -25,28 +25,37 @@ public class PlanificacionTextoExtractor {
 
     private final FileStorageService fileStorageService;
     private final int maxCaracteres;
+    private final int maxCaracteresIndexar;
 
     public PlanificacionTextoExtractor(FileStorageService fileStorageService,
-                                       @Value("${retroalimentacion.max-caracteres-planificacion:8000}") int maxCaracteres) {
+                                       @Value("${retroalimentacion.max-caracteres-planificacion:8000}") int maxCaracteres,
+                                       @Value("${ia.rag.max-caracteres-indexar:60000}") int maxCaracteresIndexar) {
         this.fileStorageService = fileStorageService;
         this.maxCaracteres = maxCaracteres;
+        this.maxCaracteresIndexar = Math.max(maxCaracteres, maxCaracteresIndexar);
     }
 
     public String extraer(Documento documento) {
         return extraer(documento.getNombre(),
-                () -> fileStorageService.loadFileAsResource(documento.getUbicacion()).getInputStream());
+                () -> fileStorageService.loadFileAsResource(documento.getUbicacion()).getInputStream(), maxCaracteres);
+    }
+
+    /** Texto con un máximo mucho mayor, para el RAG: se divide en fragmentos y a la IA solo llega lo relevante. */
+    public String extraerCompleto(Documento documento) {
+        return extraer(documento.getNombre(),
+                () -> fileStorageService.loadFileAsResource(documento.getUbicacion()).getInputStream(), maxCaracteresIndexar);
     }
 
     /** Lee un archivo recién recibido, antes de guardarlo: si la IA no puede leerlo, no reemplaza al anterior. */
     public String extraer(MultipartFile archivo) {
-        return extraer(archivo.getOriginalFilename(), archivo::getInputStream);
+        return extraer(archivo.getOriginalFilename(), archivo::getInputStream, maxCaracteres);
     }
 
     private interface Contenido {
         InputStream abrir() throws IOException;
     }
 
-    private String extraer(String nombreArchivo, Contenido contenido) {
+    private String extraer(String nombreArchivo, Contenido contenido, int maxCaracteres) {
         String nombre = nombreArchivo == null ? "" : nombreArchivo;
         String extension = nombre.contains(".") ? nombre.substring(nombre.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT) : "";
         if (!extension.equals("docx") && !extension.equals("pdf")) {

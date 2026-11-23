@@ -1,4 +1,4 @@
-# Sistema de Prácticas UBB
+# PrisMath
 
 Plataforma web para gestionar el proceso de **práctica pedagógica** de una carrera de pedagogía: seguimiento del estudiante, portafolio de evidencias, evaluaciones, planificaciones de clase y asistencia con inteligencia artificial.
 

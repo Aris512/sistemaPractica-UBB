@@ -860,8 +860,9 @@ public class DocumentoPracticaService {
             List<PautaService.PdfPautaEstudiante> pautas = estudiante != null
                 ? pautaService.pdfsDeEstudiante(estudiante.getIdEstudiante())
                 : List.of();
+            Asignatura asigEstudiante = estudiante != null ? estudiante.getAsignatura() : null;
             for (PautaService.PdfPautaEstudiante pdf : pautas) {
-                Asignatura asigPauta = pdf.asignatura() != null ? pdf.asignatura() : estudiante.getAsignatura();
+                Asignatura asigPauta = pdf.asignatura() != null ? pdf.asignatura() : asigEstudiante;
                 String carpetaPautas = obtenerCarpetaAsignatura(asigPauta) + "Pautas/";
                 crearCarpetaZip(zos, carpetasCreadas, obtenerCarpetaAsignatura(asigPauta));
                 crearCarpetaZip(zos, carpetasCreadas, carpetaPautas);
@@ -1126,7 +1127,7 @@ public class DocumentoPracticaService {
             BT /F1 14 Tf 50 720 Td (%s) Tj
             /F1 11 Tf 0 -30 Td (Estudiante: %s) Tj
             0 -20 Td (Asignatura: %s) Tj
-            0 -20 Td (Universidad del Bio-Bio - Sistema de Practicas) Tj
+            0 -20 Td (Universidad del Bio-Bio - PrisMath) Tj
             0 -20 Td (Documento verificado y archivado localmente.) Tj ET
             endstream
             endobj
