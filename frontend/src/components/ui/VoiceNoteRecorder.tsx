@@ -59,6 +59,55 @@ declare global {
 const mensajeDeError = (err: unknown, porDefecto: string) =>
   err instanceof Error && err.message ? err.message : porDefecto;
 
+/**
+ * El navegador solo entrega el micrófono en páginas seguras (https:// o localhost). En http://IP-del-servidor
+ * `navigator.mediaDevices` no existe: ni siquiera aparece el aviso para pedir el permiso.
+ */
+const microfonoDisponible = () =>
+  typeof window !== "undefined" &&
+  window.isSecureContext &&
+  !!navigator.mediaDevices?.getUserMedia &&
+  typeof MediaRecorder !== "undefined";
+
+const mensajeSinHttps = () =>
+  `El navegador solo permite usar el micrófono en páginas seguras (https://) o en localhost, y esta página se abrió en ` +
+  `${window.location.origin}; por eso no aparece el aviso para dar permiso. El administrador debe publicar la ` +
+  `plataforma con HTTPS. Mientras tanto, puedes escribir la observación en la caja de texto.`;
+
+/** Mensaje según la causa real del error de getUserMedia, en vez de uno genérico para todos los casos. */
+async function mensajeErrorMicrofono(err: unknown): Promise<string> {
+  const nombre = err instanceof Error ? err.name : "";
+  const detalle = err instanceof Error ? err.message.toLowerCase() : "";
+  switch (nombre) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+    case "SecurityError": {
+      if (detalle.includes("system")) {
+        return "El sistema operativo no deja que el navegador use el micrófono. En Windows: Configuración → Privacidad y seguridad → Micrófono → activa el acceso para el navegador y vuelve a intentar.";
+      }
+      let estado: PermissionState | null = null;
+      try {
+        estado = (await navigator.permissions?.query({ name: "microphone" as PermissionName }))?.state ?? null;
+      } catch {
+        // Navegador sin consulta de permisos del micrófono
+      }
+      if (estado === "denied") {
+        return "El micrófono está bloqueado para este sitio, por eso el navegador ya no pregunta. Haz clic en el ícono a la izquierda de la dirección (candado o ⓘ) → Micrófono → Permitir, y recarga la página.";
+      }
+      return "No se dio permiso para usar el micrófono. Vuelve a presionar «Grabar Voz» y elige «Permitir» en el aviso del navegador.";
+    }
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "No se encontró ningún micrófono. Conecta uno (o revisa que esté habilitado en el sistema) y vuelve a intentar.";
+    case "NotReadableError":
+    case "TrackStartError":
+    case "AbortError":
+      return "El micrófono está en uso por otra aplicación (Zoom, Teams, otra pestaña…) o el sistema no pudo iniciarlo. Ciérrala y vuelve a intentar.";
+    default:
+      return "No se pudo acceder al micrófono. Por favor verifica los permisos en tu navegador.";
+  }
+}
+
 interface VoiceNoteRecorderProps {
   idEvaluacion?: number | null;
   /**
@@ -108,6 +157,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isTranscribingIA, setIsTranscribingIA] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [microfonoOk] = useState<boolean>(microfonoDisponible);
   const [copiedId, setCopiedId] = useState<number | string | null>(null);
 
   // Edición de transcripción en notas guardadas
@@ -222,6 +272,10 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
   // Iniciar grabación
   const handleStartRecording = async () => {
     setErrorMsg(null);
+    if (!microfonoDisponible()) {
+      setErrorMsg(mensajeSinHttps());
+      return;
+    }
     setAudioBlob(null);
     if (audioUrlPreview) {
       URL.revokeObjectURL(audioUrlPreview);
@@ -339,7 +393,7 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
       console.error("Error al acceder al micrófono:", err);
       setIsRecording(false);
       isRecordingRef.current = false;
-      setErrorMsg("No se pudo acceder al micrófono. Por favor verifica los permisos en tu navegador.");
+      setErrorMsg(await mensajeErrorMicrofono(err));
     }
   };
 
@@ -531,6 +585,16 @@ export const VoiceNoteRecorder: React.FC<VoiceNoteRecorderProps> = ({
             <div className="flex items-center gap-2 rounded-lg bg-rose-50 p-2 text-[11px] text-rose-700 border border-rose-200">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {!readOnly && !microfonoOk && !errorMsg && (
+            <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2 text-[11px] text-amber-800 border border-amber-200">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-px" />
+              <span>
+                La grabación de voz no está disponible en esta dirección: el navegador solo permite el micrófono en
+                páginas https:// o en localhost. Puedes escribir la observación en la caja de texto.
+              </span>
             </div>
           )}
 
