@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { getAdminAuthHeader } from "@/lib/adminAuth";
+import { guardarRespuestaComoArchivo } from "@/lib/descargas";
 import type {
   EstudianteDocumentoRow,
   EstudianteDetalleDocumentos,
@@ -60,23 +61,6 @@ export function filterEstudiantes(
       item.asignatura.toLowerCase().includes(query)
     );
   });
-}
-
-function extractFilenameFromHeader(disposition: string | null, fallback: string): string {
-  if (!disposition) return fallback;
-  const utf8Match = /filename\*=UTF-8''([^;\n]+)/i.exec(disposition);
-  if (utf8Match && utf8Match[1]) {
-    try {
-      return decodeURIComponent(utf8Match[1].trim());
-    } catch {
-      return utf8Match[1].trim();
-    }
-  }
-  const match = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i.exec(disposition);
-  if (match && match[1]) {
-    return match[1].replace(/['"]/g, "").trim();
-  }
-  return fallback;
 }
 
 export function useDocumentosFeatures(initialPageSize = 10) {
@@ -236,22 +220,7 @@ export function useDocumentosFeatures(initialPageSize = 10) {
         throw new Error(`Error ${res.status}: No se pudo generar el archivo ZIP.`);
       }
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-
-      // Extraer nombre de archivo si viene en el header Content-Disposition
-      const filename = extractFilenameFromHeader(
-        res.headers.get("Content-Disposition"),
-        fallbackFilename
-      );
-
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const filename = await guardarRespuestaComoArchivo(res, fallbackFilename, "application/zip");
 
       sileo.success({
         title: "ZIP descargado con éxito",
@@ -290,19 +259,8 @@ export function useDocumentosFeatures(initialPageSize = 10) {
         throw new Error(`Error ${res.status}: No se pudo descargar el archivo.`);
       }
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-
       const fallbackName = nombreArchivoFallback || (tipo === "ESTUDIANTE" ? `entrega_${idEvidencia}` : `revision_${idEvidencia}`);
-      const filename = extractFilenameFromHeader(res.headers.get("Content-Disposition"), fallbackName);
-
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const filename = await guardarRespuestaComoArchivo(res, fallbackName);
 
       sileo.success({
         title: "Descarga completada",
@@ -337,19 +295,8 @@ export function useDocumentosFeatures(initialPageSize = 10) {
         throw new Error(`Error ${res.status}: No se pudo generar el archivo ZIP de la tarea.`);
       }
 
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-
       const fallbackTaskZip = `tarea_${idEvidencia}_expediente.zip`;
-      const filename = extractFilenameFromHeader(res.headers.get("Content-Disposition"), fallbackTaskZip);
-
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const filename = await guardarRespuestaComoArchivo(res, fallbackTaskZip, "application/zip");
 
       sileo.success({
         title: "ZIP de tarea descargado",
@@ -360,6 +307,36 @@ export function useDocumentosFeatures(initialPageSize = 10) {
       sileo.error({
         title: "Error al generar ZIP",
         description: err.message || "Ocurrió un problema al descargar los archivos de la tarea.",
+      });
+    }
+  };
+
+  // Descargar el PDF de una pauta aplicada al estudiante (criterios, puntajes, nota y observaciones)
+  const downloadPautaPdf = async (idAplicacion: number, tituloPauta?: string) => {
+    try {
+      sileo.show({
+        title: "Generando PDF de la pauta",
+        description: tituloPauta ? `Preparando «${tituloPauta}»...` : "Preparando la pauta...",
+      });
+
+      const res = await fetch(`/admin/documentos/pautas/${idAplicacion}/pdf`, {
+        headers: getAuthHeader(),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: No se pudo generar el PDF de la pauta.`);
+      }
+
+      const filename = await guardarRespuestaComoArchivo(res, `pauta_${idAplicacion}.pdf`, "application/pdf");
+      sileo.success({
+        title: "Pauta descargada",
+        description: `Se guardó "${filename}" correctamente.`,
+      });
+    } catch (err: any) {
+      console.error("Error al descargar PDF de pauta:", err);
+      sileo.error({
+        title: "Error de descarga",
+        description: err.message || "No se pudo descargar el PDF de la pauta.",
       });
     }
   };
@@ -394,5 +371,6 @@ export function useDocumentosFeatures(initialPageSize = 10) {
     downloadStudentZip,
     downloadEvidenciaArchivo,
     downloadTareaZip,
+    downloadPautaPdf,
   };
 }

@@ -25,6 +25,7 @@ import com.backend.model.DocumentoPractica;
 import com.backend.model.Evidencia;
 import com.backend.service.DocumentoPracticaService;
 import com.backend.service.EvidenciaService;
+import com.backend.service.PautaService;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -37,11 +38,30 @@ public class AdminDocumentoController {
 
     private final DocumentoPracticaService documentoPracticaService;
     private final EvidenciaService evidenciaService;
+    private final PautaService pautaService;
 
     public AdminDocumentoController(DocumentoPracticaService documentoPracticaService,
-                                   EvidenciaService evidenciaService) {
+                                   EvidenciaService evidenciaService,
+                                   PautaService pautaService) {
         this.documentoPracticaService = documentoPracticaService;
         this.evidenciaService = evidenciaService;
+        this.pautaService = pautaService;
+    }
+
+    /** PDF de una pauta aplicada al estudiante (criterios, puntajes, nota y observaciones), desde su expediente. */
+    @GetMapping("/pautas/{idAplicacion}/pdf")
+    public ResponseEntity<byte[]> descargarPdfPauta(@PathVariable Long idAplicacion) {
+        return pautaService.pdfDeAplicacion(idAplicacion)
+            .map(pdf -> {
+                String encoded = URLEncoder.encode(pdf.nombreArchivo(), StandardCharsets.UTF_8).replace("+", "%20");
+                return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + pdf.nombreArchivo() + "\"; filename*=UTF-8''" + encoded)
+                    .header("Access-Control-Expose-Headers", "Content-Disposition")
+                    .body(pdf.contenido());
+            })
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /** Descarga el archivo entregado o la revisión adjunta de una evidencia real. */

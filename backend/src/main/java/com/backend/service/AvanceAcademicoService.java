@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -15,15 +16,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.backend.dto.EvaluacionPautaDTO;
 import com.backend.model.Actividad;
 import com.backend.model.Asignatura;
 import com.backend.model.CursoAprobado;
 import com.backend.model.Estudiante;
 import com.backend.model.Evidencia;
+import com.backend.model.Pauta;
+import com.backend.model.PautaAplicacion;
+import com.backend.model.Practica;
 import com.backend.repository.ActividadRepository;
 import com.backend.repository.AsignaturaRepository;
 import com.backend.repository.CursoAprobadoRepository;
 import com.backend.repository.EvidenciaRepository;
+import com.backend.repository.PautaAplicacionRepository;
+import com.backend.repository.PautaRepository;
+import com.backend.repository.PracticaRepository;
 
 /**
  * Centraliza la regla académica de aprobación de asignaturas y el cálculo del progreso.
@@ -33,6 +41,10 @@ import com.backend.repository.EvidenciaRepository;
  * Si todas están calificadas y el promedio es < 4.0 queda REPROBADA.
  * Mientras falten tareas por calificar queda EN_CURSO.
  *
+ * En las asignaturas hasta 8.° semestre también cuentan las pautas con que evalúan al estudiante en su
+ * práctica: cada pauta activa de la asignatura, por cada evaluador (profesor colaborador, tutor o profesor
+ * de asignatura), es una evaluación más que debe estar finalizada, y su nota entra al promedio.
+ *
  * Progreso = asignaturas APROBADAS / total de asignaturas del plan (tabla asignatura).
  */
 @Service
@@ -40,23 +52,37 @@ public class AvanceAcademicoService {
 
     private static final Logger logger = LoggerFactory.getLogger(AvanceAcademicoService.class);
     public static final double NOTA_APROBACION = 4.0;
+    /** Último semestre cuyas asignaturas suman las pautas de la práctica al avance académico. */
+    public static final int ULTIMO_SEMESTRE_CON_PAUTAS = 8;
 
     private final CursoAprobadoRepository cursoAprobadoRepository;
     private final ActividadRepository actividadRepository;
     private final EvidenciaRepository evidenciaRepository;
     private final AsignaturaRepository asignaturaRepository;
+    private final PautaRepository pautaRepository;
+    private final PautaAplicacionRepository pautaAplicacionRepository;
+    private final PracticaRepository practicaRepository;
 
     public AvanceAcademicoService(CursoAprobadoRepository cursoAprobadoRepository,
                                   ActividadRepository actividadRepository,
                                   EvidenciaRepository evidenciaRepository,
-                                  AsignaturaRepository asignaturaRepository) {
+                                  AsignaturaRepository asignaturaRepository,
+                                  PautaRepository pautaRepository,
+                                  PautaAplicacionRepository pautaAplicacionRepository,
+                                  PracticaRepository practicaRepository) {
         this.cursoAprobadoRepository = cursoAprobadoRepository;
         this.actividadRepository = actividadRepository;
         this.evidenciaRepository = evidenciaRepository;
         this.asignaturaRepository = asignaturaRepository;
+        this.pautaRepository = pautaRepository;
+        this.pautaAplicacionRepository = pautaAplicacionRepository;
+        this.practicaRepository = practicaRepository;
     }
 
-    /** Resultado del cálculo para un estudiante en una asignatura. */
+    /**
+     * Resultado del cálculo para un estudiante en una asignatura. tareasTotales y tareasCalificadas cuentan tareas
+     * y evaluaciones con pauta.
+     */
     public record ResultadoCurso(String estado, Double promedio, int tareasTotales, int tareasCalificadas) {}
 
     /** Resumen del avance del estudiante en el plan. */
@@ -82,24 +108,103 @@ public class AvanceAcademicoService {
             .filter(e -> e.getActividad() != null)
             .collect(Collectors.toMap(e -> e.getActividad().getIdActividad(), Function.identity(), (a, b) -> a));
 
-        List<Double> notas = actividades.stream()
+        List<Double> notas = new ArrayList<>(actividades.stream()
             .map(a -> evidenciaPorActividad.get(a.getIdActividad()))
             .filter(Objects::nonNull)
             .map(e -> e.getCalificacion())
             .filter(Objects::nonNull)
-            .toList();
+            .toList());
+
+        // Pautas de la práctica (asignaturas hasta 8.° semestre): cada evaluación finalizada suma su nota
+        List<EvaluacionPautaDTO> pautas = evaluacionesConPauta(estudiante, asignatura);
+        pautas.stream()
+            .filter(p -> PautaAplicacion.FINALIZADA.equals(p.estado()) && p.nota() != null)
+            .forEach(p -> notas.add(p.nota()));
+        int evaluacionesTotales = actividades.size() + pautas.size();
 
         OptionalDouble avg = notas.stream().mapToDouble(d -> d.doubleValue()).average();
         Double promedio = avg.isPresent() ? Math.round(avg.getAsDouble() * 10.0) / 10.0 : null;
 
         String estado;
-        if (actividades.isEmpty() || notas.size() < actividades.size() || promedio == null) {
+        if (evaluacionesTotales == 0 || notas.size() < evaluacionesTotales || promedio == null) {
             estado = CursoAprobado.EN_CURSO;
         } else {
             estado = promedio >= NOTA_APROBACION ? CursoAprobado.APROBADO : CursoAprobado.REPROBADO;
         }
 
-        return new ResultadoCurso(estado, promedio, actividades.size(), notas.size());
+        return new ResultadoCurso(estado, promedio, evaluacionesTotales, notas.size());
+    }
+
+    /**
+     * Evaluaciones con pauta que le corresponden al estudiante en la asignatura, solo hasta 8.° semestre: una por
+     * cada pauta de la asignatura (activa, o ya aplicada al estudiante) y cada evaluador que la completa. Cada una
+     * lleva la aplicación de ese evaluador en la práctica del estudiante, si existe (la finalizada antes que un
+     * borrador).
+     */
+    @Transactional(readOnly = true)
+    public List<EvaluacionPautaDTO> evaluacionesConPauta(Estudiante estudiante, Asignatura asignatura) {
+        if (estudiante == null || asignatura == null || asignatura.getNombre() == null
+                || semestreNumerico(asignatura.getSemestre()) > ULTIMO_SEMESTRE_CON_PAUTAS) {
+            return List.of();
+        }
+        String nombreAsignatura = asignatura.getNombre().trim();
+        List<Practica> practicas = practicaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante()).stream()
+            .filter(p -> p.getAsignatura() != null
+                && Objects.equals(p.getAsignatura().getIdAsignatura(), asignatura.getIdAsignatura()))
+            .sorted(Comparator.comparing(Practica::getIdPractica, Comparator.nullsFirst(Comparator.reverseOrder())))
+            .toList();
+        List<PautaAplicacion> aplicaciones = practicas.stream()
+            .flatMap(p -> pautaAplicacionRepository.findByPracticaIdPractica(p.getIdPractica()).stream())
+            .toList();
+        Set<Long> pautasAplicadas = aplicaciones.stream()
+            .map(a -> a.getPauta().getId())
+            .collect(Collectors.toSet());
+        Long idPractica = practicas.isEmpty() ? null : practicas.get(0).getIdPractica();
+
+        List<EvaluacionPautaDTO> resultado = new ArrayList<>();
+        List<Pauta> pautas = pautaRepository.findAll().stream()
+            .filter(p -> p.getAsignatura() != null && nombreAsignatura.equalsIgnoreCase(p.getAsignatura().trim()))
+            .filter(p -> !Boolean.FALSE.equals(p.getActiva()) || pautasAplicadas.contains(p.getId()))
+            .sorted(Comparator.comparing((Pauta p) -> p.getCodigo() != null ? p.getCodigo() : "")
+                .thenComparing(Pauta::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
+        for (Pauta pauta : pautas) {
+            Set<String> roles = pauta.evaluadoresLista();
+            List<PautaAplicacion> dePauta = aplicaciones.stream()
+                .filter(a -> Objects.equals(a.getPauta().getId(), pauta.getId()))
+                .toList();
+            for (String rol : roles) {
+                // Con un solo evaluador cualquier aplicación es la suya; con varios, la del rol de quien la llenó
+                PautaAplicacion app = dePauta.stream()
+                    .filter(a -> roles.size() <= 1 || rol.equals(PautaService.rolDelEvaluador(a)))
+                    .min(Comparator.comparing((PautaAplicacion a) -> PautaAplicacion.FINALIZADA.equals(a.getEstado()) ? 0 : 1)
+                        .thenComparing(PautaAplicacion::getFechaActualizacion, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .orElse(null);
+                resultado.add(aDto(pauta, rol, app, idPractica, asignatura));
+            }
+        }
+        return resultado;
+    }
+
+    private static EvaluacionPautaDTO aDto(Pauta pauta, String rol, PautaAplicacion app, Long idPractica,
+                                           Asignatura asignatura) {
+        boolean finalizada = app != null && PautaAplicacion.FINALIZADA.equals(app.getEstado());
+        Double nota = finalizada && app.getNota() != null ? app.getNota().getPuntajeObtenido() : null;
+        String estado = app == null ? EvaluacionPautaDTO.PENDIENTE
+            : (finalizada ? PautaAplicacion.FINALIZADA : PautaAplicacion.BORRADOR);
+        return new EvaluacionPautaDTO(
+            pauta.getId(),
+            app != null ? app.getId() : null,
+            app != null ? app.getPractica().getIdPractica() : idPractica,
+            pauta.getCodigo(),
+            pauta.getTitulo(),
+            asignatura.getNombre(),
+            asignatura.getSemestre(),
+            rol,
+            app != null ? app.getEvaluadorNombre() : null,
+            estado,
+            nota,
+            app == null ? null : (app.getFechaFinalizacion() != null ? app.getFechaFinalizacion() : app.getFechaActualizacion()));
     }
 
     /**

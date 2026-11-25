@@ -25,8 +25,11 @@ import {
   Award,
   MessageSquare,
   FolderArchive,
+  ClipboardCheck,
+  FileText,
 } from "lucide-react";
 import type { EstudianteDetalleDocumentos } from "./types";
+import { nombreRolEvaluador } from "@/types/evaluacionPauta";
 import { sileo } from "sileo";
 
 interface DocumentosModalProps {
@@ -41,6 +44,7 @@ interface DocumentosModalProps {
     nombreArchivoFallback?: string
   ) => Promise<void>;
   onDownloadTareaZip?: (idEvidencia: number, tituloTarea?: string) => Promise<void>;
+  onDownloadPautaPdf?: (idAplicacion: number, tituloPauta?: string) => Promise<void>;
 }
 
 export function DocumentosModal({
@@ -51,12 +55,14 @@ export function DocumentosModal({
   onDownloadZip,
   onDownloadEvidenciaArchivo,
   onDownloadTareaZip,
+  onDownloadPautaPdf,
 }: DocumentosModalProps) {
   const [isEmailDropdownOpen, setIsEmailDropdownOpen] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
   const [downloadingTareaZipId, setDownloadingTareaZipId] = useState<number | null>(null);
   const [downloadingEvidenciaKey, setDownloadingEvidenciaKey] = useState<string | null>(null);
+  const [downloadingPautaId, setDownloadingPautaId] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Cerrar dropdown al hacer click fuera
@@ -120,6 +126,19 @@ export function DocumentosModal({
       setDownloadingTareaZipId(null);
     }
   };
+
+  const handleDownloadPauta = async (idAplicacion: number, tituloPauta?: string) => {
+    if (!onDownloadPautaPdf) return;
+    setDownloadingPautaId(idAplicacion);
+    try {
+      await onDownloadPautaPdf(idAplicacion, tituloPauta);
+    } finally {
+      setDownloadingPautaId(null);
+    }
+  };
+
+  const pautas = detalle?.pautas ?? [];
+  const pautasFinalizadas = pautas.filter((p) => p.estado === "FINALIZADA").length;
 
   const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return "—";
@@ -362,6 +381,10 @@ export function DocumentosModal({
                       style={{ width: `${detalle.progreso}%` }}
                     />
                   </div>
+                  <p className="text-[11px] text-slate-500">
+                    Una asignatura se aprueba con todas sus tareas calificadas y, hasta 8.° semestre, también sus pautas de
+                    evaluación finalizadas, con promedio 4,0 o superior.
+                  </p>
                 </div>
               </div>
 
@@ -495,6 +518,99 @@ export function DocumentosModal({
                   </div>
                 )}
               </div>
+
+              {/* Pautas de evaluación (asignaturas hasta 8.° semestre): cuentan en el avance académico y van en el ZIP */}
+              {pautas.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                      <ClipboardCheck className="size-4 text-indigo-600" />
+                      Pautas de evaluación
+                    </h4>
+                    <span className="text-xs text-slate-500">
+                      {pautasFinalizadas} de {pautas.length} finalizadas
+                    </span>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden bg-white">
+                    {pautas.map((pauta) => {
+                      const finalizada = pauta.estado === "FINALIZADA";
+                      const borrador = pauta.estado === "BORRADOR";
+                      const aprobada = finalizada && pauta.nota != null && pauta.nota >= 4.0;
+                      const titulo = pauta.titulo || pauta.codigo || "Pauta de evaluación";
+                      const descargando = pauta.idAplicacion != null && downloadingPautaId === pauta.idAplicacion;
+
+                      return (
+                        <div
+                          key={`${pauta.idPauta}-${pauta.evaluadorRol}`}
+                          className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate" title={titulo}>
+                              {titulo}
+                              {pauta.codigo && pauta.titulo && (
+                                <span className="ml-1.5 font-mono text-[11px] font-normal text-slate-400">{pauta.codigo}</span>
+                              )}
+                            </p>
+                            <p className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-2">
+                              <span>
+                                {pauta.asignatura}
+                                {pauta.semestre ? ` · Semestre ${pauta.semestre}` : ""}
+                              </span>
+                              <span>
+                                {nombreRolEvaluador(pauta.evaluadorRol)}
+                                {pauta.evaluadorNombre ? `: ${pauta.evaluadorNombre}` : ""}
+                              </span>
+                              {pauta.fecha && (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="size-3" />
+                                  {finalizada ? "Finalizada" : "Actualizada"} {formatDate(pauta.fecha)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {finalizada && pauta.nota != null ? (
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                  aprobada
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-rose-50 text-rose-700 border-rose-200"
+                                }`}
+                              >
+                                <Award className="size-3" />
+                                {pauta.nota.toFixed(1)} · {aprobada ? "Aprobada" : "Reprobada"}
+                              </span>
+                            ) : borrador ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="size-3" />
+                                En borrador
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                                Pendiente
+                              </span>
+                            )}
+                            {onDownloadPautaPdf && pauta.idAplicacion != null && (
+                              <button
+                                type="button"
+                                disabled={descargando}
+                                onClick={() => handleDownloadPauta(pauta.idAplicacion as number, titulo)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-indigo-200 bg-indigo-50/60 text-xs text-indigo-700 hover:bg-indigo-100 cursor-pointer disabled:opacity-60"
+                                title="Descargar la pauta en PDF"
+                              >
+                                {descargando ? <Loader2 className="size-3 animate-spin" /> : <FileText className="size-3" />}
+                                PDF
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
