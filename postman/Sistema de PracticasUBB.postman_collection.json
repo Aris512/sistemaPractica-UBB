@@ -8,272 +8,728 @@
   },
   "item": [
     {
-      "name": "Listar Asignaturas",
-      "event": [
+      "name": "Asignaturas",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status 200 OK\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"La respuesta es JSON\", function () {\n    pm.response.to.have.header(\"Content-Type\");\n    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\n});\n\npm.test(\"Devuelve una lista con al menos un dueño\", function () {\n    const owners = pm.response.json();\n    pm.expect(owners).to.be.an(\"array\");\n    pm.expect(owners.length).to.be.above(0);\n});\n\npm.test(\"Responde en menos de 1000 ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(1000);\n});\n\n\n"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "Listar Asignaturas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta es JSON\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve una lista con al menos una asignatura\", function () {",
+                  "    const asignaturas = pm.response.json();",
+                  "    pm.expect(asignaturas).to.be.an(\"array\");",
+                  "    pm.expect(asignaturas.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 1000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        "url": {
-          "raw": "{{baseURL}}/asignaturas",
-          "host": [
-            "{{baseURL}}"
           ],
-          "path": [
-            "asignaturas"
-          ]
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/asignaturas",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear Asignatura",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test(\"Asignatura creada\", () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(body.idAsignatura, JSON.stringify(body)).to.be.a(\"number\");",
+                  "});",
+                  "",
+                  "if (body.idAsignatura) {",
+                  "  pm.collectionVariables.set(\"id_asignatura\", body.idAsignatura);",
+                  "  console.log(\"id_asignatura =\", body.idAsignatura);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Test-Postman\",\n  \"nombre\": \"Postman-01\",\n  \"semestre\": \"1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/asignaturas",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener Asignatura creada",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas",
+                "{{id_asignatura}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar Asignatura",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Actualización exitosa (200 o 204)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Test-Postman\",\n  \"nombre\": \"Postman-01\",\n  \"semestre\": \"4\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas",
+                "{{id_asignatura}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST Dato inválido (Negativa 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Rechaza datos inválidos con 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Test-Postman\",\n  \"nombre\": \"\",\n  \"semestre\": \"10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/asignaturas",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar Asignatura",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 No Content\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas",
+                "{{id_asignatura}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verificar Asignatura eliminada (Negativa 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404 - asignatura eliminada no encontrada\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 3000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "asignaturas",
+                "{{id_asignatura}}"
+              ]
+            }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     },
     {
-      "name": "Crear Asigantura",
-      "event": [
+      "name": "Chatbot IA",
+      "item": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const body = pm.response.json();\r\n\r\npm.test(\"Asignatura creada\", () => {\r\n  pm.response.to.have.status(200);\r\n  pm.expect(body.idAsignatura, JSON.stringify(body)).to.be.a(\"number\");\r\n});\r\n\r\nif (body.idAsignatura) {\r\n  pm.collectionVariables.set(\"id_asignatura\", body.idAsignatura);\r\n  console.log(\"id_asignatura =\", body.idAsignatura);\r\n}"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"descripcion\": \"Test-Postman\",\n  \"nombre\": \"Postman-01\",\n  \"semestre\": \"1\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "1. Crear conversación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta es JSON\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Devuelve estructura válida de conversación\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an(\"object\");",
+                  "    pm.expect(body.id).to.be.a(\"number\");",
+                  "    pm.expect(body.titulo).to.be.a(\"string\").and.not.be.empty;",
+                  "    pm.collectionVariables.set(\"id_conversacion\", body.id);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 2000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        "url": {
-          "raw": "{{baseURL}}/asignaturas",
-          "host": [
-            "{{baseURL}}"
           ],
-          "path": [
-            "asignaturas"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "obtener Asignatura creada",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status 200 OK\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\n"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
-          "host": [
-            "{{baseURL}}"
-          ],
-          "path": [
-            "asignaturas",
-            "{{id_asignatura}}"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "actualizar la Asignatura",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Actualización exitosa (200 o 204)\", function () {\r\n    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r\n});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "PUT",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"descripcion\": \"Test-Postman\",\r\n  \"nombre\": \"Postman-01\",\r\n  \"semestre\": \"4\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Prueba Postman Chatbot IA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones"
+              ]
             }
-          }
+          },
+          "response": []
         },
-        "url": {
-          "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
-          "host": [
-            "{{baseURL}}"
-          ],
-          "path": [
-            "asignaturas",
-            "{{id_asignatura}}"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "post_Dato_inv",
-      "event": [
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Rechaza datos inválidos con 400\", function () {\r\n    pm.response.to.have.status(400);\r\n});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "{\r\n  \"descripcion\": \"Test-Postman\",\r\n  \"nombre\": \"\",\r\n  \"semestre\": \"10\"\r\n}",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "2. Listar conversaciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta es JSON\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Incluye la conversación recién creada\", function () {",
+                  "    const lista = pm.response.json();",
+                  "    const idCreado = Number(pm.collectionVariables.get(\"id_conversacion\"));",
+                  "    pm.expect(lista).to.be.an(\"array\");",
+                  "    pm.expect(lista.some(c => c.id === idCreado)).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 2000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        "url": {
-          "raw": "{{baseURL}}/asignaturas",
-          "host": [
-            "{{baseURL}}"
           ],
-          "path": [
-            "asignaturas"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Eliminar Asignatura",
-      "event": [
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones"
+              ]
+            }
+          },
+          "response": []
+        },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.response.to.have.status(204);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "3. Enviar mensaje al Chatbot IA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta es JSON\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Estructura válida y respuesta de texto no vacía (sin validar texto exacto)\", function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.be.an(\"object\");",
+                  "    pm.expect(body).to.have.property(\"conversacion\");",
+                  "    pm.expect(body).to.have.property(\"mensajeUsuario\");",
+                  "    pm.expect(body).to.have.property(\"mensajeAsistente\");",
+                  "",
+                  "    pm.expect(body.mensajeUsuario.rol).to.eql(\"USER\");",
+                  "    pm.expect(body.mensajeUsuario.contenido).to.be.a(\"string\").and.not.be.empty;",
+                  "",
+                  "    pm.expect(body.mensajeAsistente.rol).to.eql(\"ASSISTANT\");",
+                  "    pm.expect(body.mensajeAsistente.contenido).to.be.a(\"string\");",
+                  "    pm.expect(body.mensajeAsistente.contenido.trim().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Tiempo de respuesta dentro del umbral RNF para IA (< 15000 ms)\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(15000);",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        "url": {
-          "raw": "{{baseURL}}/asignaturas/{{id_asignatura}}",
-          "host": [
-            "{{baseURL}}"
           ],
-          "path": [
-            "asignaturas",
-            "{{id_asignatura}}"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Verificar Asignatura",
-      "event": [
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"¿Qué elementos básicos debe tener un objetivo de aprendizaje en una planificación de matemáticas? Responde en máximo 3 líneas.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones/{{id_conversacion}}/mensajes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones",
+                "{{id_conversacion}}",
+                "mensajes"
+              ]
+            }
+          },
+          "response": []
+        },
         {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "// 1. Status code check\npm.test(\"Status is 404 - owner not found (deleted)\", function () {\n    pm.response.to.have.status(404);\n});\n\n// 2. Response time check\npm.test(\"Response time is less than 3000ms\", function () {\n    pm.expect(pm.response.responseTime).to.be.below(3000);\n});\n\n// 3. Response has a body\npm.test(\"Response body is not empty\", function () {\n    pm.expect(pm.response.text()).to.not.be.empty;\n});\n\n// 4. Body does not contain an owner id (confirms deletion)\npm.test(\"Response does not return owner data (no id field)\", function () {\n    try {\n        const json = pm.response.json();\n        pm.expect(json).to.not.have.property(\"id\");\n    } catch (e) {\n        // Non-JSON body is also acceptable for 404\n        pm.expect(pm.response.text()).to.not.include('\"id\"');\n    }\n});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "body": {
-          "mode": "raw",
-          "raw": "",
-          "options": {
-            "raw": {
-              "language": "json"
+          "name": "4. Obtener historial de mensajes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta es JSON\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Contiene el mensaje del usuario y la respuesta del asistente\", function () {",
+                  "    const mensajes = pm.response.json();",
+                  "    pm.expect(mensajes).to.be.an(\"array\");",
+                  "    pm.expect(mensajes.length).to.be.at.least(2);",
+                  "    const asistente = mensajes.find(m => m.rol === \"ASSISTANT\");",
+                  "    pm.expect(asistente).to.not.be.undefined;",
+                  "    pm.expect(asistente.contenido).to.be.a(\"string\");",
+                  "    pm.expect(asistente.contenido.trim().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 2000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
             }
-          }
-        },
-        "url": {
-          "raw": "{{baseURL}}/asiganturas/{{id_asignatura}}",
-          "host": [
-            "{{baseURL}}"
           ],
-          "path": [
-            "asiganturas",
-            "{{id_asignatura}}"
-          ]
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones/{{id_conversacion}}/mensajes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones",
+                "{{id_conversacion}}",
+                "mensajes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Enviar mensaje vacío (Negativa 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Rechaza mensaje vacío con status 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta de error es JSON con campo error y codigo\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.be.a(\"string\").and.not.be.empty;",
+                  "    pm.expect(body.codigo).to.eql(\"CHAT_MENSAJE_VACIO\");",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 2000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones/{{id_conversacion}}/mensajes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones",
+                "{{id_conversacion}}",
+                "mensajes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6. Eliminar conversación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 204 No Content\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 2000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones/{{id_conversacion}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones",
+                "{{id_conversacion}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "7. Consultar conversación eliminada (Negativa 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"La respuesta de error es JSON con campo error y codigo\", function () {",
+                  "    pm.response.to.have.header(\"Content-Type\");",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.error).to.be.a(\"string\").and.not.be.empty;",
+                  "    pm.expect(body.codigo).to.eql(\"CHAT_CONVERSACION_NO_ENCONTRADA\");",
+                  "});",
+                  "",
+                  "pm.test(\"Responde en menos de 2000 ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Usuario-Rut",
+                "value": "{{usuarioRut}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/chat/conversaciones/{{id_conversacion}}/mensajes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "chat",
+                "conversaciones",
+                "{{id_conversacion}}",
+                "mensajes"
+              ]
+            }
+          },
+          "response": []
         }
-      },
-      "response": []
+      ]
     }
   ],
   "variable": [
     {
-      "key": "ownerId",
+      "key": "id_asignatura",
       "value": ""
     },
     {
-      "key": "id_asignatura",
+      "key": "id_conversacion",
       "value": ""
     }
   ]
