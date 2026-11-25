@@ -103,15 +103,29 @@ function renderBloques(texto: string): ReactNode[] {
 
     if (RE_LISTA.test(linea) || RE_LISTA_ORDENADA.test(linea)) {
       const ordenada = RE_LISTA_ORDENADA.test(linea);
+      const reItem = ordenada ? RE_LISTA_ORDENADA : RE_LISTA;
+      // Una lista numerada puede empezar en otro número (p. ej. «3.» tras un párrafo intermedio)
+      const inicio = ordenada ? Number(RE_LISTA_ORDENADA.exec(linea)?.[1] ?? 1) : 1;
       const items: string[] = [];
       while (i < lineas.length) {
         const actual = lineas[i];
-        const m = ordenada ? RE_LISTA_ORDENADA.exec(actual) : RE_LISTA.exec(actual);
+        const m = reItem.exec(actual);
         if (m) {
           items.push(ordenada ? m[2] : m[1]);
         } else if (actual.trim() !== "" && /^\s{2,}/.test(actual) && items.length > 0) {
           // Continuación indentada del ítem anterior
           items[items.length - 1] += "\n" + actual.trim();
+        } else if (actual.trim() === "" && items.length > 0) {
+          // Las líneas en blanco entre ítems no cortan la lista (la IA suele separar así sus preguntas): si después
+          // viene otro ítem o una continuación indentada, la lista sigue; si no, termina aquí
+          let j = i;
+          while (j < lineas.length && lineas[j].trim() === "") j++;
+          const siguiente = j < lineas.length ? lineas[j] : "";
+          if (reItem.test(siguiente) || /^\s{2,}\S/.test(siguiente)) {
+            i = j;
+            continue;
+          }
+          break;
         } else {
           break;
         }
@@ -119,7 +133,11 @@ function renderBloques(texto: string): ReactNode[] {
       }
       const Lista = ordenada ? "ol" : "ul";
       bloques.push(
-        <Lista key={bloques.length} className={`${ordenada ? "list-decimal" : "list-disc"} pl-5 space-y-1`}>
+        <Lista
+          key={bloques.length}
+          start={ordenada && inicio !== 1 ? inicio : undefined}
+          className={`${ordenada ? "list-decimal" : "list-disc"} pl-5 space-y-1`}
+        >
           {items.map((item, k) => (
             <li key={k} className="whitespace-pre-line">{renderEnLinea(item)}</li>
           ))}
