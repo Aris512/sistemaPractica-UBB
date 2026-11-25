@@ -1,3 +1,5 @@
+import type { EvaluacionPauta } from "@/types/evaluacionPauta";
+
 export interface ProfesorContacto {
   rut: string;
   nombre: string;
@@ -46,6 +48,8 @@ export interface EstudianteDetalleDocumentos {
   profesores: ProfesorContacto[];
   documentos: DocumentoItem[];
   tareas: TareaSeguimiento[];
+  /** Pautas con que evalúan al estudiante en sus asignaturas hasta 8.° semestre (cuentan en el avance académico). */
+  pautas?: EvaluacionPauta[];
 }
 
 export interface TareaSeguimiento {

@@ -36,11 +36,14 @@ public class RubricaPracticaService {
 
     private final RubricaPracticaRepository rubricaPracticaRepository;
     private final PracticaRepository practicaRepository;
+    private final AvanceAcademicoService avanceAcademicoService;
 
     public RubricaPracticaService(RubricaPracticaRepository rubricaPracticaRepository,
-                                  PracticaRepository practicaRepository) {
+                                  PracticaRepository practicaRepository,
+                                  AvanceAcademicoService avanceAcademicoService) {
         this.rubricaPracticaRepository = rubricaPracticaRepository;
         this.practicaRepository = practicaRepository;
+        this.avanceAcademicoService = avanceAcademicoService;
     }
 
     /**
@@ -52,7 +55,7 @@ public class RubricaPracticaService {
     public AvancePracticaDTO obtenerAvancePorEstudiante(String rutEstudiante) {
         Practica practica = practicaActual(rutEstudiante);
         if (practica == null) {
-            return new AvancePracticaDTO(null, List.of(), List.of());
+            return new AvancePracticaDTO(null, List.of(), List.of(), List.of());
         }
 
         List<ColaboradorDTO> colaboradores = new ArrayList<>();
@@ -65,7 +68,8 @@ public class RubricaPracticaService {
             }
         }
 
-        return new AvancePracticaDTO(practica.getIdPractica(), colaboradores, asegurarRubricas(practica));
+        return new AvancePracticaDTO(practica.getIdPractica(), colaboradores, asegurarRubricas(practica),
+            avanceAcademicoService.evaluacionesConPauta(practica.getEstudiante(), practica.getAsignatura()));
     }
 
     /** Marca una evaluación como completada con su nota (1.0 a 7.0). */

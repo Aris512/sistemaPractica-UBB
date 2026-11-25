@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.backend.dto.DetalleEstudianteDocumentosDTO;
 import com.backend.dto.DocumentoItemDTO;
+import com.backend.dto.EvaluacionPautaDTO;
 import com.backend.dto.EstudianteDocumentoDTO;
 import com.backend.dto.ProfesorContactoDTO;
 import com.backend.dto.TareaSeguimientoDTO;
@@ -579,7 +580,28 @@ public class DocumentoPracticaService {
             }
         }
         detalle.setTareas(tareasDTO);
+        detalle.setPautas(estOpt.map(this::evaluacionesConPauta).orElse(List.of()));
         return detalle;
+    }
+
+    /**
+     * Evaluaciones con pauta del estudiante en las asignaturas hasta 8.° semestre que cursa o en que tiene práctica,
+     * ordenadas por semestre: las mismas que cuentan en su avance académico.
+     */
+    private List<EvaluacionPautaDTO> evaluacionesConPauta(Estudiante estudiante) {
+        Map<Long, Asignatura> asignaturas = new java.util.LinkedHashMap<>();
+        if (estudiante.getAsignatura() != null) {
+            asignaturas.put(estudiante.getAsignatura().getIdAsignatura(), estudiante.getAsignatura());
+        }
+        for (Practica practica : practicaRepository.findByEstudianteIdEstudiante(estudiante.getIdEstudiante())) {
+            if (practica.getAsignatura() != null) {
+                asignaturas.putIfAbsent(practica.getAsignatura().getIdAsignatura(), practica.getAsignatura());
+            }
+        }
+        return asignaturas.values().stream()
+            .sorted(java.util.Comparator.comparingInt(a -> AvanceAcademicoService.semestreNumerico(a.getSemestre())))
+            .flatMap(a -> avanceAcademicoService.evaluacionesConPauta(estudiante, a).stream())
+            .toList();
     }
 
     @Transactional(readOnly = true)

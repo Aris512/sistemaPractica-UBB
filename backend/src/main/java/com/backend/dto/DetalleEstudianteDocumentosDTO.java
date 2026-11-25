@@ -15,6 +15,8 @@ public class DetalleEstudianteDocumentosDTO {
     private List<ProfesorContactoDTO> profesores;
     private List<DocumentoItemDTO> documentos;
     private List<TareaSeguimientoDTO> tareas;
+    /** Evaluaciones con pauta de sus asignaturas hasta 8.° semestre (cuentan en el avance académico). */
+    private List<EvaluacionPautaDTO> pautas;
 
     public DetalleEstudianteDocumentosDTO() {
     }
@@ -131,5 +133,13 @@ public class DetalleEstudianteDocumentosDTO {
 
     public void setTareas(List<TareaSeguimientoDTO> tareas) {
         this.tareas = tareas;
+    }
+
+    public List<EvaluacionPautaDTO> getPautas() {
+        return pautas;
+    }
+
+    public void setPautas(List<EvaluacionPautaDTO> pautas) {
+        this.pautas = pautas;
     }
 }

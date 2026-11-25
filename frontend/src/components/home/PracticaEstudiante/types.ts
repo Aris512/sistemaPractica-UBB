@@ -1,3 +1,5 @@
+import type { EvaluacionPauta } from "@/types/evaluacionPauta";
+
 export type PracticaMenuKey =
   | "inicio"
   | "portafolio"
@@ -52,11 +54,16 @@ export interface RubricaPractica {
   fechaCompletada: string | null;
 }
 
-/** Respuesta de GET /api/rubricas-practica/estudiante/{rut}. */
+/**
+ * Respuesta de GET /api/rubricas-practica/estudiante/{rut}. En las prácticas hasta 8.° semestre, «evaluaciones» trae
+ * las pautas con que evalúan al estudiante (una por pauta y evaluador) y es lo que mide el seguimiento; «rubricas»
+ * son las 6 evaluaciones anteriores a las pautas, que se muestran solo si no hay pautas.
+ */
 export interface AvancePractica {
   idPractica: number | null;
   colaboradores: { nombre: string; correo: string | null; centro: string | null }[];
   rubricas: RubricaPractica[];
+  evaluaciones?: EvaluacionPauta[];
 }
 
 export interface DatosPracticaEstudiante {

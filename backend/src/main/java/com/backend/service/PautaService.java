@@ -62,6 +62,7 @@ public class PautaService {
     private final NotaRepository notaRepository;
     private final NotaDeVozRepository notaDeVozRepository;
     private final FileStorageService fileStorageService;
+    private final AvanceAcademicoService avanceAcademicoService;
 
     public PautaService(PautaRepository pautaRepository,
                         PautaAplicacionRepository aplicacionRepository,
@@ -69,7 +70,8 @@ public class PautaService {
                         PautaAccesoService acceso,
                         NotaRepository notaRepository,
                         NotaDeVozRepository notaDeVozRepository,
-                        FileStorageService fileStorageService) {
+                        FileStorageService fileStorageService,
+                        AvanceAcademicoService avanceAcademicoService) {
         this.pautaRepository = pautaRepository;
         this.aplicacionRepository = aplicacionRepository;
         this.practicaRepository = practicaRepository;
@@ -77,6 +79,7 @@ public class PautaService {
         this.notaRepository = notaRepository;
         this.notaDeVozRepository = notaDeVozRepository;
         this.fileStorageService = fileStorageService;
+        this.avanceAcademicoService = avanceAcademicoService;
     }
 
     // ---------------------------------------------------------- Catálogo de pautas (HU-21)
@@ -233,14 +236,33 @@ public class PautaService {
                 ResultadoDTO r = resultadoDTO(app);
                 byte[] pdf = PautaPdfGenerator.generar(pauta, app,
                     new PautaPdfGenerator.Contexto(r.estudianteNombre(), r.estudianteRut(), r.evaluadorRol(), r.nota()));
-                String rol = r.evaluadorRol() != null ? r.evaluadorRol().toUpperCase(Locale.ROOT) : "EVALUADOR";
-                String nombre = ("Pauta_" + Objects.requireNonNullElse(pauta.getCodigo(), String.valueOf(pauta.getId())) + "_" + rol
-                        + ("FINALIZADA".equalsIgnoreCase(app.getEstado()) ? "" : "_BORRADOR"))
-                    .replaceAll("[^A-Za-z0-9_-]", "") + ".pdf";
-                resultado.add(new PdfPautaEstudiante(practica.getAsignatura(), nombre, pdf));
+                resultado.add(new PdfPautaEstudiante(practica.getAsignatura(), nombrePdf(pauta, app, r), pdf));
             }
         }
         return resultado;
+    }
+
+    /**
+     * PDF de una aplicación concreta, para el expediente del coordinador en «Documentos» (mismo control de acceso
+     * que el ZIP del expediente). Vacío si la aplicación no existe.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PdfPauta> pdfDeAplicacion(Long aplicacionId) {
+        if (aplicacionId == null) return Optional.empty();
+        return aplicacionRepository.findById(aplicacionId).map(app -> {
+            Pauta pauta = app.getPauta();
+            ResultadoDTO r = resultadoDTO(app);
+            byte[] pdf = PautaPdfGenerator.generar(pauta, app,
+                new PautaPdfGenerator.Contexto(r.estudianteNombre(), r.estudianteRut(), r.evaluadorRol(), r.nota()));
+            return new PdfPauta(nombrePdf(pauta, app, r), pdf);
+        });
+    }
+
+    private static String nombrePdf(Pauta pauta, PautaAplicacion app, ResultadoDTO r) {
+        String rol = r.evaluadorRol() != null ? r.evaluadorRol().toUpperCase(Locale.ROOT) : "EVALUADOR";
+        return ("Pauta_" + Objects.requireNonNullElse(pauta.getCodigo(), String.valueOf(pauta.getId())) + "_" + rol
+                + ("FINALIZADA".equalsIgnoreCase(app.getEstado()) ? "" : "_BORRADOR"))
+            .replaceAll("[^A-Za-z0-9_-]", "") + ".pdf";
     }
 
     /**
@@ -346,8 +368,11 @@ public class PautaService {
         }
 
         recalcular(app, pauta);
-        if (PautaAplicacion.FINALIZADA.equals(app.getEstado())) registrarNota(app, pauta);
-        return aplicacionDTO(aplicacionRepository.save(app), pauta);
+        boolean finalizada = PautaAplicacion.FINALIZADA.equals(app.getEstado());
+        if (finalizada) registrarNota(app, pauta);
+        PautaAplicacion guardada = aplicacionRepository.save(app);
+        if (finalizada) recalcularAvance(practica);
+        return aplicacionDTO(guardada, pauta);
     }
 
     /**
@@ -377,6 +402,7 @@ public class PautaService {
             }
         }
         eliminarAplicacion(app);
+        recalcularAvance(practica);
     }
 
     /**
@@ -417,7 +443,18 @@ public class PautaService {
         app.setFechaActualizacion(LocalDateTime.now());
         recalcular(app, pauta);
         quitarNota(app);
-        return aplicacionDTO(aplicacionRepository.save(app), pauta);
+        PautaAplicacion guardada = aplicacionRepository.save(app);
+        recalcularAvance(app.getPractica());
+        return aplicacionDTO(guardada, pauta);
+    }
+
+    /**
+     * Las pautas finalizadas cuentan en el avance académico de las asignaturas hasta 8.° semestre: al finalizar,
+     * reabrir o borrar una, se recalcula el estado del estudiante en la asignatura de la práctica.
+     */
+    private void recalcularAvance(Practica practica) {
+        if (practica == null || practica.getEstudiante() == null || practica.getAsignatura() == null) return;
+        avanceAcademicoService.recalcularYGuardar(practica.getEstudiante(), practica.getAsignatura());
     }
 
     /** Resultados visibles para quien consulta (estudiante, profesor de asignatura, coordinador o evaluador). */
@@ -709,7 +746,7 @@ public class PautaService {
     }
 
     /** Rol con que se completó la aplicación: si la pauta tiene varios evaluadores, el de quien la llenó. */
-    private static String rolDelEvaluador(PautaAplicacion a) {
+    static String rolDelEvaluador(PautaAplicacion a) {
         Set<String> roles = a.getPauta().evaluadoresLista();
         if (roles.size() <= 1 || a.getEvaluadorRut() == null) return a.getPauta().getEvaluador();
         Practica pr = a.getPractica();
