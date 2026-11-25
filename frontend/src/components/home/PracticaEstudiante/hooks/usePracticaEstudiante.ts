@@ -13,6 +13,7 @@ import type {
   PersonaEquipo,
   ActividadRecienteItem,
 } from "../types";
+import { nombreRolEvaluador } from "@/types/evaluacionPauta";
 
 interface PracticaApi {
   idPractica: number;
@@ -37,7 +38,8 @@ function etapa(id: string, titulo: string, subtitulo: string, estado: EstadoEtap
 /**
  * Etapas de la línea de tiempo según los datos reales de la práctica:
  * Inscripción (práctica asignada) → Inicio (centro, tutor y profesor colaborador asignados) →
- * Seguimiento (rúbricas y observaciones en curso) → Evaluación final (las 6 completadas).
+ * Seguimiento (evaluaciones en curso: las pautas, o las 6 rúbricas si la práctica no tiene pautas) →
+ * Evaluación final (todas completadas).
  */
 export function calcularEtapas(params: {
   tienePractica: boolean;
@@ -110,6 +112,10 @@ export function usePracticaEstudiante(user: UserSession) {
       const practica = practicas?.find((p) => p.idPractica === avance?.idPractica) ?? null;
       const rubricas = avance?.rubricas ?? [];
       const colaboradores = avance?.colaboradores ?? [];
+      // Prácticas hasta 8.° semestre: el seguimiento cuenta las pautas con que evalúan al alumno (una por pauta y
+      // evaluador). Sin pautas para su asignatura se usan las 6 rúbricas de antes.
+      const pautas = avance?.evaluaciones ?? [];
+      const usarPautas = pautas.length > 0;
 
       const asignatura = practica?.asignatura ?? estudianteDb?.asignatura;
       const esNoveno =
@@ -128,20 +134,35 @@ export function usePracticaEstudiante(user: UserSession) {
         colaboradores.length === 0 && "profesor colaborador",
       ].filter((f): f is string => !!f);
       const completadas = rubricas.filter((r) => r.estado === "COMPLETADA");
-      const notas = completadas.map((r) => r.nota).filter((n): n is number => n != null);
+      const pautasFinalizadas = pautas.filter((p) => p.estado === "FINALIZADA");
+      const notas = (usarPautas ? pautasFinalizadas.map((p) => p.nota) : completadas.map((r) => r.nota)).filter(
+        (n): n is number => n != null
+      );
       const promedio = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : null;
       const etapas = calcularEtapas({
         tienePractica: !!practica,
         faltantesEquipo,
-        completadas: completadas.length,
-        total: rubricas.length,
+        completadas: usarPautas ? pautasFinalizadas.length : completadas.length,
+        total: usarPautas ? pautas.length : rubricas.length,
         promedio,
       });
       const etapaActual = etapas.find((e) => e.estado === "cur")?.titulo ?? "Evaluación final";
 
       // Actividad reciente: evaluaciones completadas, entregas y revisiones, de la más nueva a la más antigua
       const eventos: (ActividadRecienteItem & { fecha: Date })[] = [];
-      completadas.forEach((r) => {
+      pautasFinalizadas.forEach((p) => {
+        if (!p.fecha) return;
+        eventos.push({
+          id: `pauta-${p.idAplicacion ?? `${p.idPauta}-${p.evaluadorRol}`}`,
+          descripcion: `${nombreRolEvaluador(p.evaluadorRol)} completó la pauta «${p.titulo || p.codigo || "Evaluación"}»${
+            p.nota != null ? ` (nota ${p.nota.toFixed(1)})` : ""
+          }`,
+          tiempo: "",
+          tipo: "check",
+          fecha: new Date(p.fecha),
+        });
+      });
+      (usarPautas ? [] : completadas).forEach((r) => {
         if (!r.fechaCompletada) return;
         const evaluador = r.tipoEvaluador === "TUTOR_PRACTICA" ? "El tutor" : "El profesor colaborador";
         eventos.push({

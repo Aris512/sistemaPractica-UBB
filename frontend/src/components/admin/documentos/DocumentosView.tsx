@@ -39,6 +39,7 @@ export function DocumentosView() {
     downloadStudentZip,
     downloadEvidenciaArchivo,
     downloadTareaZip,
+    downloadPautaPdf,
   } = useDocumentosFeatures();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -182,6 +183,7 @@ export function DocumentosView() {
         onDownloadZip={downloadStudentZip}
         onDownloadEvidenciaArchivo={downloadEvidenciaArchivo}
         onDownloadTareaZip={downloadTareaZip}
+        onDownloadPautaPdf={downloadPautaPdf}
       />
     </div>
   );
